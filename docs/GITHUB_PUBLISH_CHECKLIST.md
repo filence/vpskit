@@ -49,21 +49,23 @@
 ## 5. 首个草稿Release
 
 - [x] 确认 `docs/releases/v0.1.0.md` 与最终仓库地址一致；
-- [ ] 在CI通过的commit创建并push `v0.1.0` tag；
-- [ ] 手工运行 `Protected draft release`，输入 `v0.1.0`；
-- [ ] 审批 `production-release` Environment；
-- [ ] 工作流必须生成签名归档、`install.sh`、checksums、manifest、signature、versions.lock、SBOM和attestation；
-- [ ] 工作流只创建Draft，不自动公开。
+- [x] 在CI通过的commit创建并push `v0.1.0` tag；
+- [x] 通过 `workflow_dispatch` 运行 `Protected draft release`，输入 `v0.1.0`；
+- [x] 用户审批 `production-release` Environment；
+- [x] 工作流已生成签名归档、`install.sh`、checksums、manifest、signature、versions.lock、SBOM和attestation；
+- [x] 工作流只创建Draft，没有自动公开。
 
 ## 6. 草稿人工复核
 
-- [ ] Release tag与构建commit一致；
-- [ ] `checksums.txt`覆盖所有公开资产；
-- [ ] `install.sh`内嵌仓库、版本和归档SHA-256正确；
-- [ ] `gh attestation verify`验证归档、安装器和checksums；
+- [x] Release tag与构建commit一致；
+- [x] `checksums.txt`覆盖并验证全部六个其他公开资产；
+- [x] `install.sh`内嵌仓库、版本和归档SHA-256正确；
+- [x] Ed25519签名清单验证归档内十三个资产，外置清单、签名、版本锁和SBOM与归档内副本一致；
+- [x] 归档内可执行文件为 `0755`、普通文件为 `0644`；
+- [x] `gh attestation verify`验证归档、安装器和checksums；
 - [ ] 在一台干净Debian 13 amd64 VPS先运行 `--verify-only`；
 - [ ] 再执行一次正式一键安装、doctor、客户端ZIP下载与双协议连接；
-- [ ] Release Notes中的迁移、回滚、已知限制和上游版本准确；
+- [x] Release Notes中的安装地址、迁移、回滚、已知限制和上游版本准确；
 - [ ] 最后由用户明确确认Publish。
 
 只有第6节全部通过并发布后，README中的一键安装命令才可视为面向普通用户可用。
