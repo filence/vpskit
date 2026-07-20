@@ -115,7 +115,7 @@ jobs:
           VPSKIT_RELEASE_NEXT_PUBLIC_KEY: ${{ secrets.VPSKIT_RELEASE_NEXT_PUBLIC_KEY }}
         run: |
           set -euo pipefail
-          scripts/build-release.sh "$RELEASE_VERSION" "$GITHUB_REPOSITORY" "$RUNNER_TEMP/vpskit-dist"
+          bash scripts/build-release.sh "$RELEASE_VERSION" "$GITHUB_REPOSITORY" "$RUNNER_TEMP/vpskit-dist"
 
       - name: Generate build provenance
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
