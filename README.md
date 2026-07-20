@@ -4,7 +4,9 @@ VPSKit 是一个面向个人 VPS 的低资源、可回滚代理节点部署与�
 
 公开仓库：[filence/vpskit](https://github.com/filence/vpskit)
 
-> 当前正式版本：[`v0.1.0`](https://github.com/filence/vpskit/releases/tag/v0.1.0)。发布资产已经通过checksums、Ed25519签名清单、SPDX SBOM、Linux权限和GitHub attestation复核；当前公开安装用于完成最后一次普通用户从零部署与客户端回归。
+> 当前正式版本：[`v0.1.0`](https://github.com/filence/vpskit/releases/tag/v0.1.0)。发布资产已经通过checksums、Ed25519签名清单、SPDX SBOM、Linux权限和GitHub attestation复核；公开版本已经完成普通用户从零部署、客户端ZIP下载及REALITY/Hysteria2实际连接验收。
+
+第一阶段已于2026-07-20完成收尾，结论和证据边界见[`v0.1.0 第一阶段实机验收报告`](docs/PHASE1_ACCEPTANCE.md)。
 
 lab32 已在同一实验 VPS 完成 schema 5 迁移、无效 REALITY 目标零写入、目标切换并恢复、修订号递增、安全 ZIP、双协议回环及本地固定版本解析；修订3配置随后在 Clash Verge 与 Hiddify 中完成 REALITY、Hysteria2 四项 GUI 重新导入验收。
 
@@ -130,4 +132,4 @@ go test ./...
 staticcheck ./...
 ```
 
-GitHub Actions还会执行Linux amd64/arm64构建、固定版本客户端解析、ShellCheck、Gitleaks和SPDX SBOM生成。受保护发布工作流只创建草稿 Release，人工复核后才能公开。设计规范和实验记录位于 [vpskit-plan-20260717](vpskit-plan-20260717/README.md)。
+GitHub Actions还会执行Linux amd64/arm64构建、固定版本客户端解析、ShellCheck、Gitleaks和SPDX SBOM生成。受保护发布工作流只创建草稿 Release，人工复核后才能公开。设计规范和实验记录位于 [vpskit-plan-20260717](vpskit-plan-20260717/README.md)；方案Markdown保留在源码仓库，重复的二进制文档ZIP仅按需在本地生成，不纳入Git跟踪。

@@ -4,11 +4,15 @@
 
 | 平台 | 架构 | 当前等级 | 证据 |
 | --- | --- | --- | --- |
-| Debian 13 | amd64 | lab33最终Bootstrap与GUI已验证 | 双核心 balanced clean install、TCP/UDP同数字端口、证书受管副本、实例启停、备份/恢复、自更新、卸载/重装、重启持久化、orphan scan、Reality扫描器、schema 5迁移、目标切换恢复、安全客户端ZIP、固定Bootstrap、中文菜单和公网GUI客户端均通过 |
+| Debian 13 | amd64 | v0.1.0公开版本实机与GUI已验证 | 双核心 balanced clean install、TCP/UDP同数字端口、证书受管副本、实例启停、备份/恢复、自更新、卸载/重装、重启持久化、orphan scan、Reality扫描器、schema 5迁移、目标切换恢复、安全客户端ZIP、固定Bootstrap、中文菜单、SCP下载和公网GUI客户端均通过 |
 | Debian 12 | amd64 | 目标支持 | CI 容器 CLI 冒烟已配置，systemd VM 尚未运行 |
 | Ubuntu 24.04 | amd64 | 目标支持 | CI 容器 CLI 冒烟已配置，systemd VM 尚未运行 |
 | Debian 12/13 | arm64 | 目标支持 | 交叉编译已配置，云实机尚未运行 |
 | Ubuntu 24.04 | arm64 | 目标支持 | 交叉编译已配置，云实机尚未运行 |
+
+## v0.1.0公开版本验收
+
+2026-07-20，用户在重装后的Debian 13 amd64 VPS上使用公开 `v0.1.0` Release完整执行普通用户流程，客户端ZIP成功下载并导入Clash Verge与Hiddify，REALITY和Hysteria2均可实际使用。该结论只覆盖本表中Debian 13 amd64行，不替代其他系统、架构或长时间稳定性验证。完整结论见[`v0.1.0 第一阶段实机验收报告`](PHASE1_ACCEPTANCE.md)。
 
 ## lab31 客户端证据
 

@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- `v0.1.0`公开版本已完成普通用户从零安装、客户端ZIP下载、Clash Verge/Hiddify导入及REALITY/Hysteria2实际连接验收，第一阶段正式收尾。
+- 方案拆分文档和单文件同步版继续保留在源码仓库；重复的方案ZIP改为本地按需生成，不再作为Git源码对象跟踪。
 - 状态升级至schema 5，新增客户端配置修订号；旧schema 4安装在内存迁移时从修订1开始。
 - 新增 `vpskit export --format bundle`：生成权限为 `0600`、带SHA-256清单和离线说明的客户端ZIP，默认交给发起 `sudo` 的SSH用户，拒绝覆盖同名文件。
 - `vpskit export` 与 `status` 返回当前配置修订号。

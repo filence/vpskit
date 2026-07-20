@@ -5,3 +5,4 @@ _archive/
 *.local
 *.secret
 source-references/repos/
+/VPSKit-完整方案-*.zip
