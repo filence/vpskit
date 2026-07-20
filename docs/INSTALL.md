@@ -19,6 +19,44 @@ balanced双协议安装还需要：
 - 权限限制为目标Zone的Cloudflare API Token，至少具有Zone读取和DNS编辑权限；
 - ACME账户邮箱。
 
+### 1.1 放行TCP/UDP端口
+
+VPSKit默认让REALITY使用TCP/443、Hysteria2使用UDP/443。二者协议不同，可以共用数字端口443。安装前进入VPS服务商控制台，在实例关联的“安全组”“云防火墙”或“网络防火墙”中添加两条入站规则：
+
+| 用途 | 方向 | 协议 | 目标端口 | IPv4来源 | 动作 |
+| --- | --- | --- | ---: | --- | --- |
+| REALITY | 入站 | TCP | 443 | `0.0.0.0/0` | 允许 |
+| Hysteria2 | 入站 | UDP | 443 | `0.0.0.0/0` | 允许 |
+
+- 不要为了省事放行全部端口，也不要删除现有SSH入站规则；
+- VPS与客户端都使用IPv6时，再分别添加来源为 `::/0` 的TCP/443和UDP/443规则；
+- 如果在安装向导中改用自定义端口，安全组也必须改为放行对应协议的同一端口；
+- Cloudflare中的节点DNS记录必须保持“仅DNS”，不能开启橙色云代理。
+
+标准Debian 13通常没有启用UFW。登录VPS后先检查：
+
+```bash
+sudo ufw status
+```
+
+如果显示 `Status: inactive`，或提示找不到 `ufw`，不需要处理，也不要仅为本次安装启用UFW。如果显示 `Status: active`，执行：
+
+```bash
+sudo ufw allow 443/tcp comment 'VPSKit REALITY'
+sudo ufw allow 443/udp comment 'VPSKit Hysteria2'
+sudo ufw status
+```
+
+使用非默认端口时，把命令中的443替换成安装向导中实际填写的端口。如果系统使用firewalld、nftables或服务商自带的主机防火墙，也需要添加等价的TCP和UDP入站规则；VPSKit不会自动修改这些防火墙。
+
+安装前可检查443是否已被其他程序占用；没有输出表示当前没有监听者：
+
+```bash
+sudo ss -lntup | grep -E ':443\b'
+```
+
+安装完成后再次运行同一命令，应同时看到TCP监听和UDP监听。Windows PowerShell可用 `Test-NetConnection <VPS-IP> -Port 443` 检查TCP外部连通性；UDP是否可用应以Hiddify或其他Hysteria2客户端的实际连接测试为准。
+
 API Token只在安装向导中隐藏输入，通过进程环境交给固定版本lego，不应写进命令、仓库或聊天记录。
 
 ## 2. 在线安装
