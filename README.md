@@ -4,7 +4,7 @@ VPSKit 是一个面向个人 VPS 的低资源、可回滚代理节点部署与�
 
 公开仓库：[filence/vpskit](https://github.com/filence/vpskit)
 
-> 当前状态：发布前收口阶段。Debian 13 amd64 实机与 Clash Verge、Hiddify 客户端已经完成验收；固定 Release 的 `install.sh`、中文管理菜单和受保护草稿 Release 工作流已经实现，但生产签名环境和 GitHub Release 尚未建立/发布。不要把本仓库开发分支当成正式一键安装源。
+> 当前正式版本：[`v0.1.0`](https://github.com/filence/vpskit/releases/tag/v0.1.0)。发布资产已经通过checksums、Ed25519签名清单、SPDX SBOM、Linux权限和GitHub attestation复核；当前公开安装用于完成最后一次普通用户从零部署与客户端回归。
 
 lab32 已在同一实验 VPS 完成 schema 5 迁移、无效 REALITY 目标零写入、目标切换并恢复、修订号递增、安全 ZIP、双协议回环及本地固定版本解析；修订3配置随后在 Clash Verge 与 Hiddify 中完成 REALITY、Hysteria2 四项 GUI 重新导入验收。
 
@@ -21,9 +21,18 @@ lab33 继续完成固定版本Bootstrap、Linux归档权限、原位自更新与
 
 其他平台的证据等级见 [兼容性说明](docs/COMPATIBILITY.md)。
 
-## 首发使用流程
+## v0.1.0 一键安装
 
-正式 Release 将采用固定版本下载、签名校验和中文引导流程：
+在Debian 13 amd64 VPS的Bash中执行：
+
+```bash
+curl --fail --location --proto '=https' --tlsv1.2 \
+  --output install.sh \
+  'https://github.com/filence/vpskit/releases/download/v0.1.0/install.sh'
+sudo bash install.sh
+```
+
+安装器采用固定版本下载、签名校验和中文引导流程：
 
 ```text
 下载固定 Release
@@ -37,7 +46,7 @@ lab33 继续完成固定版本Bootstrap、Linux归档权限、原位自更新与
 → 导出客户端配置
 ```
 
-Bootstrap 不会默认修改 SSH、内核、BBR、系统防火墙或云安全组。正式安装命令只会在 Release 发布后写入本文档，不推荐执行来自 `main` 分支的 `curl | bash`。完整前置条件、在线/离线安装和客户端交付见[安装与首次使用](docs/INSTALL.md)。
+Bootstrap 不会默认修改 SSH、内核、BBR、系统防火墙或云安全组。不要执行来自 `main` 分支的脚本，也不推荐 `curl | bash`；上面的两步命令会先保存固定版本安装器，再由用户明确运行。完整前置条件、在线/离线安装和客户端交付见[安装与首次使用](docs/INSTALL.md)。
 
 ## 当前管理命令
 
