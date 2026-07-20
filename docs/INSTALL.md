@@ -42,6 +42,7 @@ VPSKit默认让REALITY使用TCP/443、Hysteria2使用UDP/443。二者协议不�
 
 | 用途 | 方向 | 协议 | 目标端口 | IPv4来源 | 动作 |
 | --- | --- | --- | ---: | --- | --- |
+| SSH管理 | 入站 | TCP | 实际SSH端口 | 现有SSH来源范围 | 允许 |
 | REALITY | 入站 | TCP | 443 | `0.0.0.0/0` | 允许 |
 | Hysteria2 | 入站 | UDP | 443 | `0.0.0.0/0` | 允许 |
 
@@ -50,21 +51,36 @@ VPSKit默认让REALITY使用TCP/443、Hysteria2使用UDP/443。二者协议不�
 - 如果在安装向导中改用自定义端口，安全组也必须改为放行对应协议的同一端口；
 - Cloudflare中的节点DNS记录必须保持“仅DNS”，不能开启橙色云代理。
 
-标准Debian 13通常没有启用UFW。登录VPS后先检查：
+服务商安全组是第一层入站防护。对于全新、专用于VPSKit的VPS，推荐再启用UFW作为主机侧第二层防护；两层都必须放行同一端口。VPSKit使用Cloudflare DNS-01申请证书，不需要开放TCP/80。
+
+不要同时混用UFW、firewalld和手写nftables规则。标准Debian 13通常没有启用UFW；下面的流程会先识别并放行当前SSH端口，再启用防火墙。执行期间保持当前SSH窗口和服务商网页控制台可用：
 
 ```bash
-sudo ufw status
+ssh_port="$(sudo /usr/sbin/sshd -T | awk '$1 == "port" {print $2; exit}')"
+if ! printf '%s\n' "$ssh_port" | grep -Eq '^[0-9]+$'; then
+    echo '无法识别SSH端口，停止配置UFW' >&2
+else
+    printf '检测到SSH端口：%s\n' "$ssh_port"
+    sudo apt-get install -y ufw
+    sudo ufw allow "$ssh_port"/tcp comment 'SSH'
+    sudo ufw allow 443/tcp comment 'VPSKit REALITY'
+    sudo ufw allow 443/udp comment 'VPSKit Hysteria2'
+    sudo ufw default deny incoming
+    sudo ufw default allow outgoing
+    sudo ufw show added
+fi
 ```
 
-如果显示 `Status: inactive`，或提示找不到 `ufw`，不需要处理，也不要仅为本次安装启用UFW。如果显示 `Status: active`，执行：
+确认输出中的SSH、TCP/443和UDP/443规则无误后再启用：
 
 ```bash
-sudo ufw allow 443/tcp comment 'VPSKit REALITY'
-sudo ufw allow 443/udp comment 'VPSKit Hysteria2'
-sudo ufw status
+sudo ufw enable
+sudo ufw status verbose
 ```
 
-使用非默认端口时，把命令中的443替换成安装向导中实际填写的端口。如果系统使用firewalld、nftables或服务商自带的主机防火墙，也需要添加等价的TCP和UDP入站规则；VPSKit不会自动修改这些防火墙。
+不要立即关闭原SSH窗口。打开第二个终端重新连接：新连接成功后才能关闭旧窗口；如果失败，在旧窗口执行 `sudo ufw disable` 恢复访问并重新检查SSH端口。使用非默认VPSKit端口时，把命令中的443替换成安装向导中实际填写的端口。
+
+如果系统已经由firewalld或手写nftables管理，不要再启用UFW，应在现有防火墙中添加等价规则。VPSKit不会自动修改主机防火墙或云安全组。UFW的启用、默认策略和远程管理行为可参考[Debian UFW手册](https://manpages.debian.org/trixie/ufw/ufw.8.en.html)和[Debian UFW说明](https://wiki.debian.org/Uncomplicated%20Firewall%20%28ufw%29)。
 
 安装前可检查443是否已被其他程序占用；没有输出表示当前没有监听者：
 
