@@ -167,6 +167,42 @@ Windows PowerShell示例：
 scp -P <SSH端口> <SSH用户>@<VPS地址>:/返回的绝对路径/vpskit-client-r0001-时间.zip .
 ```
 
+### 5.1 系统重装后的SSH主机密钥变化
+
+VPS重装系统后，即使公网IP没有变化，SSH主机密钥也会重新生成。此时SCP/SSH可能显示 `REMOTE HOST IDENTIFICATION HAS CHANGED` 并拒绝连接。该警告也可能代表中间人攻击，不能直接关闭严格校验或未经核对就删除旧记录。
+
+先在VPS服务商提供的网页控制台中读取新系统的ED25519主机密钥指纹：
+
+```bash
+sudo ssh-keygen -E sha256 -lf /etc/ssh/ssh_host_ed25519_key.pub
+```
+
+将输出的SHA-256指纹与Windows PowerShell中SCP警告显示的新指纹逐字核对。不一致时立即停止；完全一致且确认VPS刚刚重装后，才在Windows PowerShell中删除该地址的旧记录：
+
+```powershell
+$vpsHost = '203.0.113.10' # 替换为VPS公网IP
+ssh-keygen -R $vpsHost
+```
+
+SSH使用非默认端口时，OpenSSH还可能保存带端口的主机项，应精确移除对应项，例如：
+
+```powershell
+$knownHost = '[203.0.113.10]:2222' # 同时替换IP和SSH端口
+ssh-keygen -R $knownHost
+```
+
+随后重新执行SCP。首次连接会再次显示新指纹并询问是否继续；再次确认指纹一致后输入 `yes`，再输入SSH密码或密钥口令：
+
+```powershell
+scp -P 22 root@203.0.113.10:/root/vpskit-client-r0001-时间.zip .
+```
+
+下载完成后可在当前目录确认文件存在：
+
+```powershell
+Get-ChildItem -LiteralPath . -Filter 'vpskit-client-*.zip'
+```
+
 - Clash Verge：导入ZIP中的 `mihomo.yaml`；
 - Hiddify：优先导入 `share-links.txt` 中对应协议的分享链接；
 - sing-box：按协议使用 `sing-box-reality.json` 或 `sing-box-hysteria2.json`。
