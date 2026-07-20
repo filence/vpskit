@@ -1,0 +1,13 @@
+title = "VPSKit secret scanning policy"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Local-only paths excluded by .gitignore and never packaged"
+paths = [
+  '''(^|[\\/])\.build[\\/]''',
+  '''(^|[\\/])_Report[\\/]''',
+  '''(^|[\\/])前期环境须知\.md$''',
+  '''(^|[\\/])source-references[\\/]repos[\\/]''',
+]

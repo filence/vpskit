@@ -1,0 +1,7 @@
+.build/
+_Report/
+_archive/
+前期环境须知.md
+*.local
+*.secret
+source-references/repos/

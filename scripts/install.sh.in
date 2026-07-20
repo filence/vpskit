@@ -1,0 +1,235 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+readonly VPSKIT_RELEASE_VERSION='@VPSKIT_VERSION@'
+readonly VPSKIT_RELEASE_REPOSITORY='@VPSKIT_REPOSITORY@'
+readonly VPSKIT_RELEASE_ARCHIVE_SHA256='@VPSKIT_ARCHIVE_SHA256@'
+readonly VPSKIT_RELEASE_ARCHIVE_NAME="${VPSKIT_RELEASE_VERSION}-linux-amd64.tar.gz"
+
+archive_override=''
+verify_only='false'
+temporary_root=''
+
+fail() {
+    printf 'VPSKit安装失败：%s\n' "$1" >&2
+    exit 1
+}
+
+cleanup() {
+    unset VPSKIT_CF_DNS_API_TOKEN VPSKIT_ACME_SERVER VPSKIT_ACME_EMAIL || true
+    if [ -n "$temporary_root" ] && [ -d "$temporary_root" ]; then
+        case "$temporary_root" in
+            /tmp/vpskit-bootstrap.*) rm -rf -- "$temporary_root" ;;
+        esac
+    fi
+}
+trap cleanup EXIT HUP INT TERM
+
+usage() {
+    cat <<'EOF'
+用法：
+  sudo bash install.sh
+  sudo bash install.sh --archive /绝对路径/发布归档.tar.gz
+  sudo bash install.sh --archive /绝对路径/发布归档.tar.gz --verify-only
+
+选项：
+  --archive PATH  使用本地归档，仍执行内嵌SHA-256和签名包校验
+  --verify-only   只验证平台、归档和签名包，不安装或修改系统
+  -h, --help      显示帮助
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --archive)
+            [ "$#" -ge 2 ] || fail '--archive缺少路径'
+            archive_override="$2"
+            shift 2
+            ;;
+        --verify-only)
+            verify_only='true'
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            fail "未知参数：$1"
+            ;;
+    esac
+done
+
+[ "$(id -u)" -eq 0 ] || fail '必须以root运行，请使用 sudo bash install.sh'
+[ "$(uname -s)" = 'Linux' ] || fail '首个正式版本只支持Linux'
+[ "$(uname -m)" = 'x86_64' ] || fail '首个正式版本只验证Debian 13 amd64'
+
+os_id="$(awk -F= '$1 == "ID" {gsub(/"/, "", $2); print $2}' /etc/os-release)"
+os_version="$(awk -F= '$1 == "VERSION_ID" {gsub(/"/, "", $2); print $2}' /etc/os-release)"
+[ "$os_id" = 'debian' ] && [ "$os_version" = '13' ] || fail "首个正式版本只验证Debian 13，当前为 ${os_id:-unknown} ${os_version:-unknown}"
+
+for command_name in curl tar sha256sum awk grep mktemp chmod; do
+    command -v "$command_name" >/dev/null 2>&1 || fail "缺少必要命令：$command_name"
+done
+
+printf '%s\n' "$VPSKIT_RELEASE_VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || fail '安装器内嵌版本格式无效'
+printf '%s\n' "$VPSKIT_RELEASE_REPOSITORY" | grep -Eq '^[0-9A-Za-z_.-]+/[0-9A-Za-z_.-]+$' || fail '安装器内嵌GitHub仓库格式无效'
+printf '%s\n' "$VPSKIT_RELEASE_ARCHIVE_SHA256" | grep -Eq '^[0-9a-f]{64}$' || fail '安装器内嵌归档SHA-256格式无效'
+
+if [ -e /var/lib/vpskit/state.json ] && [ "$verify_only" != 'true' ]; then
+    fail '检测到现有VPSKit安装；请使用 vpskit update，不执行初始安装覆盖'
+fi
+
+temporary_root="$(mktemp -d /tmp/vpskit-bootstrap.XXXXXX)"
+chmod 0700 "$temporary_root"
+archive_path="$temporary_root/$VPSKIT_RELEASE_ARCHIVE_NAME"
+
+if [ -n "$archive_override" ]; then
+    case "$archive_override" in
+        /*) ;;
+        *) fail '--archive必须使用绝对路径' ;;
+    esac
+    [ -f "$archive_override" ] && [ ! -L "$archive_override" ] || fail '本地归档必须是普通非符号链接文件'
+    archive_path="$archive_override"
+else
+    archive_url="https://github.com/${VPSKIT_RELEASE_REPOSITORY}/releases/download/${VPSKIT_RELEASE_VERSION}/${VPSKIT_RELEASE_ARCHIVE_NAME}"
+    printf '正在下载固定Release：%s\n' "$VPSKIT_RELEASE_VERSION"
+    curl --fail --location --proto '=https' --tlsv1.2 --retry 3 --retry-delay 2 \
+        --output "$archive_path" "$archive_url" || fail '下载Release归档失败'
+fi
+
+actual_sha256="$(sha256sum "$archive_path" | awk '{print $1}')"
+[ "$actual_sha256" = "$VPSKIT_RELEASE_ARCHIVE_SHA256" ] || fail 'Release归档SHA-256不匹配'
+printf '归档SHA-256：PASS\n'
+
+while IFS= read -r entry; do
+    case "$entry" in
+        /*|../*|*/../*|*/..) fail 'Release归档包含不安全路径' ;;
+    esac
+done < <(tar -tzf "$archive_path")
+if tar -tvzf "$archive_path" | awk 'substr($1, 1, 1) == "l" || substr($1, 1, 1) == "h" { found = 1 } END { exit found ? 0 : 1 }'; then
+    fail 'Release归档不得包含符号链接或硬链接'
+fi
+
+tar -xzf "$archive_path" -C "$temporary_root"
+bundle="$temporary_root/$VPSKIT_RELEASE_VERSION"
+[ -d "$bundle" ] && [ ! -L "$bundle" ] || fail 'Release归档目录结构无效'
+for required in vpskit sing-box xray lego release-manifest.json release-manifest.sig versions.lock; do
+    [ -f "$bundle/$required" ] && [ ! -L "$bundle/$required" ] || fail "Release缺少受管资产：$required"
+done
+chmod 0755 "$bundle/vpskit" "$bundle/sing-box" "$bundle/xray" "$bundle/lego"
+"$bundle/vpskit" bundle verify --dir "$bundle" >/dev/null || fail 'Release签名清单校验失败'
+printf 'Release签名清单：PASS\n'
+
+if [ "$verify_only" = 'true' ]; then
+    printf 'VPSKit Bootstrap验证完成：PASS version=%s\n' "$VPSKIT_RELEASE_VERSION"
+    exit 0
+fi
+
+printf '\n请选择部署方案：\n'
+printf '  1. REALITY + Hysteria2（推荐）\n'
+printf '  2. 仅REALITY\n'
+read -r -p '请输入 [1/2]，默认1：' profile_choice
+profile_choice="${profile_choice:-1}"
+case "$profile_choice" in
+    1) profile='balanced' ;;
+    2) profile='reality-only' ;;
+    *) fail '部署方案选择无效' ;;
+esac
+
+read -r -p 'REALITY目标域名，默认 www.amazon.com：' reality_target
+reality_target="${reality_target:-www.amazon.com}"
+read -r -p 'REALITY TCP端口，默认443：' tcp_port
+tcp_port="${tcp_port:-443}"
+
+domain=''
+udp_port=''
+existing_certificate=''
+existing_key=''
+if [ "$profile" = 'balanced' ]; then
+    read -r -p 'Hysteria2证书域名：' domain
+    [ -n "$domain" ] || fail '双协议方案必须填写证书域名'
+    read -r -p "客户端连接地址，默认 $domain：" connect_host
+    connect_host="${connect_host:-$domain}"
+    read -r -p 'Hysteria2 UDP端口，默认443：' udp_port
+    udp_port="${udp_port:-443}"
+
+    printf '\n请选择首次安装的证书来源：\n'
+    printf '  1. Cloudflare DNS-01自动申请\n'
+    printf '  2. 导入已有证书和私钥（后续仍由Cloudflare DNS-01自动续期）\n'
+    read -r -p '请输入 [1/2]，默认1：' certificate_choice
+    certificate_choice="${certificate_choice:-1}"
+    case "$certificate_choice" in
+        1) ;;
+        2)
+            read -r -p '已有证书绝对路径：' existing_certificate
+            read -r -p '已有私钥绝对路径：' existing_key
+            [ -n "$existing_certificate" ] && [ -n "$existing_key" ] || fail '证书和私钥路径不能为空'
+            ;;
+        *) fail '证书来源选择无效' ;;
+    esac
+
+    printf '\n请选择ACME CA：\n'
+    printf '  1. ZeroSSL（当前实机路径）\n'
+    printf "  2. Let's Encrypt\n"
+    read -r -p '请输入 [1/2]，默认1：' ca_choice
+    ca_choice="${ca_choice:-1}"
+    case "$ca_choice" in
+        1) VPSKIT_ACME_SERVER='zerossl' ;;
+        2) VPSKIT_ACME_SERVER='letsencrypt' ;;
+        *) fail 'ACME CA选择无效' ;;
+    esac
+    read -r -p 'ACME账户邮箱：' VPSKIT_ACME_EMAIL
+    [ -n "$VPSKIT_ACME_EMAIL" ] || fail 'ACME账户邮箱不能为空'
+    read -r -s -p 'Cloudflare DNS API Token（输入不回显）：' VPSKIT_CF_DNS_API_TOKEN
+    printf '\n'
+    [ -n "$VPSKIT_CF_DNS_API_TOKEN" ] || fail 'Cloudflare Token不能为空'
+    export VPSKIT_ACME_SERVER VPSKIT_ACME_EMAIL VPSKIT_CF_DNS_API_TOKEN
+else
+    read -r -p '客户端连接地址（VPS IP或域名）：' connect_host
+    [ -n "$connect_host" ] || fail '客户端连接地址不能为空'
+fi
+
+printf '\n准备执行：\n'
+printf '  VPSKit版本：%s\n' "$VPSKIT_RELEASE_VERSION"
+printf '  部署方案：%s\n' "$profile"
+printf '  客户端地址：%s\n' "$connect_host"
+printf '  REALITY目标：%s:443\n' "$reality_target"
+printf '  REALITY监听：TCP/%s\n' "$tcp_port"
+if [ "$profile" = 'balanced' ]; then
+    printf '  Hysteria2域名：%s\n' "$domain"
+    printf '  Hysteria2监听：UDP/%s\n' "$udp_port"
+fi
+printf '  不自动修改：SSH、内核、BBR、防火墙、云安全组\n'
+read -r -p '输入 INSTALL 确认安装：' confirmation
+[ "$confirmation" = 'INSTALL' ] || fail '用户取消安装，系统未修改'
+
+if [ "$profile" = 'balanced' ]; then
+    install_args=(
+        install balanced
+        --bundle-dir "$bundle"
+        --domain "$domain"
+        --connect-host "$connect_host"
+        --reality-server-name "$reality_target"
+        --tcp-port "$tcp_port"
+        --udp-port "$udp_port"
+    )
+    if [ -n "$existing_certificate" ]; then
+        install_args+=(--existing-certificate "$existing_certificate" --existing-key "$existing_key")
+    fi
+else
+    install_args=(
+        install reality-only
+        --bundle-dir "$bundle"
+        --connect-host "$connect_host"
+        --reality-server-name "$reality_target"
+        --tcp-port "$tcp_port"
+    )
+fi
+
+"$bundle/vpskit" "${install_args[@]}"
+unset VPSKIT_CF_DNS_API_TOKEN VPSKIT_ACME_SERVER VPSKIT_ACME_EMAIL || true
+
+/usr/local/bin/vpskit doctor >/dev/null || fail '安装后完整诊断失败；请检查事务回滚记录'
+/usr/local/bin/vpskit export --format bundle
+printf '\nVPSKit安装与自动诊断完成。请按输出路径通过SCP/SFTP下载客户端ZIP。\n'

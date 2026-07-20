@@ -1,0 +1,173 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.26.5"
+  STATICCHECK_VERSION: "2026.1"
+  SHELLCHECK_VERSION: "0.11.0"
+  GITLEAKS_VERSION: "8.30.1"
+  SYFT_VERSION: "1.44.0"
+
+jobs:
+  quality:
+    name: Go, generated configs, shell and secrets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Verify formatting and modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' go_files < <(find cmd internal -type f -name '*.go' -print0)
+          unformatted="$(gofmt -l "${go_files[@]}")"
+          test -z "$unformatted" || { printf 'Unformatted Go files:\n%s\n' "$unformatted" >&2; exit 1; }
+          go mod verify
+
+      - name: Vet, test and static analysis
+        shell: bash
+        run: |
+          set -euo pipefail
+          go vet ./...
+          go test -race ./...
+          go install honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}
+          staticcheck ./...
+
+      - name: Parse generated clients with pinned sing-box
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive='sing-box-1.13.14-linux-amd64.tar.gz'
+          curl --fail --location --proto '=https' --tlsv1.2 --output "$archive" \
+            'https://github.com/SagerNet/sing-box/releases/download/v1.13.14/sing-box-1.13.14-linux-amd64.tar.gz'
+          printf '%s  %s\n' 'f48703461a15476951ac4967cdad339d986f4b8096b4eb3ff0829a500502d697' "$archive" | sha256sum --check --strict
+          tar -xzf "$archive"
+          export VPSKIT_SING_BOX_TEST_BIN="$PWD/sing-box-1.13.14-linux-amd64/sing-box"
+          go test ./internal/app ./internal/render
+
+      - name: ShellCheck pinned scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+          curl --fail --location --proto '=https' --tlsv1.2 --output "$archive" \
+            "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/${archive}"
+          printf '%s  %s\n' '8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198' "$archive" | sha256sum --check --strict
+          tar -xf "$archive"
+          mapfile -d '' shell_files < <(find scripts -type f \( -name '*.sh' -o -name '*.sh.in' \) -print0)
+          "shellcheck-v${SHELLCHECK_VERSION}/shellcheck" --severity=warning "${shell_files[@]}"
+
+      - name: Scan Git history for secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl --fail --location --proto '=https' --tlsv1.2 --output "$archive" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}"
+          printf '%s  %s\n' '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb' "$archive" | sha256sum --check --strict
+          tar -xzf "$archive" gitleaks
+          ./gitleaks git --redact --no-banner --config .gitleaks.toml --log-opts='--all'
+
+  build:
+    name: Build linux/${{ matrix.arch }}
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Build static binaries
+        shell: bash
+        env:
+          GOARCH: ${{ matrix.arch }}
+          GOOS: linux
+          CGO_ENABLED: "0"
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w -X main.version=ci-${GITHUB_SHA}" -o "dist/vpskit-linux-${GOARCH}" ./cmd/vpskit
+          go build -trimpath -ldflags '-s -w' -o "dist/vpskit-release-linux-${GOARCH}" ./cmd/vpskit-release
+          go version -m "dist/vpskit-linux-${GOARCH}" > "dist/vpskit-linux-${GOARCH}.modules.txt"
+          sha256sum "dist/vpskit-linux-${GOARCH}" "dist/vpskit-release-linux-${GOARCH}" > "dist/checksums-linux-${GOARCH}.txt"
+
+      - name: Generate SPDX SBOM
+        if: matrix.arch == 'amd64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="syft_${SYFT_VERSION}_linux_amd64.tar.gz"
+          curl --fail --location --proto '=https' --tlsv1.2 --output "$archive" \
+            "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/${archive}"
+          printf '%s  %s\n' '0e91737aee2b5baf1d255b959630194a302335d848ff97bb07921eb6205b5f5a' "$archive" | sha256sum --check --strict
+          tar -xzf "$archive" syft
+          ./syft "file:dist/vpskit-linux-amd64" -o spdx-json=dist/vpskit-linux-amd64.spdx.json
+
+      - name: Upload build evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: vpskit-linux-${{ matrix.arch }}-ci
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  distro-cli-smoke:
+    name: CLI smoke on ${{ matrix.image }}
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [debian:12-slim, debian:13-slim, ubuntu:24.04]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Build and execute in distro container
+        shell: bash
+        env:
+          IMAGE: ${{ matrix.image }}
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          set -euo pipefail
+          mkdir -p .ci
+          go build -trimpath -ldflags '-s -w -X main.version=ci-smoke' -o .ci/vpskit ./cmd/vpskit
+          docker run --rm --volume "$PWD/.ci:/work:ro" "$IMAGE" /work/vpskit version
