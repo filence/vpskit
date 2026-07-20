@@ -34,6 +34,6 @@
 
 开发机 `.build/keys` 内的实验密钥没有用于生产。当前与下一轮换密钥对在受控开发设备重新生成，两套完整密钥只保存在仓库外的ACL隔离私有目录；生产私钥不得写入仓库、普通CI、Release资产或日志。
 
-当前工作流代码、仓库、首发版本、生产Environment和生产签名信任根已经就绪；正式tag与草稿Release仍须按本门禁顺序建立，工作流也不会自动公开Release。
+当前工作流代码、仓库、首发版本、生产Environment、生产签名信任根、正式tag与草稿资产已经就绪。工作流本身仍只创建草稿；`v0.1.0`在资产复核后由用户明确确认公开，并以公开在线安装完成最后的普通用户实机回归。
 
 GitHub机制依据：[Environment与审批保护](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)、[构建来源证明](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations)、[`gh release create`草稿与tag校验](https://cli.github.com/manual/gh_release_create)。
