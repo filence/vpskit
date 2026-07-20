@@ -19,7 +19,24 @@ balanced双协议安装还需要：
 - 权限限制为目标Zone的Cloudflare API Token，至少具有Zone读取和DNS编辑权限；
 - ACME账户邮箱。
 
-### 1.1 放行TCP/UDP端口
+### 1.1 更新全新系统
+
+VPS服务商提供的Debian 13镜像可能早于当前安全更新。首次部署VPSKit前，建议由用户明确执行一次常规系统更新：
+
+```bash
+sudo apt-get update
+sudo apt-get upgrade -y
+sudo apt-get install -y ca-certificates curl
+sudo reboot
+```
+
+如果当前已经是root账户，可以去掉命令前的 `sudo`。执行 `reboot` 后SSH连接会断开；等待VPS重新启动并重新连接，再继续下面的端口放行和VPSKit安装。
+
+这里的 `apt-get update` 只刷新软件包索引，`apt-get upgrade` 才会安装当前Debian 13的软件与安全更新。不要修改APT软件源把Debian 12直接升级到13，也不要在不了解依赖变化时改用 `full-upgrade`。首个正式Bootstrap只验证全新安装的Debian 13 amd64。
+
+VPSKit安装器不会静默执行系统升级，因为升级可能重启SSH等服务、更新内核并要求重启，或遇到软件包锁和配置交互。系统更新始终保留为安装前的人工步骤。依据可参考[Debian系统维护与APT说明](https://www.debian.org/doc/manuals/debian-handbook/index.en.html)和[Debian安全更新FAQ](https://www.debian.org/security/faq.en.html)。
+
+### 1.2 放行TCP/UDP端口
 
 VPSKit默认让REALITY使用TCP/443、Hysteria2使用UDP/443。二者协议不同，可以共用数字端口443。安装前进入VPS服务商控制台，在实例关联的“安全组”“云防火墙”或“网络防火墙”中添加两条入站规则：
 
