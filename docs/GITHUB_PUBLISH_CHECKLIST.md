@@ -14,7 +14,7 @@
 - [x] 普通CI和受保护草稿Release工作流；
 - [x] README、安装手册、发布门禁、兼容矩阵、Changelog和正式方案包同步。
 
-源码在完成下面第2节的仓库选择后即可提交GitHub。现在不应直接发布正式Release，因为生产签名信任根尚未建立。
+源码已经提交到GitHub，生产签名信任根与受保护发布环境也已建立。现在仍不应直接公开正式Release：必须先完成tag、草稿资产核验和干净VPS人工回归。
 
 ## 2. 提交GitHub前需要用户确定
 
@@ -27,28 +27,28 @@
 
 ## 3. 生产签名环境
 
-- [ ] 在离线或受控设备生成新的当前Ed25519密钥对与下一轮换公钥；
-- [ ] 不使用 `.build/keys` 中的实验密钥；
-- [ ] 在GitHub建立 `production-release` Environment；
-- [ ] 配置需要的reviewer、禁止自批（若账户计划支持）、限制版本tag；
-- [ ] 写入 `VPSKIT_RELEASE_PRIVATE_KEY`；
-- [ ] 写入 `VPSKIT_RELEASE_PUBLIC_KEY`；
-- [ ] 写入 `VPSKIT_RELEASE_NEXT_PUBLIC_KEY`；
-- [ ] 确认三个值没有进入仓库、普通Actions变量、日志或Release资产。
+- [x] 在受控开发设备生成新的当前与下一轮换Ed25519密钥对；
+- [x] 未使用 `.build/keys` 中的实验密钥；
+- [x] 在GitHub建立 `production-release` Environment；
+- [x] 配置 `filence` reviewer与 `v0.*` tag限制；当前只有一个有权限账号，禁止自批会造成发布死锁，因此保留自己审批，公开Publish仍须单独人工确认；
+- [x] 写入 `VPSKIT_RELEASE_PRIVATE_KEY`；
+- [x] 写入 `VPSKIT_RELEASE_PUBLIC_KEY`；
+- [x] 写入 `VPSKIT_RELEASE_NEXT_PUBLIC_KEY`；
+- [x] 确认三个值没有进入仓库、普通Actions变量、日志或Release资产；两套完整密钥只保存在仓库外的ACL隔离私有目录。
 
 ## 4. 首次提交与CI
 
 - [x] 创建空GitHub仓库，不自动生成会与本地冲突的README/License；
-- [ ] 添加远端；
-- [ ] 复核首个commit候选清单；
-- [ ] commit并push `main`；
-- [ ] 等待 `.github/workflows/ci.yml` 全部通过；
-- [ ] 修复任何只在GitHub runner出现的问题；
-- [ ] 确认分支保护策略。
+- [x] 添加远端；
+- [x] 复核首个commit候选清单；
+- [x] commit并push `main`；
+- [x] 等待 `.github/workflows/ci.yml` 全部通过；
+- [x] GitHub runner未发现额外问题；
+- [x] `main`已启用严格CI状态检查、线性历史、禁止强推/删除和对话解决保护；发布准备提交完成后再要求管理员同样遵守。
 
 ## 5. 首个草稿Release
 
-- [ ] 确认 `docs/releases/v0.1.0.md` 与最终仓库地址一致；
+- [x] 确认 `docs/releases/v0.1.0.md` 与最终仓库地址一致；
 - [ ] 在CI通过的commit创建并push `v0.1.0` tag；
 - [ ] 手工运行 `Protected draft release`，输入 `v0.1.0`；
 - [ ] 审批 `production-release` Environment；

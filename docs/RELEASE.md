@@ -26,14 +26,14 @@
 6. 使用GitHub官方 `actions/attest` 生成构建来源证明；
 7. 只创建草稿Release，人工复核后才允许公开。
 
-公开仓库已经确定为 `filence/vpskit`。首次源码推送后必须创建 `production-release` Environment，配置审批/分支或tag限制，并写入以下三个secret：
+公开仓库为 `filence/vpskit`。`production-release` Environment已经创建，配置了 `filence` reviewer与 `v0.*` tag限制，并写入以下三个secret：
 
 - `VPSKIT_RELEASE_PRIVATE_KEY`；
 - `VPSKIT_RELEASE_PUBLIC_KEY`；
 - `VPSKIT_RELEASE_NEXT_PUBLIC_KEY`。
 
-开发机 `.build/keys` 内的实验密钥不得用作生产密钥。生产私钥不得写入仓库、普通CI、Release资产或日志。
+开发机 `.build/keys` 内的实验密钥没有用于生产。当前与下一轮换密钥对在受控开发设备重新生成，两套完整密钥只保存在仓库外的ACL隔离私有目录；生产私钥不得写入仓库、普通CI、Release资产或日志。
 
-当前工作流代码已经就绪，仓库地址和首发版本已经确认；生产Environment、生产密钥、正式tag和草稿Release仍须按本门禁顺序建立，因此不会自动公开Release。
+当前工作流代码、仓库、首发版本、生产Environment和生产签名信任根已经就绪；正式tag与草稿Release仍须按本门禁顺序建立，工作流也不会自动公开Release。
 
 GitHub机制依据：[Environment与审批保护](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)、[构建来源证明](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations)、[`gh release create`草稿与tag校验](https://cli.github.com/manual/gh_release_create)。

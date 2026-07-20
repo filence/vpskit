@@ -61,7 +61,7 @@ EAB 不写入发布包、不进入备份，安装后仅保存在 VPS 的 `/var/l
 - 重装后最终凭据已在 Clash Verge 与 Hiddify 中完成 REALITY、Hysteria2 四项人工验收；剩余工作属于正式多系统、长时间运行和运维观察矩阵，不影响本台 Debian 13 实验 VPS 的 lab31 验收结论。
 - 验收后已清除 VPS 重复恢复副本、旧 lab30 安装包和本机五批过期客户端配置；当前只保留一份受管回滚备份与四份最终客户端配置。
 - lab32 签名开发包已将远程安装迁移至 schema 5，并完成无效目标零写入、REALITY 目标切换后恢复亚马逊、修订号1→3、安全 ZIP、双协议回环和Windows固定版本解析；最终修订3配置已在 Clash Verge 与 Hiddify 中通过 REALITY、Hysteria2 四项重新导入验收。
-- lab33 已完成固定版本Bootstrap、显式Linux归档权限、原位自更新和中文管理菜单实机回归；随后在同一VPS创建并下载可校验恢复快照，执行受管卸载与最终Bootstrap从零重装。摘要/签名、schema 5初始修订、安全ZIP、doctor、证书、orphan scan、双协议回环及重启持久化通过，新配置已在Clash Verge与Hiddify完成REALITY、Hysteria2四项公网GUI验收。验收后已按用户确认删除远程11项恢复/安装临时材料与本机恢复目录，节点健康，accepted客户端配置保留。受保护GitHub工作流只会创建草稿Release，生产环境与密钥仍须在建仓后配置。
+- lab33 已完成固定版本Bootstrap、显式Linux归档权限、原位自更新和中文管理菜单实机回归；随后在同一VPS创建并下载可校验恢复快照，执行受管卸载与最终Bootstrap从零重装。摘要/签名、schema 5初始修订、安全ZIP、doctor、证书、orphan scan、双协议回环及重启持久化通过，新配置已在Clash Verge与Hiddify完成REALITY、Hysteria2四项公网GUI验收。验收后已按用户确认删除远程11项恢复/安装临时材料与本机恢复目录，节点健康，accepted客户端配置保留。源码已提交到公开仓库并通过全部GitHub CI；`production-release` Environment、`v0.*` tag限制和新生产签名信任根已经建立，受保护工作流仍只会创建草稿Release。
 
 ## 当前交付物
 
