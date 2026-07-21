@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"go.yaml.in/yaml/v3"
+
 	"vpskit.local/vpskit/internal/model"
 )
 
@@ -208,6 +210,55 @@ func TestMihomoEscapesUnicodeAndYAMLKeywords(t *testing.T) {
 	}
 	if !strings.Contains(string(configuration), "东京: yes-Reality") {
 		t.Fatalf("Unicode display name is missing: %s", configuration)
+	}
+}
+
+func TestMihomoACL4SSRProfilesIncludeExpectedProviders(t *testing.T) {
+	for _, test := range []struct {
+		profile string
+		count   int
+		antiAD  bool
+	}{
+		{model.RulesProfileACL4SSR, 20, false},
+		{model.RulesProfileACL4SSRAntiAD, 21, true},
+	} {
+		t.Run(test.profile, func(t *testing.T) {
+			values := testValues()
+			values.RulesProfile = test.profile
+			values.RulesetRevision = 3
+			configuration, err := Mihomo(values)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var decoded map[string]any
+			if err := yaml.Unmarshal(configuration, &decoded); err != nil {
+				t.Fatal(err)
+			}
+			providers, ok := decoded["rule-providers"].(map[string]any)
+			if !ok || len(providers) != test.count {
+				t.Fatalf("unexpected provider count: %#v", providers)
+			}
+			_, hasAntiAD := providers["anti-AD"]
+			if hasAntiAD != test.antiAD {
+				t.Fatalf("anti-AD presence=%t, want %t", hasAntiAD, test.antiAD)
+			}
+			if !strings.Contains(string(configuration), "enhanced-mode: fake-ip") || !strings.Contains(string(configuration), "sniffer:") {
+				t.Fatalf("ACL4SSR profile lacks fake-ip DNS or Sniffer: %s", configuration)
+			}
+			sniffer, ok := decoded["sniffer"].(map[string]any)
+			if !ok {
+				t.Fatalf("sniffer must be a mapping: %#v", decoded["sniffer"])
+			}
+			sniff, ok := sniffer["sniff"].(map[string]any)
+			if !ok {
+				t.Fatalf("sniffer.sniff must be a mapping: %#v", sniffer["sniff"])
+			}
+			for _, protocol := range []string{"HTTP", "TLS", "QUIC"} {
+				if _, ok := sniff[protocol].(map[string]any); !ok {
+					t.Fatalf("sniffer.%s must be an object with ports, got %#v", protocol, sniff[protocol])
+				}
+			}
+		})
 	}
 }
 

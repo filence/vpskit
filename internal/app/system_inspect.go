@@ -1,8 +1,10 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"runtime"
 	"strconv"
@@ -66,6 +68,7 @@ func collectSystemInspect() (map[string]any, error) {
 			listeners["hysteria2_udp"] = map[string]any{"port": state.Hysteria2.ListenPort, "listening": listenerPresent("udp", state.Hysteria2.ListenPort)}
 		}
 	}
+	network := collectNetworkInspect()
 	return map[string]any{
 		"inspected_at":       time.Now().UTC(),
 		"os":                 extractOSPrettyName(string(osRelease)),
@@ -80,7 +83,91 @@ func collectSystemInspect() (map[string]any, error) {
 		"reboot_required":    rebootRequired,
 		"services":           services,
 		"listeners":          listeners,
+		"network":            network,
 	}, nil
+}
+
+func collectNetworkInspect() map[string]any {
+	return map[string]any{
+		"ipv4": inspectIPFamily("-4"),
+		"ipv6": inspectIPFamily("-6"),
+		"dns":  inspectDNS(),
+	}
+}
+
+func inspectIPFamily(family string) map[string]any {
+	addressesOutput, addressesErr := runCommand("ip", "-o", family, "addr", "show", "scope", "global")
+	routeOutput, routeErr := runCommand("ip", family, "route", "show", "default")
+	addresses := parseGlobalIPAddresses(addressesOutput)
+	return map[string]any{
+		"configured":       len(addresses) > 0,
+		"global_addresses": addresses,
+		"default_route":    strings.TrimSpace(routeOutput),
+		"route_available":  routeErr == nil && strings.TrimSpace(routeOutput) != "",
+		"inspect_error":    firstNonEmptyError(addressesErr, routeErr),
+	}
+}
+
+func inspectDNS() map[string]any {
+	resolvConf, readErr := os.ReadFile("/etc/resolv.conf")
+	servers := parseResolvConfNameservers(string(resolvConf))
+	result := map[string]any{
+		"servers": servers,
+	}
+	if readErr != nil {
+		result["inspect_error"] = readErr.Error()
+		return result
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	addresses, err := net.DefaultResolver.LookupIPAddr(ctx, "one.one.one.one")
+	if err != nil {
+		result["resolution_status"] = "FAIL"
+		result["resolution_error"] = sanitizeText(err.Error(), "")
+		return result
+	}
+	values := make([]string, 0, len(addresses))
+	for _, address := range addresses {
+		values = append(values, address.IP.String())
+	}
+	result["resolution_status"] = "PASS"
+	result["resolved_addresses"] = values
+	return result
+}
+
+func parseGlobalIPAddresses(output string) []string {
+	values := make([]string, 0)
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Fields(line)
+		for index, field := range fields {
+			if (field == "inet" || field == "inet6") && index+1 < len(fields) {
+				values = append(values, fields[index+1])
+				break
+			}
+		}
+	}
+	return values
+}
+
+func parseResolvConfNameservers(content string) []string {
+	values := make([]string, 0)
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(strings.SplitN(line, "#", 2)[0])
+		fields := strings.Fields(line)
+		if len(fields) == 2 && fields[0] == "nameserver" {
+			values = append(values, fields[1])
+		}
+	}
+	return values
+}
+
+func firstNonEmptyError(values ...error) string {
+	for _, value := range values {
+		if value != nil {
+			return value.Error()
+		}
+	}
+	return ""
 }
 
 func parseMemInfo(content string) map[string]int64 {

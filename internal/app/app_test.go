@@ -111,7 +111,7 @@ func TestStateSchemaFiveAddsLegacyCompatibleNodeMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if state.SchemaVersion != 6 || state.ConfigRevision != 9 || state.Node.ID != "node-main" || state.Node.DisplayName != "JP" || !state.Node.EnabledInSubscription {
+	if state.SchemaVersion != model.SchemaVersion || state.ConfigRevision != 9 || state.Node.ID != "node-main" || state.Node.DisplayName != "JP" || !state.Node.EnabledInSubscription || state.Rules.Profile != model.RulesProfileMinimal || state.Rules.Revision != 0 {
 		t.Fatalf("unexpected schema 5 migration: %#v", state)
 	}
 }
@@ -750,6 +750,31 @@ func TestAutomaticRecoveryRunsOnlyBeforeMutatingCommands(t *testing.T) {
 		if shouldAutoRecover(command) {
 			t.Fatalf("read-only or explicit recovery command %s must not trigger automatic recovery", command)
 		}
+	}
+}
+
+func TestDoctorFixArgumentParsing(t *testing.T) {
+	fix, err := parseDoctorFixArguments(nil)
+	if err != nil || fix {
+		t.Fatalf("doctor without arguments should remain diagnostic-only: fix=%v err=%v", fix, err)
+	}
+	fix, err = parseDoctorFixArguments([]string{"--fix"})
+	if err != nil || !fix {
+		t.Fatalf("doctor --fix should be accepted: fix=%v err=%v", fix, err)
+	}
+	if _, err := parseDoctorFixArguments([]string{"--fix", "--force"}); err == nil {
+		t.Fatal("doctor should reject unsupported fix arguments")
+	}
+}
+
+func TestSystemInspectParsers(t *testing.T) {
+	addresses := parseGlobalIPAddresses("2: eth0    inet 203.0.113.10/24 brd 203.0.113.255 scope global eth0\n2: eth0    inet6 2001:db8::10/64 scope global")
+	if len(addresses) != 2 || addresses[0] != "203.0.113.10/24" || addresses[1] != "2001:db8::10/64" {
+		t.Fatalf("unexpected global addresses: %#v", addresses)
+	}
+	servers := parseResolvConfNameservers("# generated\nnameserver 1.1.1.1\nsearch example.test\nnameserver 2606:4700:4700::1111 # fallback\n")
+	if len(servers) != 2 || servers[0] != "1.1.1.1" || servers[1] != "2606:4700:4700::1111" {
+		t.Fatalf("unexpected resolv.conf nameservers: %#v", servers)
 	}
 }
 

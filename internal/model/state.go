@@ -2,7 +2,7 @@ package model
 
 import "time"
 
-const SchemaVersion = 6
+const SchemaVersion = 7
 
 type State struct {
 	SchemaVersion       int            `json:"schema_version"`
@@ -11,6 +11,7 @@ type State struct {
 	InstalledAt         time.Time      `json:"installed_at"`
 	Profile             string         `json:"profile"`
 	Node                NodeMetadata   `json:"node"`
+	Rules               RulesState     `json:"rules"`
 	ConnectHost         string         `json:"connect_host"`
 	Domain              string         `json:"domain"`
 	RealityServerName   string         `json:"reality_server_name"`
@@ -34,6 +35,19 @@ type NodeMetadata struct {
 	Priority              int      `json:"priority"`
 	Tags                  []string `json:"tags,omitempty"`
 	EnabledInSubscription bool     `json:"enabled_in_subscription"`
+}
+
+const (
+	RulesProfileMinimal       = "minimal"
+	RulesProfileACL4SSR       = "acl4ssr"
+	RulesProfileACL4SSRAntiAD = "acl4ssr-antiad"
+)
+
+// RulesState controls client-side routing only. It never changes proxy
+// inbounds or protocol credentials.
+type RulesState struct {
+	Profile  string `json:"profile"`
+	Revision int    `json:"revision"`
 }
 
 type CoreState struct {
@@ -88,6 +102,8 @@ type Secrets struct {
 type RuntimeValues struct {
 	Node              NodeMetadata
 	ClientRevision    int
+	RulesProfile      string
+	RulesetRevision   int
 	RealityEnabled    bool
 	Hysteria2Enabled  bool
 	ConnectHost       string

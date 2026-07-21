@@ -392,6 +392,9 @@ func clientFacingChanges(previous, updated model.State) []string {
 	if previous.Hysteria2.ListenPort != updated.Hysteria2.ListenPort {
 		changes = append(changes, "hysteria2.port")
 	}
+	if previous.Rules.Profile != updated.Rules.Profile || previous.Rules.Revision != updated.Rules.Revision {
+		changes = append(changes, "rules.profile")
+	}
 	return changes
 }
 
@@ -411,6 +414,8 @@ func runtimeValuesFromState(state model.State, secrets model.Secrets) model.Runt
 	return model.RuntimeValues{
 		Node:              state.Node,
 		ClientRevision:    state.ConfigRevision,
+		RulesProfile:      state.Rules.Profile,
+		RulesetRevision:   state.Rules.Revision,
 		RealityEnabled:    state.Reality.Enabled,
 		Hysteria2Enabled:  state.Hysteria2.Enabled,
 		ConnectHost:       state.ConnectHost,

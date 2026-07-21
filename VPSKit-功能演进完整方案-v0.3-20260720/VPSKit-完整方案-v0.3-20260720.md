@@ -1,22 +1,21 @@
-# VPSKit 功能演进完整方案 v0.3-R1
+# VPSKit 功能演进完整方案 v0.3-R3
 
 > 标题：VPSKit 功能演进完整方案
 >
-> 生成时间：2026-07-21 09:05
+> 生成时间：2026-07-21 16:20
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R1
+> 版本：v0.3-R3
 >
-> 用途：VPSKit 后续版本架构、订阅、规则、恢复、可选功能、验收和前期准备的统一实施依据
+> 用途：用户筛选后的 VPSKit 后续功能实施依据
 
 - 原编制日期：2026-07-20
-- 审查修订日期：2026-07-21
-- 源码审查基线：`main@22b6457db557b3fc3e4b723784e33d6d55f563fe`
-- 当前产品基线：VPSKit v0.1.0
-- 证据原则：规划、实现、解析、实机和长期运行分级表述；未验证能力不得标为 stable
+- 精简修订日期：2026-07-21
+- 当前产品基线：VPSKit 0.2.1-lab.4；方案 A、doctor --fix 与扩展 system inspect 已完成对应实机验收
+- 证据原则：仅保留功能进入实施路线；暂停功能不安排版本号
 
-本文件由同目录 00–12 分卷按顺序机械合并。出现歧义时，以分卷、`FILE-MANIFEST.md` 和对应源码审查基线共同判定。
+本文件由同目录 00–12 分卷按顺序机械合并。出现歧义时，以分卷、FILE-MANIFEST.md 和当前源码为准。
 
 ## 目录
 
@@ -25,187 +24,92 @@
 3. 02｜目标架构与扩展模型
 4. 03｜自动订阅与多客户端交付
 5. 04｜分流规则与去广告方案
-6. 05｜WARP 与 AI 出站方案
-7. 06｜恢复、多 VPS 与运维闭环
-8. 07｜系统工具与高级功能
-9. 08｜版本路线图与优先级
+6. 05｜WARP 与 AI 出站方案（暂停）
+7. 06｜恢复与多 VPS（暂停）
+8. 07｜Hysteria2 与最小系统运维功能
+9. 08｜精简版路线图与优先级
 10. 09｜测试验收与发布门禁
 11. 10｜参考项目与资料
 12. 11｜前期材料与环境准备
 13. 12｜审查记录与修订说明
 
----
-
 # 00｜执行摘要与决策清单
 
 > 标题：VPSKit 功能演进执行摘要与决策清单
 >
-> 生成时间：2026-07-21 09:05
+> 生成时间：2026-07-21 16:20
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R1
+> 版本：v0.3-R3
 >
-> 用途：给出源码审查后的产品结论、关键修订和执行优先级
+> 用途：记录用户筛选后的后续功能范围与实施优先级
 
-## 1. 审核结论
+## 1. 当前基线
 
-结论：**产品方向通过，但原路线图和订阅安全模型需要先修订再开发。**
+已完成的基线不再重复规划：Reality + Hysteria2 部署、单 VPS Workers/KV 自动订阅、Mihomo/Clash Verge 与 v2rayN 基础交付、生产发布、订阅读取令牌轮换和撤销。
 
-当前 `v0.1.0` 已经完成质量较高的部署核心。经本地源码、公开仓库和实机验收文档对照，以下能力属于已确认基线：
+后续目标收敛为：**先让现有双协议的客户端交付、规则、诊断和 Hysteria2 更可靠；不扩张为综合 VPS 面板。**
 
-- 固定 Release 安装、签名清单、摘要、SBOM 和 attestation；
-- Xray 承载 VLESS + REALITY + Vision；
-- sing-box 承载 Hysteria2 + TLS；
-- TCP/UDP 共用同一数字端口；
-- 配置、状态、备份、导出和变更修订的一致性；
-- 事务化修改、失败回滚、受管卸载和孤儿扫描；
-- Mihomo、sing-box、分享链接、二维码和安全客户端 ZIP；
-- Debian 13 amd64 普通用户端到端实机验收。
+## 2. 本轮保留范围
 
-后续不应重写这个闭环，而应通过小步垂直切片逐步扩展。
+| 范围 | 保留功能 | 目的 |
+| --- | --- | --- |
+| 架构 | 通用实例模型、Adapter、Renderer Registry | 解除 Reality/Hy2 固定字段耦合，为既有功能维护和未来扩展留接口。 |
+| 渲染 | 结构化 Mihomo YAML、节点元数据 | 稳定生成配置，并显示节点名、地区、提供商和稳定 ID。 |
+| 规则 | ACL4SSR、anti-AD、远程更新、DNS | 交付“节点 + 分流 + 去广告 + DNS”一体化 Mihomo 配置。 |
+| 运维 | `doctor --fix`、`system inspect` | 自动修复受管对象并汇总可读的机器/服务状态。 |
+| Hysteria2 | Salamander、拥塞控制/带宽建议、端口跳跃、UDP 调优 | 优先改善当前性能主节点的适应性和可诊断性。 |
+| 系统 | Fail2ban、更新/重启/时间/DNS/IPv6 检查 | 补最小安全与日常维护闭环。 |
 
-## 2. 本次必须修正的六项决策
+## 3. ACL4SSR 与 anti-AD 的确定方案
 
-### 2.1 架构不能等到 v0.7
+规则实现以用户提供的 Android Clash Meta 文档为依据，保留两个**明确可切换**的 Mihomo Profile：
 
-当前状态仍固定绑定 `Reality`、`Hysteria2` 和两个核心，`internal/app/app.go` 约 1484 行，Mihomo 仍由字符串拼接生成。若先堆自动订阅、多客户端和恢复，再到 v0.7 才抽象接口，会把新逻辑继续压入现有集中层。
+- **方案 A（默认）**：ACL4SSR 分流 + anti-AD 去广告 + fake-ip DNS + Sniffer；适合需要 App 域名级去广告的设备。
+- **方案 B（兼容回退）**：仅 ACL4SSR 分流 + fake-ip DNS + Sniffer；当 anti-AD 误杀登录、验证码、支付或图片接口时切换。
 
-修订为：
+两种方案共用 ACL4SSR 的 LAN、UnBan、Gemini、Telegram、AI、OpenAI、GitHub、YouTube、ProxyMedia、Bing、OneDrive、Microsoft、Apple、ChinaDomain、ChinaCompanyIp 和 ProxyGFWlist 等规则；方案 A 额外包含 anti-AD。
 
-- v0.1.1 先建立节点元数据、结构化 Mihomo 模型、Renderer/Publisher 最小接口；
-- 后续每个版本沿接口增加一个可验收的垂直切片；
-- 完整 `instances[]` 迁移必须在第三协议之前完成，但不做一次性大重构。
-
-### 2.2 自动订阅先做单 VPS 最小闭环
-
-首个订阅版本只承诺：
-
-1. 单 VPS；
-2. Mihomo 完整配置；
-3. v2rayN 节点订阅；
-4. 静态导出兜底；
-5. 读取 Token 轮换；
-6. 发布失败不影响现有节点。
-
-Loon、Shadowrocket、多 VPS 聚合和规则远程更新在这个闭环稳定后加入。
-
-### 2.3 不向 VPS 下发 Cloudflare 管理级 KV Token
-
-Cloudflare 的 Workers/KV 写权限属于账户或区域资源权限，不能据此实现“每台 VPS 只能写自己的某个 KV key”。因此原方案“每台 VPS 独立 API Token，单台泄露不能修改其他节点”的表述证据不足。
-
-修订为：
+规则优先级固定为：
 
 ```text
-VPS ──节点级发布凭据──> Worker 受认证发布入口
-Worker ──KV Binding──> 写入该 node_id 的命名空间
-客户端 ──读取 Token──> Worker 只读交付入口
+用户白名单
+→ LAN
+→ Google / Gemini / YouTube 专项代理
+→ UnBan
+→ anti-AD（仅方案 A）
+→ AI、OpenAI、GitHub、Telegram、媒体等代理
+→ 明确直连服务、国内域名和国内 IP
+→ MATCH,PROXY
 ```
 
-Cloudflare 管理级 Token 只用于本地或受保护 CI 部署 Worker，不常驻 VPS。
+客户端每 24 小时检查规则更新。当前已验收的 `r0007` 采用客户端直连 ACL4SSR、anti-AD 与 MetaCubeX 的远程 rule-provider URL，因此规则能自动更新，但上游可变分支的变更会直接影响客户端。**这不是已完成的来源固定机制。** 后续应补齐“下载、校验、记录来源修订、由 VPSKit/订阅后端发布不可变缓存”的闭环；在此之前，更新失败由 Mihomo 使用本地 rule-provider 缓存，而非 VPSKit 的镜像缓存。
 
-### 2.4 KV 发布不是全局原子切换
+## 4. 暂停规划（不排版本）
 
-Workers KV 是最终一致性存储，某些地区可能在缓存 TTL 内继续读取旧值。发布语义只能承诺：
+以下功能从活跃路线移除，除非未来重新由用户选回：Loon/Shadowrocket 新 Renderer、加密快照、少量多 VPS 聚合、WARP、AnyTLS、XHTTP + REALITY、TUIC、通用 BBR、Swap、通用防火墙管理和 Web 面板。
 
-- 每个已发布对象本身完整；
-- 客户端可能暂时读到旧的完整修订或新的完整修订；
-- 不宣称所有地区同一时刻切换；
-- 发布完成需经过回读与收敛观察；
-- 失败时可重新激活上一完整修订。
+这不是永久否定；只是当前不消耗实现与测试额度。
 
-### 2.5 Hysteria2 新字段必须绑定核心版本
+## 5. 精简后的实施顺序
 
-当前产品锁定 `sing-box v1.13.14`。Gecko、`bbr_profile`、随机跳跃上限和 Realm 等能力在上游文档中属于 `1.14.0` 变化，不能直接列为当前核心可用功能。
+1. 通用实例/Adapter/Renderer Registry、结构化 Mihomo 和节点元数据；
+2. ACL4SSR + anti-AD 的方案 A/B、远程规则修订、fake-ip DNS 与 Sniffer；
+3. `doctor --fix` 与 `system inspect`；
+4. Hysteria2 混淆、拥塞控制/带宽建议、端口跳跃与 UDP 调优；
+5. Fail2ban、系统更新/重启需求、时间同步、DNS/IPv6 健康检查。
 
-修订为：先完成独立核心升级门和客户端矩阵，再开放相应菜单；Salamander 与端口跳跃也必须按服务端防火墙实现方式单独验收。
+截至 2026-07-21 的实施状态：方案 A 已通过 Clash Verge Rev 的订阅更新、加载与实际连接验收；`doctor --fix` 和扩展后的 `system inspect` 已通过 Debian 13 amd64 实机验收。Fail2ban、Hysteria2 四项强化、系统更新候选检查和规则来源固定仍未实施。
 
-### 2.6 本地凭据作为授权操作入口
+## 6. 不变的安全原则
 
-现有本机忽略文件中的 root 密码和 Cloudflare Token 是用户为受控执行明确提供的凭据。文件被 `.gitignore` 排除且没有进入 Git；Agent 在本地读取并不等于凭据已经外泄，也不构成强制轮换条件。
-
-修订后的边界是：允许 Agent 在用户授权的 VPSKit/VPS/Cloudflare 任务范围内直接使用这些凭据，但不得在回复、日志、方案包或 Git 中回显；不得用于无关账户或扩大权限。只有发现真实泄露证据、用户要求、权限用途发生变化，或凭据本来就是短期凭据且任务结束时，才执行轮换或撤销。
-
-## 3. 用户需求结论
-
-当前明确需求：
-
-- 首批测试平台：Windows 11；
-- Windows 固定测试基线：Clash Verge Rev `v2.5.2`，Mihomo 核心 `v1.19.29`，v2rayN `v7.23.1`；
-- iOS：Loon、Shadowrocket；
-- Android：Clash 系客户端、v2rayN、Hiddify；
-- 希望使用固定、可自动更新的订阅地址；
-- 希望节点、策略组、分流规则和去广告规则共同更新；
-- 有 OpenAI、Gemini、Claude 等 AI 服务访问需求；
-- 当前未出现明显 UDP 封锁；
-- 系统功能可后置，但最终希望加入；
-- VPS 数量少，未来预计约 2～10 台；
-- 重装后既要支持全新凭据，也要支持恢复；
-- 偏好功能丰富，但不需要多租户、计费和机场管理。
-
-## 4. 修订后的优先级
-
-### P0：立即进入下一版本
-
-1. 自定义节点名称、地区、提供商和稳定节点 ID；
-2. Mihomo 结构化 YAML 渲染与固定版本解析测试；
-3. Renderer capability/compatibility profile；
-4. 本地订阅产物模型、修订清单和摘要；
-5. 静态发布后端，先验证生成与回滚；
-6. 单 VPS Workers 订阅最小闭环；
-7. 节点级发布入口与 Cloudflare 管理凭据分离；
-8. cleanup plan/apply；
-9. allowlist 驱动的脱敏诊断包；
-10. 当前敏感准备材料轮换与迁移。
-
-### P1：P0 稳定后
-
-1. 分流、DNS 和标准去广告规则包；
-2. v2rayN 路由规则独立交付；
-3. 可移植加密快照；
-4. Loon Renderer 实机验证；
-5. Shadowrocket Renderer 实机验证；
-6. 多 VPS 聚合和故障节点禁用；
-7. `doctor --fix` 安全修复子集；
-8. 1C1G/10G 长期资源观察。
-
-### P2：按明确需求和证据加入
-
-1. Hysteria2 Salamander；
-2. Hysteria2 端口跳跃；
-3. sing-box 1.14+ 升级后的 Gecko/BBR profile/Realm；
-4. WARP AI-only 精确出站；
-5. AnyTLS；
-6. XHTTP + REALITY；
-7. TUIC；
-8. UFW、BBR、Swap、Fail2ban 和内置 HTTPS 订阅后端。
-
-## 5. 明确不进入核心
-
-- 多用户、多租户、配额和流量计费；
-- 机场面板、注册、套餐和邀请码；
-- 默认安装 Docker、数据库或 Web 面板；
-- DD 重装、BBR Plus、锐速和第三方魔改内核；
-- 默认部署大量协议；
-- 默认将全部流量送入 WARP；
-- HTTPS MITM、用户 CA、脚本改写式去广告；
-- 把客户端 User-Agent 自动识别作为唯一订阅入口；
-- 把“AI 服务可访问”写成长期保证。
-
-## 6. 推荐开发顺序
-
-```text
-Renderer/元数据基础
-→ 单 VPS 自动订阅 MVP
-→ 分流、DNS 与去广告
-→ 加密可移植快照
-→ 更多客户端与多 VPS
-→ Hysteria2 增强
-→ WARP AI 出站
-→ 通用实例迁移完成后新增协议
-→ 系统工具
-→ v1.0 收口
-```
+- 新模块默认关闭、独立状态、可回滚和可卸载；
+- 不把 Cloudflare 管理 Token 放到 VPS；
+- Workers KV 只承诺完整旧/新修订的最终一致读取，不宣称全球原子切换；
+- 端口跳跃只由 VPSKit 自己管理精确的受管规则，云安全组仍需人工确认；
+- anti-AD 只做域名级 REJECT，不使用 MITM、用户 CA、HTTPS 解密或脚本改写；
+- 未通过 Windows 11 目标客户端实测的功能不得标记为 stable。
 
 ---
 
@@ -356,20 +260,20 @@ VPSKit 应继续定位为：
 
 ## 6. 模块边界
 
-| 功能               | 定位      | 默认状态         |
-| ---------------- | ------- | ------------ |
-| Reality/Hy2 生命周期 | 产品核心    | 按 Profile 启用 |
-| Renderer 和静态导出   | 产品核心    | 启用           |
-| 自动订阅 Publisher   | 客户端交付核心 | 用户配置后启用      |
-| 规则与去广告           | 客户端交付模块 | 标准规则可选       |
-| 本地备份与恢复          | 产品核心    | 启用           |
-| 可移植加密快照          | 生命周期扩展  | 显式导出         |
-| 多 VPS 聚合         | 少量节点协同  | 显式启用         |
-| WARP             | 可选出站模块  | 默认不安装        |
-| UFW/BBR/Swap     | 可选系统模块  | 默认不修改        |
-| Web 面板/数据库       | 暂不加入    | 不适用          |
-| Docker Backend   | 实验/后置   | 默认不启用        |
-| DD/魔改内核          | 不加入     | 不适用          |
+| 功能 | 定位 | 默认状态 |
+|---|---|---|
+| Reality/Hy2 生命周期 | 产品核心 | 按 Profile 启用 |
+| Renderer 和静态导出 | 产品核心 | 启用 |
+| 自动订阅 Publisher | 客户端交付核心 | 用户配置后启用 |
+| 规则与去广告 | 客户端交付模块 | 标准规则可选 |
+| 本地备份与恢复 | 产品核心 | 启用 |
+| 可移植加密快照 | 生命周期扩展 | 显式导出 |
+| 多 VPS 聚合 | 少量节点协同 | 显式启用 |
+| WARP | 可选出站模块 | 默认不安装 |
+| UFW/BBR/Swap | 可选系统模块 | 默认不修改 |
+| Web 面板/数据库 | 暂不加入 | 不适用 |
+| Docker Backend | 实验/后置 | 默认不启用 |
+| DD/魔改内核 | 不加入 | 不适用 |
 
 ## 7. 功能加入门槛
 
@@ -803,11 +707,11 @@ Worker ── KV Binding ──> 返回已激活完整产物
 
 三类凭据必须分离：
 
-| 凭据                  | 用途                         | 存放位置                   | 泄露影响                   |
-| ------------------- | -------------------------- | ---------------------- | ---------------------- |
-| Cloudflare 管理 Token | 部署 Worker/KV/Custom Domain | 本地凭据库或受保护 CI           | 可修改 Cloudflare 资源，最高风险 |
-| 节点级发布凭据             | 某台 VPS 发布自己的 node_id       | VPS `0600` secret file | 只能替换该 node_id 的候选内容    |
-| 订阅读取 Token          | 客户端 GET 订阅                 | 各客户端                   | 可读取节点凭据，不能发布           |
+| 凭据 | 用途 | 存放位置 | 泄露影响 |
+|---|---|---|---|
+| Cloudflare 管理 Token | 部署 Worker/KV/Custom Domain | 本地凭据库或受保护 CI | 可修改 Cloudflare 资源，最高风险 |
+| 节点级发布凭据 | 某台 VPS 发布自己的 node_id | VPS `0600` secret file | 只能替换该 node_id 的候选内容 |
+| 订阅读取 Token | 客户端 GET 订阅 | 各客户端 | 可读取节点凭据，不能发布 |
 
 不得让每台 VPS 直接持有 Workers KV Storage Write 管理 Token。Cloudflare 该权限是账户级资源权限，无法天然限制到单个 KV key。
 
@@ -1052,1393 +956,324 @@ Shadowrocket 缺少与开源项目同等级、可由 CI 固定的官方解析器
 
 # 04｜分流规则与去广告方案
 
-> 标题：VPSKit 分流规则与去广告方案
+> 标题：VPSKit ACL4SSR 与 anti-AD 规则方案
 >
-> 生成时间：2026-07-21 09:05
+> 生成时间：2026-07-21 16:20
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R1
+> 版本：v0.3-R3
 >
-> 用途：定义规则包、DNS 配套、来源治理、客户端适配和误杀回滚边界
+> 用途：定义保留的 Mihomo 分流、去广告、DNS、更新和回退能力
 
-## 1. 设计原则
+## 1. 范围
 
-分流和去广告属于客户端交付层，不属于服务端入站协议层。
+本卷仅定义 Mihomo/Clash 系客户端的规则交付。规则不写入 Xray 或 sing-box 入站，不改变 Reality/Hysteria2 凭据，也不重启 VPS 上的代理服务。
 
-因此：
+固定采用 ACL4SSR 作为分流来源、anti-AD 作为域名级去广告来源，并使用用户提供的 Android Clash Meta 方案 A/B 的优先级、DNS 和回退思路。
 
-- 不写入 Xray/Hy2 入站；
-- 不改变 Reality/Hysteria2 凭据；
-- 切换规则包只更新客户端产物；
-- 规则失败不重启服务端；
-- 规则可独立更新和回滚；
-- DNS 策略必须与规则一起设计；
-- 不把第三方规则仓库名称直接当作 VPSKit 的稳定产品契约。
+## 2. 两个可选 Profile
 
-## 2. 规则包
+| Profile | 内容 | 适用场景 |
+| --- | --- | --- |
+| `acl4ssr-antiad`（方案 A，默认） | ACL4SSR + anti-AD + fake-ip DNS + Sniffer | 已完成 Clash Verge Rev r0007 加载、切换与实际连接验收。 |
+| `acl4ssr`（方案 B） | ACL4SSR + fake-ip DNS + Sniffer | 已生成并通过渲染测试；仍待 Windows 客户端人工回退验收。 |
 
-### 2.1 `minimal`
+Profile 是订阅主配置的选择，不是单条节点链接的属性。切换 A/B 后客户端刷新主订阅；仅刷新 Rule Provider 不会切换 Profile 结构。
 
-```text
-LAN / 私网 → DIRECT
-其他 → PROXY
-```
+## 3. 规则集合与顺序
 
-最少依赖，适合排障和订阅 MVP。
-
-### 2.2 `cn-direct`
+两种方案共享以下 ACL4SSR 集合：
 
 ```text
-用户白名单 → DIRECT
-LAN / 私网 → DIRECT
-中国大陆常用域名/IP → DIRECT
-其他 → PROXY
+LocalAreaNetwork、UnBan、Gemini、SteamCN、Telegram、AI、OpenAi、Github、
+YouTube、ProxyMedia、Bing、OneDrive、Microsoft、Apple、ChinaDomain、
+ChinaCompanyIp、ProxyGFWlist
 ```
 
-作为日常分流的默认候选。是否启用取决于用户实际网络位置和 DNS 策略。
+为保持用户现有“Google 全业务代理”习惯，额外使用 Google Antigravity、Google 域名集和 Google IP 集；Gemini、YouTube 与 Google 总规则位于 UnBan 前面。
 
-### 2.3 `cn-direct-antiad`
-
-在 `cn-direct` 上增加高置信广告、跟踪和恶意域名阻断。
-
-### 2.4 `ai-enhanced`
+方案 A 再增加 `anti-AD`，完整命中顺序为：
 
 ```text
-OpenAI / ChatGPT / Codex → AI
-Gemini / Google AI → AI
-Claude / Anthropic → AI
-GitHub / Copilot → PROXY
-中国大陆服务 → DIRECT
-高置信广告 → REJECT
-其他 → PROXY
+用户白名单 / 用户自定义规则
+→ LocalAreaNetwork
+→ Google Antigravity、Gemini、YouTube、Google 域名/IP
+→ UnBan
+→ anti-AD → REJECT
+→ Telegram、AI、OpenAI、GitHub、媒体、Bing → PROXY
+→ OneDrive、Microsoft、Apple、SteamCN → DIRECT
+→ ChinaDomain、ChinaCompanyIp、GEOIP(CN) → DIRECT
+→ ProxyGFWlist → PROXY
+→ MATCH → PROXY
 ```
 
-未启用 WARP 时，`AI` 指向普通代理策略；启用 WARP 后，`AI` 可选 WARP 出站。
+Google 专项规则高于 anti-AD 是刻意选择：Google 旗下广告或统计域名可能走代理而非被拒绝，以“Google 全业务代理”优先。
 
-### 2.5 第三方兼容 Profile
+## 4. DNS 与 Sniffer
 
-可以提供：
+两个 Profile 都包含：
 
-- `source-acl4ssr`；
-- `source-anti-ad`；
-- `source-meta-rules`。
+- fake-ip DNS；
+- bootstrap DNS、直连 DNS、代理 DoH DNS；
+- Google/Gemini 规则集使用代理 DNS，国内域名使用国内 DNS；
+- `rule-providers` 经 `PROXY` 下载，避免直连 GitHub Raw 失败；
+- Sniffer 用于辅助将 IP 连接还原成域名；
+- LAN、`localhost`、`*.local`、`*.lan` 和系统连通性探测域名排除 fake-ip。
 
-这些是**规则来源 Profile**，不是 VPSKit 自有规则语义。启用时必须记录 commit/tag、摘要、许可证、转换方式和归属说明。
+具体 Mihomo 字段以已验证的目标核心版本为准；不把 Android 专用 TUN 参数写进订阅配置。
 
-## 3. 去广告等级
+## 5. 更新、来源与回滚
 
-### 关闭
+每个 Provider 的客户端检查周期为 `86400` 秒。当前来源为 ACL4SSR、anti-AD 和 MetaCubeX Google 数据集的远程 URL；Mihomo 负责下载和本地缓存。这提供了自动更新，但**当前版本尚未记录上游 revision、摘要、许可证或生成时间，也未建立 VPSKit 镜像缓存**。
 
-仅分流，不阻断广告。
-
-### 标准
-
-只使用高置信域名，默认推荐。
-
-### 严格
-
-加入更多跟踪、遥测和可疑域名，可能造成登录、支付、验证码、图片或 App 启动异常，必须显式选择。
-
-首版不做按客户端自动猜测等级。
-
-## 4. 规则优先级
-
-建议：
+发布链路：
 
 ```text
-用户白名单
-→ 用户自定义 DIRECT/PROXY/AI/REJECT
-→ LAN 与系统必要域名
-→ AI 专用规则
-→ 高置信广告/恶意域名
-→ 应用与服务分流
-→ 国内外基础分流
-→ FINAL
+当前：VPSKit 渲染 profile → 发布订阅主配置 → Mihomo 每 24 小时下载 provider 并使用其本地缓存。
+
+目标闭环（未实施）：拉取候选规则 → 格式/大小/摘要检查 → 生成不可变 ruleset revision
+→ Mihomo 解析与规则 smoke test → 发布主配置引用 → 回读
 ```
 
-白名单必须早于广告规则。用户自定义规则变更必须经过 lint 和冲突报告。
+当前不能保证上游内容的不可变性；上游不可用时由客户端使用已有 rule-provider 缓存。实现目标闭环前，不能宣称具备“规则 revision 回滚”。
 
-## 5. DNS 配套
+## 6. 白名单与误杀处理
 
-没有 DNS 设计的分流配置可能出现：
+用户白名单必须位于 anti-AD 前，优先支持精确 `DOMAIN`，确有必要才使用 `DOMAIN-SUFFIX`。白名单和自定义 DIRECT/PROXY/REJECT 规则在订阅状态中单独保存、可导入导出，并在变更时进行重复/遮蔽检查。
 
-- 代理域名被本地污染；
-- DNS 查询绕过预期策略；
-- IP 规则触发错误解析；
-- rule-provider 域名无法更新；
-- 启动时产生 DNS/bootstrap 循环。
+方案 A 发生登录、验证码、支付、图片或 App 启动异常时：先从客户端日志找出 `anti-AD → REJECT` 的域名，添加精确白名单；若误杀频繁，切换方案 B，不以关闭全部分流作为处理方式。
 
-Mihomo 完整配置至少定义：
+## 7. 能力边界与验收
 
-- bootstrap DNS；
-- 直连 DNS；
-- 代理/远程 DNS；
-- 节点域名解析路径；
-- rule-provider 下载路径；
-- IPv6 启用策略；
-- DNS 失败时的回退行为。
+anti-AD 可处理第三方广告、追踪、统计和部分启动广告域名；不能可靠处理 YouTube 内嵌广告、正常内容同域广告、服务端插入内容或需要 HTTPS 解密的广告。
 
-DNS 具体字段必须绑定固定 Mihomo 版本，不能仅复制社区模板。
+首个 stable 验收：
 
-## 6. 白名单和自定义规则
+- 方案 A 显示 21 个 Provider，含 anti-AD；方案 B 显示 20 个 Provider，不含 anti-AD；
+- ACL4SSR 与 anti-AD 可在 24 小时周期外手动刷新；
+- Google/Gemini/AI/GitHub/Telegram 命中代理，国内域名/IP 命中直连，未知流量命中 `MATCH,PROXY`；
+- A/B 切换、白名单、上游更新失败和回滚仍需在 Clash Verge 当前 Mihomo 版本验证。
 
-逻辑集合：
-
-```text
-custom_whitelist
-custom_direct
-custom_proxy
-custom_ai
-custom_reject
-```
-
-要求：
-
-- 可导出、导入和备份；
-- 每条规则记录来源：用户/内置/第三方；
-- 重复、遮蔽和永不命中规则给出警告；
-- 自定义白名单只影响客户端，不触发服务端重启；
-- 用户规则中不得出现订阅读取 Token 或协议私钥。
-
-## 7. 规则来源治理
-
-每个来源记录：
-
-- 名称和用途；
-- 官方仓库/上游 URL；
-- tag、commit 或固定 Release；
-- 下载摘要；
-- 原格式和目标格式；
-- behavior；
-- 许可证与 attribution；
-- 允许的自动更新策略；
-- 最近成功修订和上一可回滚修订；
-- 上游删除或许可证变化时的处置。
-
-禁止：
-
-- 客户端每次刷新时直接拉不固定的 `main`；
-- 无摘要、无来源、无许可证检查的规则进入 stable；
-- 将 `domain`、`ipcidr`、`classical` 混用；
-- 将规则源更新与节点凭据更新绑定为同一不可回滚动作；
-- 在公共规则资源中加入用户节点或订阅凭据。
-
-## 8. 公共规则与私密订阅分离
-
-广告、AI 分类、常规分流等规则本身不含节点秘密，建议通过公共、不可变、版本化路径提供：
-
-```text
-https://sub.example.com/rules/<pack>/<revision>/ads.mrs
-https://sub.example.com/rules/<pack>/<revision>/ai.mrs
-```
-
-主订阅仍受 read-token 保护。这样远程规则 URL 无需复制订阅 Token，降低日志和分享时的泄露面。
-
-用户私有规则可：
-
-- 小规模时内联到受保护主配置；
-- 规模较大时使用单独私密资源和独立 Token；
-- 不复用节点订阅读取 Token。
-
-## 9. Mihomo 实现
-
-示意：
-
-```yaml
-rule-providers:
-  ads:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://sub.example.com/rules/cn-direct-antiad/r0007/ads.mrs
-    path: ./rules/vpskit-ads-r0007.mrs
-    interval: 86400
-
-rules:
-  - RULE-SET,ads,REJECT
-  - RULE-SET,ai,AI
-  - RULE-SET,google,PROXY
-  - GEOIP,CN,DIRECT
-  - MATCH,PROXY
-```
-
-注意：
-
-- `mrs` 只适用于 Mihomo 支持的 domain/ipcidr behavior；
-- `classical` 规则使用对应 YAML/text 格式；
-- `path` 必须唯一且位于客户端允许目录；
-- 必须给 rule-provider 设置合理大小上限；
-- 远程更新失败时保留本地缓存。
-
-## 10. v2rayN 实现
-
-- 节点订阅不混入路由规则；
-- 路由通过独立 URL 导入；
-- Xray 和 sing-box 核心可能需要不同规则产物；
-- 用户需要首次选择/导入路由；
-- stable 前验证 Windows/Android UI 的 URL 更新行为；
-- 不宣称节点订阅会自动覆盖用户现有路由设置。
-
-## 11. Loon/Shadowrocket 实现
-
-- Loon 按官方远端配置/节点/规则入口生成；
-- Shadowrocket 以真实 App 版本和可回滚实机样本为准；
-- 两者的规则语法、策略名称、更新按钮行为分别测试；
-- 不用一份文本模板假设两者完全兼容；
-- 只有导入、刷新、命中、误杀白名单和 Token 轮换均通过后才标 stable。
-
-## 12. 去广告能力边界
-
-域名/IP 规则可处理：
-
-- 第三方广告域名；
-- 跟踪和统计域名；
-- 部分启动广告；
-- 部分恶意域名。
-
-不能保证处理：
-
-- YouTube 等内容流内嵌广告；
-- 广告和正常内容共域；
-- 服务端直接拼接内容；
-- 必须 HTTPS 解密才能识别的请求。
-
-首版禁止：
-
-- MITM；
-- 安装用户 CA；
-- HTTPS 解密；
-- 重写脚本；
-- 修改 App 返回内容。
-
-## 13. 更新与回滚
-
-```text
-下载固定来源
-→ 校验摘要、大小、许可证元数据和格式
-→ 转换目标格式
-→ lint 与冲突检查
-→ 固定版本客户端解析
-→ 规则 smoke test
-→ 发布新 ruleset_revision
-→ 回读
-→ 保留上一版本
-```
-
-异常时：
-
-- 不修改节点和服务端；
-- 不发布空规则或截断文件；
-- 重新激活上一完整规则修订；
-- 客户端继续使用旧缓存；
-- `doctor` 显示来源、修订和失败原因，但不打印私密 URL。
+不在本次精简范围：Loon/Shadowrocket Renderer、v2rayN 独立路由产物、MITM、HTTPS 解密和脚本去广告。
 
 ---
 
-# 05｜WARP 与 AI 出站方案
+# 05｜WARP 与 AI 出站方案（暂停）
 
 > 标题：VPSKit WARP 与 AI 出站方案
 >
-> 生成时间：2026-07-21 09:05
+> 生成时间：2026-07-21 15:30
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R1
+> 版本：v0.3-R2
 >
-> 用途：说明 WARP 的真实作用、可选实现、隐私回退、资源门槛和验收边界
+> 用途：保留被暂停功能的边界，避免其混入当前实现范围
 
-## 1. WARP 的作用
+WARP 与 AI 精确出站不在本轮保留范围，不安排版本号、不创建常驻进程、不增加规则出口，也不承诺 AI 服务可访问性。
 
-WARP 改变的是 VPS 到目标网站的出口路径：
-
-```text
-客户端 → Reality/Hy2 → VPS 原生出口 → 目标服务
-```
-
-启用后可变为：
-
-```text
-客户端 → Reality/Hy2 → VPS → 本地 WARP 代理 → Cloudflare 网络 → 目标服务
-```
-
-它不直接优化客户端到 VPS 的链路，所以不能据此解释或修复 Reality 比 Hy2 慢。
-
-## 2. 可能有帮助的场景
-
-- VPS 原生 IP 被某些服务限制；
-- 原生 IP 信誉较差；
-- IPv4/IPv6 出口或路由异常；
-- VPS 到特定服务的原生路径较差；
-- 希望 AI 域名与普通流量使用不同出口。
-
-## 3. 不能承诺
-
-- 不保证解锁 OpenAI、Gemini 或 Claude；
-- 不保证固定国家或地区；
-- 不保证出口 IP 长期稳定；
-- 不保证延迟或吞吐改善；
-- 不保证 Cloudflare 出口不会被目标服务限制；
-- 不替代优质 VPS 线路；
-- 不规避目标服务的账号、地区或使用条款。
-
-文档和菜单只能表述为“出口切换与可达性 A/B 测试”，不能写“AI 解锁”。
-
-## 4. 推荐实现
-
-优先使用 Cloudflare 官方 Linux WARP 客户端的本地代理能力，不采用来源不明的 WARP 注册脚本或凭据。
-
-```text
-sing-box outbound
-├── direct
-└── warp-socks/http → WARP Local Proxy
-
-route
-├── AI 规则 → warp
-└── 其他 → direct
-```
-
-Cloudflare 的 WARP 模式和命令可能随客户端版本变化。实现时必须：
-
-1. 固定 `cloudflare-warp` 包版本和仓库来源；
-2. 运行目标版本的 `warp-cli --help` / `warp-cli mode --help`；
-3. 探测 Local Proxy 是否在该 Linux 版本可用；
-4. 记录监听地址、端口和模式；
-5. 不在方案中硬编码未经目标版本验证的子命令。
-
-## 5. 模式
-
-### `ai-only`
-
-仅 AI 服务走 WARP，推荐默认模式。
-
-### `custom`
-
-用户指定域名/规则集走 WARP。
-
-### `global`
-
-全部代理出口走 WARP，高级模式，默认关闭。它更容易增加延迟、改变地区并影响非 AI 服务。
-
-## 6. 故障回退和隐私选择
-
-启用时要求用户明确选择：
-
-### availability-first
-
-```text
-AI → WARP
-WARP 不可用 → direct
-```
-
-优点是可用性高；风险是 WARP 故障时会暴露 VPS 原生出口。
-
-### privacy-first
-
-```text
-AI → WARP
-WARP 不可用 → block
-```
-
-适合不希望 AI 流量回落到原生 IP 的场景。
-
-不能在未提示用户的情况下自动从 `block` 改为 `direct`。
-
-## 7. 命令建议
-
-```bash
-vpskit feature warp preflight
-vpskit feature warp plan
-vpskit feature warp install
-vpskit feature warp status
-vpskit feature warp test --compare-direct
-vpskit feature warp route-pack ai
-vpskit feature warp route custom
-vpskit feature warp disable
-vpskit feature warp rollback
-vpskit feature warp remove
-```
-
-## 8. 健康检查
-
-检查：
-
-- WARP 包版本和服务状态；
-- Local Proxy 是否仅监听 loopback；
-- direct 与 WARP 出口 IPv4/IPv6/ASN；
-- direct 与 WARP 的 TLS、HTTP、延迟和基础吞吐对比；
-- OpenAI/Gemini/Claude 等目标的匿名可达性；
-- 失败回退是否符合用户选择；
-- SSH、Reality 和 Hy2 入站是否不受影响。
-
-“首页返回 200”不能证明登录后完整 AI 功能可用。需要用户以自己的合法账号做最终人工验证，且不得把 Cookie、会话或账号 Token交给 VPSKit。
-
-## 9. 常驻资源
-
-WARP 需要常驻进程。资源策略：
-
-- 默认不安装；
-- 安装前记录可用内存、swap、磁盘和当前核心 RSS；
-- 启用后记录 idle RSS、CPU 和句柄/连接数；
-- 1C1G 上分别测试空闲、更新解压、订阅生成和传输压力；
-- 不先写死官方“最低内存”作为本项目资源承诺；
-- 若可用内存或磁盘低于项目安全阈值，阻止安装并给出计划结果。
-
-## 10. 安全边界
-
-- Local Proxy 只监听 `127.0.0.1`/`::1`；
-- 不接管 SSH；
-- 不修改系统默认路由；
-- 不把所有系统流量默认送入 WARP；
-- 不把 WARP 注册信息写入客户端订阅或诊断包；
-- WARP 日志不得记录目标完整 URL 或订阅 Token；
-- 可以独立禁用和卸载；
-- 卸载后恢复 direct 或 block 的明确状态；
-- 失败不影响 Xray/Hy2 入站。
-
-## 11. AI 规则包
-
-首批候选：
-
-- OpenAI / ChatGPT / Codex；
-- Anthropic / Claude；
-- Gemini / Google AI Studio / Generative Language API；
-- GitHub Copilot。
-
-规则必须可审计和覆盖。不要把所有 Google、Microsoft 或 GitHub 流量无条件送入 WARP。
-
-## 12. 发布门槛
-
-WARP 功能标 stable 前必须具备：
-
-- Debian 13 amd64 安装、禁用、卸载实机；
-- 固定官方包版本；
-- loopback 监听证明；
-- availability-first 与 privacy-first 两种故障测试；
-- 1C1G 资源变化；
-- direct/WARP A/B 报告；
-- 至少一次系统重启持久化；
-- 不影响 SSH、Xray、sing-box 和证书续期；
-- 用户实际 AI 服务验证记录，但不包含账号秘密。
+若未来重新启用，必须独立评估：官方 WARP 客户端资源占用、`ai-only` 与 `custom` 路由、direct/WARP 对比、故障回退、订阅 Renderer 兼容性和隐私选择。它不能改善客户端到 VPS 的 Reality/Hysteria2 链路。
 
 ---
 
-# 06｜恢复、多 VPS 与运维闭环
+# 06｜恢复与多 VPS（暂停）
 
-> 标题：VPSKit 恢复、多 VPS 与运维闭环方案
+> 标题：VPSKit 恢复与多 VPS 方案
 >
-> 生成时间：2026-07-21 09:05
+> 生成时间：2026-07-21 15:30
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R1
+> 版本：v0.3-R2
 >
-> 用途：区分本地备份与可移植快照，定义重装恢复、多 VPS、修复、清理和诊断边界
+> 用途：保留被暂停功能的边界，避免其混入当前实现范围
 
-## 1. 先区分两类恢复能力
+加密可移植快照、全新/恢复部署模式、2～10 台 VPS 聚合、节点冲突处理和聚合策略组均从当前路线暂停。
 
-### 1.1 当前本地 backup/restore
-
-v0.1.0 已有受管备份与恢复，目标是同一台 VPS 上的事务回滚和配置恢复。它不是面向长期离线保存的加密灾备包。
-
-### 1.2 未来 portable snapshot
-
-可移植快照用于：
-
-- VPS 重装；
-- 更换系统或架构；
-- 离线保存；
-- 恢复节点身份、规则和订阅关系。
-
-文档、命令和状态必须使用不同名称，避免用户把本地备份误认为已加密的离线灾备。
-
-## 2. 两种重装模式
-
-### 全新部署
-
-- 生成新 UUID、Reality 密钥和 Hy2 密码；
-- 重新签发证书；
-- 生成新节点/订阅身份或替换旧节点；
-- 吊销旧订阅 Token；
-- 适合凭据可能泄露或希望完全重置。
-
-### 恢复部署
-
-- 恢复节点元数据和配置偏好；
-- 按策略恢复或轮换协议凭据；
-- 恢复规则选择；
-- 重建订阅关系；
-- 重新下载当前架构的固定核心二进制；
-- 重新签发或校验证书；
-- WARP 默认重新注册，不直接搬运设备注册状态。
-
-## 3. 可移植加密快照
-
-命令：
-
-```bash
-vpskit snapshot export
-vpskit snapshot inspect <file>
-vpskit snapshot restore <file> --plan
-vpskit snapshot restore <file> --apply
-```
-
-建议结构：
-
-```text
-snapshot.age
-├── encrypted payload
-│   ├── state.json
-│   ├── secrets/
-│   ├── certificates/
-│   ├── versions.lock
-│   ├── ownership.json
-│   ├── subscription.json
-│   ├── ruleset.json
-│   └── manifest.json
-└── minimal public envelope
-    ├── snapshot_schema
-    ├── created_at
-    ├── encryption_type
-    └── encrypted_sha256
-```
-
-公共 envelope 不记录 IP、域名、node ID、客户端名称或服务商。
-
-## 4. 加密与口令处理
-
-优先顺序：
-
-1. 用户提供的 age 公钥；
-2. age 口令模式；
-3. 未来可选硬件/密钥库集成。
-
-要求：
-
-- 固定 age 实现和版本，纳入签名资产与许可证清单；
-- 口令通过 TTY 或文件描述符输入，不进入 argv、环境变量、日志或 shell history；
-- 导出后立即执行完整性读回；
-- 错误口令和篡改必须在任何写入前失败；
-- 不支持普通 ZIP 密码或明文 tar；
-- 快照文件和解密口令不得放在同一位置。
-
-## 5. 快照内容边界
-
-包含：
-
-- 状态、节点元数据和实例配置；
-- 协议 secrets；
-- 受管证书和私钥；
-- 版本锁、ownership、schema；
-- 订阅 endpoint 元数据、read-token 策略和 node publisher 身份；
-- 规则选择和用户自定义规则；
-- 最近有效 Artifact Set 的摘要和可选加密副本；
-- 恢复说明。
-
-默认不包含：
-
-- SSH 私钥；
-- Cloudflare 管理级 Token；
-- root 密码；
-- 客户端 Cookie/账号会话；
-- WARP 设备注册材料；
-- 缓存、普通日志和可重新下载的核心二进制。
-
-Cloudflare ACME Token 是否包含必须由用户显式选择；默认建议恢复时重新注入或轮换。
-
-## 6. 恢复策略
-
-```text
-restore-identical
-restore-and-rotate-subscription
-restore-and-regenerate-protocol-secrets
-restore-config-only
-```
-
-### identical
-
-恢复协议凭据、节点身份和订阅读取地址。若旧 VPS 可能被攻破，不得选择。
-
-### rotate-subscription
-
-协议凭据不变，轮换读取和发布凭据。
-
-### regenerate-protocol-secrets
-
-恢复结构、规则和节点名，但重新生成协议凭据并要求客户端更新。
-
-### config-only
-
-只恢复非敏感配置偏好，不恢复密钥、证书或 Token。
-
-## 7. 恢复预演
-
-`--plan` 必须零写入并输出：
-
-- snapshot/schema/VPSKit 兼容性；
-- 系统、架构和磁盘条件；
-- 将创建、覆盖或跳过的受管对象；
-- 端口和服务冲突；
-- 域名、DNS 和证书要求；
-- 需要重新下载的当前架构二进制；
-- 需要重新签发的证书；
-- 是否保留订阅地址；
-- 将轮换的凭据；
-- 客户端是否必须更新；
-- 上游固定版本是否仍可获取；
-- 回滚点和失败策略。
-
-跨 amd64/arm64 恢复只恢复可移植状态，绝不复用旧架构二进制。
-
-## 8. 少量多 VPS
-
-目标规模约 2～10 台，不建设远程 shell 控制面。
-
-每台 VPS：
-
-- 独立 node ID、状态和协议凭据；
-- 独立节点级发布凭据；
-- 独立本地备份和加密快照；
-- 独立健康状态；
-- 只发布自己的 Node Manifest。
-
-订阅聚合器：
-
-- 聚合节点和策略组；
-- 标记地区、提供商和优先级；
-- 保留上一有效节点修订；
-- 可禁用故障节点；
-- 不保存 SSH 密码；
-- 不持有 root 权限；
-- 不远程执行系统命令。
-
-## 9. 节点命名与冲突处理
-
-显示名建议：
-
-```text
-<提供商>-<国家/城市>-<序号>-<协议>
-Provider-JP-Tokyo-01-Reality
-Provider-JP-Tokyo-01-Hysteria2
-```
-
-稳定 identity 使用 `node_id`，显示名可变。聚合时若重名：
-
-1. 添加用户可读序号；
-2. 仍冲突时添加 node ID 短后缀；
-3. 不用 IP、UUID 或 Token 解决冲突。
-
-## 10. 聚合策略
-
-```text
-PERFORMANCE：Hy2 优先，基于用户选择，不凭单次延迟自动判定
-STABLE：Reality 优先
-REGION-*：按地区分组
-AI：具备所选 AI 出站策略的节点
-MANUAL：全部可用节点手选
-```
-
-健康信息只用于提示和可选禁用，不在首版做自动频繁切换。
-
-## 11. doctor --fix
-
-允许自动修复：
-
-- 受管文件权限；
-- 缺失受管目录；
-- systemd daemon-reload；
-- 配置有效但未启用的 VPSKit 服务；
-- 可重建缓存；
-- 未完成事务恢复；
-- 订阅元数据与本地产物摘要不一致。
-
-禁止自动：
-
-- 修改 SSH；
-- 清空或重写未知防火墙；
-- 替换内核；
-- 关闭未知服务；
-- 删除唯一备份；
-- 更新系统全部软件包；
-- 轮换协议/订阅凭据；
-- 重新签发证书；
-- 将 WARP 隐私回退从 block 改为 direct。
-
-每项 fix 必须有 plan、执行记录和反向操作。
-
-## 12. cleanup
-
-```bash
-vpskit cleanup plan
-vpskit cleanup apply --plan-id <id>
-```
-
-候选范围：
-
-- 已结束旧事务；
-- 失败 staging；
-- 更新缓存；
-- 过期客户端 ZIP；
-- 旧规则缓存；
-- 超额日志；
-- 多余核心版本；
-- 超过保留数量的备份和发布修订。
-
-必须保留：
-
-- 当前和上一成功核心版本；
-- 当前状态和最近一次成功迁移前状态；
-- 至少一个可恢复本地备份；
-- 当前和上一客户端/规则发布；
-- 尚未确认下载的最新快照；
-- ownership 和审计索引。
-
-`plan-id` 应绑定候选清单摘要，防止计划显示后目录变化导致误删。
-
-## 13. 脱敏诊断包
-
-```bash
-vpskit support bundle
-```
-
-采用**字段 allowlist**，不是“收集所有文件后做字符串替换”。允许内容：
-
-- 系统、内核、架构；
-- 内存、磁盘、inode；
-- 服务状态和受管端口；
-- 核心版本；
-- 配置/规则/发布摘要；
-- 脱敏的结构化错误码；
-- 最近事务状态。
-
-不得包含：
-
-- 协议 UUID/密码/私钥；
-- TLS 私钥；
-- Cloudflare/WARP/发布凭据；
-- 完整订阅 URL；
-- SSH 密钥或密码；
-- 真实客户端配置；
-- shell history、环境变量全集或任意目录 dump。
-
-生成后运行二次 secret scan；发现疑似秘密时失败关闭，不生成“可能已脱敏”的包。
+`doctor --fix`、`system inspect` 与诊断能力没有取消，已迁入第 07 卷的最小运维范围。现有本地 backup/restore 保持原有能力，但不在本轮扩展为跨机器快照。
 
 ---
 
-# 07｜系统工具与高级功能
+# 07｜Hysteria2 与最小系统运维功能
 
-> 标题：VPSKit 系统工具与高级功能方案
+> 标题：VPSKit Hysteria2 与最小系统运维方案
 >
-> 生成时间：2026-07-21 09:05
+> 生成时间：2026-07-21 16:20
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R1
+> 版本：v0.3-R3
 >
-> 用途：定义系统模块、Hysteria2 版本门、新协议候选和明确排除项
+> 用途：定义保留的 Hysteria2 强化、诊断、安全和系统健康能力
 
-## 1. 原则
+## 1. 范围与原则
 
-系统功能最终可以加入，但不能成为 Reality/Hy2 安装前置。
+仅保留用户已选择的 Hysteria2 强化、`system inspect`、`doctor --fix`、Fail2ban 和系统健康检查。所有写操作采用 `status → plan → apply → verify → rollback`，不修改未知配置，不替换内核，不自动重启。
 
-所有模块必须：
+暂停：通用 BBR 管理、Swap、通用 UFW/firewalld 管理、第三方内核、新协议和 Web 面板。
 
-- 独立命令和状态；
-- 独立 ownership；
-- 先显示 plan；
-- 明确回滚；
-- 不修改未知配置；
-- 不随节点卸载自动删除，除非用户对该模块单独确认；
-- 不把“建议值”伪装成所有线路通用优化。
+## 2. `vpskit system inspect`
 
-## 2. 系统检查
+已实现并在 Debian 13 amd64 实机通过。当前只读输出：OS、架构、内核、内存、根磁盘使用量、拥塞控制、默认 qdisc、Xray/sing-box/证书 timer 状态、Reality TCP 与 Hysteria2 UDP 监听、时间同步、DNS 服务器与解析、IPv4/IPv6 全局地址和默认路由、重启需求。
 
-```bash
-vpskit system inspect
-```
+它是所有高级功能的前置检查，不自动修改系统。
 
-输出：
+尚未实现：CPU/inode、Xray/sing-box RSS、UDP buffer、网络错误计数、Fail2ban 状态和系统更新候选；这些不能在当前版本中宣称已经输出。
 
-- OS、架构、内核；
-- CPU、内存、Swap；
-- 磁盘和 inode；
-- systemd、时间同步、DNS；
-- IPv4/IPv6；
-- 当前拥塞控制和 qdisc；
-- TCP/UDP 监听；
-- UFW/firewalld/nftables；
-- cloud security group 人工检查提示；
-- reboot-required；
-- Xray/sing-box/WARP RSS；
-- UDP buffer 和网络错误计数。
+## 3. `doctor --fix`
 
-只读检查可先于系统写模块实现。
+已实现并在 Debian 13 amd64 实机通过。仅修复 VPSKit 自己可证明安全的问题：缺失或权限不正确的受管运行目录、systemd daemon-reload、校验和与核心配置校验均通过时未启用的 Xray/sing-box/证书续期 timer，以及未完成且具备既有恢复备份的 VPSKit 事务。
 
-## 3. 原生 BBR
+如果状态记录的配置校验和与磁盘实际配置不一致，或 Xray/sing-box 的配置校验失败，`doctor --fix` 会拒绝继续，而不会把未知配置拉起。当前不清理缓存，也不修改其他目录或权限。
 
-```bash
-vpskit system congestion status
-vpskit system congestion plan-bbr
-vpskit system congestion enable-bbr --plan-id <id>
-vpskit system congestion rollback
-```
+不得修改 SSH、未知服务、用户手写防火墙、系统包、内核或用户配置。
 
-边界：
+## 4. Hysteria2 强化
 
-- 只使用当前发行版内核已有 BBR；
-- 不替换内核；
-- 使用 VPSKit 专属 sysctl drop-in；
-- 记录原值；
-- 变更后验证实际生效值；
-- 需要重启时只提示，不自动重启；
-- 不保证 BBR 一定比当前算法更快。
+### 4.1 Salamander 混淆
 
-## 4. Swap
+作为默认关闭的可选项。启用前检查当前 sing-box、分享链接与 Windows 11 目标客户端是否都支持；订阅渲染器无法表达时拒绝发布，不静默丢字段。
 
-```bash
-vpskit system swap status
-vpskit system swap plan --size 512M
-vpskit system swap create --plan-id <id>
-vpskit system swap remove --plan-id <id>
-```
+### 4.2 拥塞控制与带宽建议
 
-规则：
+提供 direct/Reality/Hy2 的 RTT、吞吐、丢包、CPU 和 RSS 对比，并根据实测提出带宽、拥塞控制候选值。不得依据一次延迟测试自动改参数；保留恢复默认。
 
-- 默认不创建；
-- 检查磁盘、文件系统和现有 Swap；
-- 512MB 只是 1GB/10GB 机器的候选，不是固定值；
-- 使用显式受管文件；
-- 记录 fstab 变更和原始状态；
-- 节点卸载不自动删除；
-- 删除前确认不再使用且不是唯一系统 Swap。
+### 4.3 端口跳跃
 
-## 5. 防火墙
+客户端可使用明确的 UDP 端口范围和跳跃间隔。当前 sing-box 入站仍监听单个受管端口，由 VPSKit 的**专用 Hysteria2 redirect 组件**管理精确 IPv4/IPv6 重定向；它不是通用防火墙模块。
 
-```bash
-vpskit firewall inspect
-vpskit firewall plan
-vpskit firewall apply --plan-id <id>
-vpskit firewall rollback
-```
+启用前必须显示端口范围、现有规则影响、云安全组需开放的 UDP 范围和回滚动作。卸载只删除 VPSKit 创建的该组件规则，不给 sing-box `CAP_NET_ADMIN`。
 
-首批 stable：
+### 4.4 UDP 调优
 
-- active UFW；
-- active firewalld；
-- manual/noop。
+读取 socket buffer、`net.core.rmem_max/wmem_max` 和丢包计数，根据内存与目标吞吐生成受管 sysctl 建议；可选应用并记录原值。禁止套用不受控的大型“优化模板”。
 
-nftables 自动写入保持 experimental，直到验证：
+## 5. Fail2ban
 
-- 专用 table/chain；
-- hook priority；
-- 现有 default drop；
-- Docker/UFW 共存；
-- IPv4/IPv6；
-- 重启持久化；
-- 精确卸载；
-- Hysteria2 端口跳跃 redirect。
+可选保护 SSH 及未来有可靠文本日志的服务。Reality/Hy2 认证失败不做未经验证的自动封禁，避免误封和日志放大。安装、jail、白名单、启停与删除均独立受管。
 
-云安全组不由 VPSKit 自动修改，只输出准确端口/协议清单。
+## 6. 系统健康检查
 
-## 6. UDP 调优
+已实现：`reboot-required`、时间同步、DNS 可用性、IPv4/IPv6 配置与默认路由、磁盘使用量提示。系统更新候选和磁盘增长趋势仍待实现。默认只报告；系统更新、重启和 SSH 安全改动始终由用户单独执行。
 
-适用于 Hysteria2：
+## 7. 发布门
 
-- 读取 socket buffer 和 `net.core.rmem_max/wmem_max`；
-- 根据内存和目标吞吐生成建议；
-- 可选写入受管 sysctl；
-- 不盲目使用超大社区模板；
-- 记录修改前后值和压力测试；
-- 失败恢复原值。
-
-## 7. Hysteria2 能力与当前版本门
-
-当前生产基线为 `sing-box v1.13.14`。必须把能力分成以下层次：
-
-| 功能            | 当前核心判断                                                 | 实现前置                                  |
-| ------------- | ------------------------------------------------------ | ------------------------------------- |
-| Salamander    | sing-box 已有基础字段                                        | 服务端、分享链接和所有目标客户端验证                    |
-| 客户端端口跳跃       | sing-box outbound 自 1.11 有 `server_ports/hop_interval` | 客户端 Renderer 支持                       |
-| 服务端端口范围       | 当前 sing-box inbound 没有等价范围监听字段                         | VPSKit 防火墙 redirect 或评估独立 Hysteria 核心 |
-| Gecko         | 上游 sing-box 1.14.0 变化                                  | 先完成核心升级与客户端矩阵                         |
-| 随机跳跃上限        | 上游 sing-box 1.14.0 `hop_interval_max`                  | 核心和客户端均升级                             |
-| `bbr_profile` | 上游 sing-box 1.14.0                                     | 独立性能/CPU/丢包基准                         |
-| Realm         | 上游 sing-box 1.14.0                                     | 实验功能，不适合普通公网 VPS 优先实现                 |
-
-### 7.1 端口跳跃的安全实现
-
-当前 VPSKit 不应为了端口跳跃给 sing-box 服务进程增加 `CAP_NET_ADMIN`。
-
-优先设计：
-
-```text
-sing-box 继续监听单个受管 UDP 端口
-VPSKit firewall module 建立专用 redirect 规则
-客户端使用端口范围
-```
-
-要求：
-
-- 端口范围显式显示；
-- 云安全组由用户人工同步；
-- IPv4/IPv6 规则一致；
-- ownership 精确；
-- 重启后持久化；
-- 卸载只删除 VPSKit 创建的规则；
-- 客户端不支持时不输出范围。
-
-官方 Hysteria 核心的 Linux 端口范围会自行操作 nftables/iptables并需要相应权限；VPSKit 当前使用 sing-box，不得把该能力直接视为现有服务端实现。
-
-## 8. Hysteria2 性能功能
-
-- 不根据单次延迟测试自动修改拥塞控制；
-- 记录 direct/Hy2/Reality 的 RTT、吞吐、丢包、CPU 和 RSS；
-- 分开测试短连接、长下载和抖动链路；
-- 提供恢复默认；
-- 只有目标客户端支持相同字段时才写入订阅；
-- Hy2 可作为性能优先组首选，但不是全网条件下的绝对最快节点。
-
-## 9. 新协议顺序
-
-### AnyTLS
-
-优先级最高的新协议候选：
-
-- sing-box 1.12+ 有正式入站；
-- 可复用 sing-box 和证书；
-- TCP 路径与 Hy2 互补；
-- 必须先完成 `instances[]`、Renderer capability 和目标客户端矩阵；
-- 不进入默认 balanced Profile。
-
-### XHTTP + REALITY
-
-- 作为 Xray 传输扩展；
-- 与现有 RAW + REALITY 高度重叠；
-- 参数和客户端矩阵更复杂；
-- 仅 experimental；
-- 不与状态大迁移同一版本开发。
-
-### TUIC
-
-- 与 Hy2 同属 UDP/QUIC；
-- 边际收益较低；
-- 只有用户实际线路 A/B 明显优于 Hy2 时再加入；
-- 默认关闭 0-RTT 等高风险设置，按上游安全建议执行。
-
-## 10. Fail2ban
-
-可选模块，仅保护有可靠日志语义的服务，例如：
-
-- SSH；
-- 未来内置订阅 HTTPS 服务；
-- 其他明确文本日志来源。
-
-不对 Reality/Hy2 认证失败做未经验证的自动封禁，避免误封和日志放大。
-
-## 11. 明确不加入
-
-- BBR Plus、锐速、第三方内核；
-- 一键 DD；
-- 自动修改 SSH 端口；
-- 自动关闭密码登录；
-- 默认安装 Docker；
-- 默认 Web 面板；
-- 未固定版本的远程优化脚本；
-- 未经 plan 直接重写 sysctl、nftables 或 fstab。
+- 每项 Hysteria2 功能绑定当前锁定 sing-box 版本与目标客户端实测；
+- 端口跳跃在启用、重启、回滚和卸载后均验证端口范围不残留；
+- UDP 调优在 1C1G 条件下验证内存余量和恢复原值；
+- `doctor --fix` 不得触碰非 VPSKit 文件；
+- Fail2ban 只对已声明日志来源生效，并有白名单/卸载测试；
+- `system inspect` 在无 root 写权限时仍可输出安全的只读报告。
 
 ---
 
-# 08｜版本路线图与优先级
+# 08｜精简版路线图与优先级
 
-> 标题：VPSKit 版本路线图与优先级
+> 标题：VPSKit 精简版版本路线图
 >
-> 生成时间：2026-07-21 09:05
+> 生成时间：2026-07-21 16:20
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R1
+> 版本：v0.3-R3
 >
-> 用途：将功能演进拆成可发布、可回滚、可验收的垂直版本切片
+> 用途：将用户筛选后的功能拆成低风险、可验收的版本切片
 
-## 1. 路线调整原则
+## 1. 已完成
 
-原方案将架构重构放到 v0.7，晚于订阅、多客户端、恢复和 WARP。本次改为“从下一补丁版本开始切接口，第三协议前完成实例迁移”。
+`v0.2.0-lab.1` 已完成单 VPS 自动订阅、Mihomo/Clash Verge 与 v2rayN 基础交付、生产 Workers/KV 发布、令牌轮换/撤销和用户客户端自动更新验收。
 
-不做：
+`v0.2.1-lab.4` 已完成结构化 Mihomo、节点元数据、方案 A/B 的服务端渲染、方案 A Windows 11 Clash Verge Rev r0007 验收、`doctor --fix` 和 DNS/IPv4/IPv6 扩展 `system inspect`。规则来源固定、方案 B 人工回退、白名单、Fail2ban、更新候选检查和 Hysteria2 强化尚未完成。
 
-- 一次性大重构；
-- 同一版本同时引入状态大迁移、多个客户端和新协议；
-- 为追求版本号把 experimental 标成 stable。
+## 2. 下一个版本：架构、渲染与规则交付
 
-## 2. v0.1.1：Renderer 与运维基础
+目标：不增加协议和 VPS 数量，建立后续维护所需接口，并交付方案 A/B。
 
-目标：不改变现有双核心部署语义，建立后续扩展切缝。
+- 完成 ACL4SSR/anti-AD 来源固定与镜像缓存；
+- 完成方案 B 的 Clash Verge 人工回退、白名单和规则回滚；
+- 完成通用实例模型与 Adapter 的实际解耦（当前只完成 Renderer Registry 侧的扩展基础）。
 
-功能：
+## 3. 运维版本：安全修复与可观察性
 
-- 节点 `node_id`、显示名、地区和提供商元数据；
-- Mihomo 结构化 YAML；
-- Renderer interface、capability 和 compatibility profile；
-- 现有 Mihomo/sing-box/link Renderer 接入统一 Artifact Set；
-- static Publisher；
-- cleanup plan/apply；
-- allowlist support bundle；
-- `system inspect` 只读子集；
-- 本地准备材料安全整改。
+- 系统更新候选；
+- Fail2ban（仅 SSH 等有可靠日志的服务）。
 
-发布门：
-
-- schema 5 老状态迁移/回退；
-- 当前客户端输出参数零意外漂移；
-- 固定 Mihomo/sing-box/Xray 解析通过；
-- Debian 13 amd64 实机升级和回滚；
-- 现有 Reality/Hy2 GUI 回归。
-
-## 3. v0.2.0：单 VPS 自动订阅 MVP
-
-目标：从静态导出升级为持续交付，但保持最小范围。
-
-功能：
-
-- Workers Publisher；
-- 单 VPS 节点级发布入口；
-- Cloudflare 管理 Token 与 VPS 发布凭据分离；
-- Mihomo 完整配置订阅；
-- v2rayN 节点订阅；
-- ETag/Last-Modified/修订头；
-- read-token 轮换和吊销；
-- KV 最终一致性状态与回读；
-- static 后备导出。
-
-不包含：
-
-- Loon/Shadowrocket stable；
-- 多 VPS；
-- WARP；
-- 新协议。
-
-## 4. v0.2.1：分流、DNS 与去广告
-
-目标：节点、策略组、DNS、分流和广告规则共同交付。
-
-功能：
-
-- `minimal`；
-- `cn-direct`；
-- `cn-direct-antiad`；
-- `ai-enhanced`；
-- 白名单和自定义规则；
-- 标准/严格广告模式；
-- 公共版本化规则资源；
-- `ruleset_revision`；
-- 来源锁、许可证记录和规则回滚；
-- v2rayN 路由导入实验支持。
-
-## 5. v0.3.0：可移植加密快照
-
-目标：重装后支持全新部署或安全恢复。
-
-功能：
-
-- age 加密 portable snapshot；
-- inspect/plan/apply；
-- identical/rotate/regenerate/config-only；
-- 跨架构只恢复状态并重新下载二进制；
-- 证书重新校验/签发；
-- read/publisher token 轮换；
-- 快照篡改和错误口令测试。
-
-## 6. v0.4.0：更多客户端与少量多 VPS
-
-目标：在订阅单节点闭环稳定后扩展客户端和聚合。
-
-功能：
-
-- Loon Renderer 和实机门；
-- Shadowrocket Renderer 和实机门；
-- Android 目标客户端明确化；
-- 2～10 台节点聚合；
-- 每台 VPS 节点级发布凭据；
-- 聚合策略组和命名冲突处理；
-- 故障节点禁用；
-- schema 7 `instances[]` 迁移完成。
-
-## 7. v0.5.0：Hysteria2 增强
-
-优先在当前 pin 上评估：
+## 4. Hysteria2 版本：现有性能主节点强化
 
 - Salamander；
-- 客户端端口跳跃；
-- VPSKit 防火墙 redirect；
-- UDP buffer 检查；
-- 性能、CPU、RSS 和丢包基准。
+- 拥塞控制与带宽建议；
+- RTT/吞吐/丢包/CPU/RSS 基准；
+- 端口跳跃及专用 redirect；
+- UDP buffer 检查与可回滚调优。
 
-若升级 sing-box 1.14+，另设核心升级子版本和回滚门，再评估：
+每项单独开关，先在当前锁定 sing-box 版本和目标客户端验证；不因上游文档存在字段就提前开放。
 
-- Gecko；
-- 随机跳跃区间；
-- `bbr_profile`；
-- Realm experimental。
+## 5. 暂停清单
 
-## 8. v0.6.0：WARP 与 AI 出站
+以下不再安排版本号：加密快照、多 VPS 聚合、Loon/Shadowrocket Renderer、WARP、新协议（AnyTLS/XHTTP/TUIC）、通用 BBR、Swap、通用防火墙管理、Docker、Web 面板和多租户功能。
 
-功能：
+重新启用任何一项前，必须由用户再次选择，并单独评估资源、客户端兼容性、回滚和验收成本。
 
-- 官方 Linux WARP 固定版本；
-- Local Proxy 能力探测；
-- `ai-only` 和 `custom`；
-- availability-first/privacy-first；
-- direct/WARP A/B；
-- 故障回退；
-- AI 规则包；
-- 资源和重启验证。
+## 6. 统一发布原则
 
-## 9. v0.7.0：新协议
-
-前提：通用实例模型、Renderer capability、迁移和客户端矩阵已稳定。
-
-顺序：
-
-1. AnyTLS experimental → stable；
-2. XHTTP + REALITY experimental；
-3. TUIC 仅在实线 A/B 有价值时加入。
-
-每个协议单独版本，不一次加入多个。
-
-## 10. v0.8.0：系统模块
-
-- UFW/firewalld；
-- 原生 BBR；
-- Swap；
-- UDP sysctl；
-- 系统更新辅助；
-- reboot-required；
-- Fail2ban；
-- 网络质量测试。
-
-系统模块不成为节点安装前置。
-
-## 11. v1.0：个人 VPS 综合管理版
-
-验收要求：
-
-- 所有 stable 功能均有固定版本和实机证据；
-- Debian 12/13、Ubuntu 24.04 的目标路径分级验证；
-- amd64 主路径和 arm64 主要路径；
-- 1C1G 长期稳定和 10GB 磁盘增长证据；
-- 自动订阅、规则、恢复和回滚闭环；
-- 多客户端兼容矩阵真实可复现；
-- 高风险模块默认关闭；
-- 迁移、卸载、灾备和安全文档完整。
-
-## 12. 每个版本的统一原则
-
-- 一次 Release 只解决一个主要风险域；
-- 先实现 rollback，再开放菜单入口；
-- experimental 不进入默认安装；
-- 每个新供应链来源必须固定版本、摘要和许可证；
-- 每个 Renderer 必须绑定 compatibility profile；
-- 当前 VPS 和客户端继续可用是最高回归门；
-- 版本完成取决于验收证据，不取决于功能代码已合并。
+- 一个版本只处理一个主要风险域；
+- 先有状态、回滚、测试，再开放菜单；
+- 规则来源和核心版本固定、可追溯；
+- 未经过目标客户端实测的能力只标 experimental；
+- 当前 Reality/Hy2 与已上线订阅始终是最高回归门。
 
 ---
 
-# 09｜测试验收与发布门禁
+# 09｜精简范围验收与发布门禁
 
-> 标题：VPSKit 测试验收与发布门禁
+> 标题：VPSKit 精简范围验收与发布门禁
 >
-> 生成时间：2026-07-21 09:05
+> 生成时间：2026-07-21 15:30
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R1
+> 版本：v0.3-R2
 >
-> 用途：为架构、订阅、规则、恢复和可选模块定义可复核的发布证据
+> 用途：限定当前保留功能的测试证据和发布条件
 
-## 1. 证据分级
+## 1. 通用门禁
 
-文档中的“支持”必须对应以下证据之一，不能用目标规划替代测试结论：
+- 固定版本构建、单元测试、配置解析和敏感信息扫描通过；
+- 当前 Reality、Hysteria2、生产订阅和静态导出不回归；
+- 每项写操作均有 plan、回读与 rollback；
+- Windows 11 Clash Verge Rev/Mihomo 与 v2rayN 作为首批客户端门禁。
 
-| 等级  | 含义                                 | 可使用的措辞        |
-| --- | ---------------------------------- | ------------- |
-| E0  | 仅设计或官方能力调研                         | 计划、候选、待验证     |
-| E1  | 单元测试、静态检查或 Renderer golden test 通过 | 实现完成，尚未实机     |
-| E2  | 固定版本客户端成功解析或导入                     | 已通过格式验证       |
-| E3  | 固定系统/架构的端到端部署、连接、更新和回滚通过           | 已在指定矩阵验证      |
-| E4  | 低资源长时间运行和故障注入通过                    | 可进入 stable 候选 |
+## 2. 架构、Renderer 与元数据
 
-每条验收记录必须写明：版本、系统、架构、命令或步骤、期望值、实际值、日志位置和结论。
+- 旧状态可迁移且可回退；
+- Renderer 产物经固定 Mihomo 版本解析；
+- 节点 ID、显示名、地区、提供商变更仅影响预期产物；
+- 订阅 revision、ETag 和旧 revision 回读保持正确。
 
-## 2. 当前基线与未验证边界
+## 3. ACL4SSR 与 anti-AD
 
-截至本次审查：
+- 方案 A 有 21 个 Provider，含 anti-AD；方案 B 有 20 个 Provider，不含 anti-AD；
+- fake-ip DNS、Sniffer、代理下载 Provider 和 24 小时更新在目标 Mihomo 验证；
+- Google/Gemini/AI/GitHub/Telegram 代理，国内域名/IP 直连，未知流量 `MATCH,PROXY`；
+- anti-AD 命中、精确白名单、A/B 切换、上游失败保留旧缓存和 ruleset rollback 均实测；
+- 不测试或宣称 YouTube 内嵌广告、MITM 或 HTTPS 解密效果。
 
-- 公共仓库主分支为提交 `22b6457db557b3fc3e4b723784e33d6d55f563fe`；
-- Debian 13 amd64 已完成 v0.1.0 第一阶段端到端验证；
-- GitHub Actions 对 Go、生成配置、Shell 和密钥扫描为成功状态；
-- Debian 12、Ubuntu 24.04、arm64 实机、1C1G 长时间运行、Loon、Shadowrocket、WARP 和便携快照仍未获得 E3/E4 证据；
-- v0.2.0 单 VPS 自动订阅已获得 E3 证据：Cloudflare 预发布/正式 Worker/KV 健康检查、节点级发布、远端回读、ETag/HEAD/304、Token 轮换/吊销、Debian 13 amd64 自动发布和 Win11 Clash Verge Rev/v2rayN 订阅更新均已通过；
-- 本次只修改方案文档，没有据此把未实现能力标为“已支持”。
+## 4. 运维与系统健康
 
-## 3. Renderer 与客户端门禁
+- `doctor --fix` 仅改变 VPSKit 受管对象；
+- `system inspect` 在低资源机器输出内存、磁盘、服务、UDP、DNS、时间、IPv4/IPv6 与重启需求；
+- Fail2ban 仅对声明的日志源封禁，白名单、停止与卸载均回读；
+- 更新检查只报告，不自动升级或重启。
 
-### 3.1 通用测试
+## 5. Hysteria2
 
-每个 Renderer 必须具有：
+- Salamander、拥塞控制参数和分享/订阅字段在服务端及目标客户端同时验证；
+- 端口跳跃验证端口范围、IPv4/IPv6 redirect、重启、云安全组提示与精确卸载；
+- UDP 调优在 1C1G 条件下验证资源余量、吞吐/丢包影响和原值恢复；
+- 性能报告同时记录 RTT、吞吐、丢包、CPU、RSS，不以单次延迟决定配置。
 
-1. 正常输入 golden test；
-2. 缺字段、错误类型、超长名称和特殊字符测试；
-3. IPv4、IPv6、域名三种服务器地址测试；
-4. 同名节点去重和稳定排序测试；
-5. 不输出未声明 capability 的字段；
-6. 输出中不得包含发布凭据、恢复口令或服务端私钥；
-7. 固定版本解析器或客户端的导入测试；
-8. 配置修订后可更新，旧配置仍能给出明确失败或迁移提示。
-
-### 3.2 客户端矩阵
-
-| 客户端                      | 固定测试基线                                                | 第一目标          | 进入 stable 前的最低证据                      |
-| ------------------------ | ----------------------------------------------------- | ------------- | ------------------------------------- |
-| Mihomo / Clash Verge Rev | Windows 11；Clash Verge Rev `v2.5.2`；Mihomo `v1.19.29` | 完整配置、策略组、远程规则 | 固定 Mihomo 核心解析 + Windows 实机导入、更新、规则命中 |
-| v2rayN Windows           | Windows 11；v2rayN `v7.23.1`                           | 节点订阅；路由规则独立导入 | 固定版本导入、更新和 Reality/Hysteria2 连接       |
-| Android Clash 类客户端       | 待提供具体应用、包名和核心版本                                       | Mihomo 完整配置   | Android 实机验证                          |
-| v2rayN Android           | 待提供版本                                                 | 节点订阅          | 固定版本导入、更新和连接；不得套用 Windows 结论          |
-| Loon                     | 待提供 iOS 与 Loon 版本                                     | 节点/配置/规则入口    | 真实设备导入、更新和规则命中                        |
-| Shadowrocket             | 待提供 iOS 与客户端版本                                        | 实验性完整配置或节点入口  | 真实设备验证；无证据时保持 experimental            |
-
-“固定测试基线”只表示版本选择已经完成。只有产生解析、导入、更新、规则命中和实际连接记录后，才提升证据等级。
-
-## 4. 自动订阅门禁
-
-### 4.1 发布端
-
-- 节点只能持有 `node_id` 级发布凭据，不能持有 Cloudflare 账户级 KV 管理 Token；
-- 发布接口校验节点身份、最大请求体、内容类型、修订号、时间窗和允许的 artifact 类型；
-- 同一 `node_id + revision + content_hash` 重试必须幂等；
-- 旧修订不能覆盖新修订；
-- 日志只记录 Token 指纹或末尾少量字符，禁止完整 URL 和完整凭据；
-- 凭据吊销后，旧凭据发布立即失败，读取端仍能读取最后一个有效修订；
-- 发布失败不得删除当前有效配置。
-
-### 4.2 读取端
-
-- 仅允许 `GET`、`HEAD`；其他方法返回明确状态；
-- 随机读取 Token 不得枚举或推断其他订阅；
-- 返回正确的 `Content-Type`、`ETag`、`Last-Modified`、修订号和合理缓存头；
-- `If-None-Match` 命中时返回 `304`；
-- Token 轮换支持限定时间的双 Token 过渡并可立即撤销；
-- `/auto` 识别失败时不能返回错误格式，应提示用户使用显式客户端路径；
-- 读取日志不得保存完整路径 Token。
-
-### 4.3 Workers KV 一致性测试
-
-Workers KV 是最终一致，不以跨 key 原子事务作为设计前提。必须验证：
-
-- 写入新修订后，不同区域只会看到“完整旧修订”或“完整新修订”；
-- manifest 最后发布，artifact 使用不可变的修订路径；
-- 缺少任一 artifact 时不切换 manifest；
-- 超时窗口内读取旧修订属于可接受状态，但混合修订属于失败；
-- 回滚通过发布新的 manifest 指针完成，不能原地拼接覆盖多份内容。
-
-## 5. 规则、DNS 与去广告门禁
-
-- 每个规则源记录仓库、固定提交或 Release、文件路径、许可证、摘要和抓取时间；
-- 构建期锁定源版本，运行时不从未知 `main` 直接更新；
-- domain、ipcidr、classical 与 MRS 格式分别进行解析测试；
-- 域名规则执行前，DNS 模式必须能提供真实域名或可靠映射；
-- Fake-IP、redir-host、IPv6、DoH/DoT 和 DNS 泄漏分别验证；
-- 广告拦截需用命中样例和误杀回归清单测试；
-- 白名单必须优先于第三方广告规则；
-- 公共规则 URL 不复用私有节点订阅 Token；
-- 上游不可用时继续使用最后一个通过校验的规则版本。
-
-## 6. 便携快照与恢复门禁
-
-### 6.1 快照生成
-
-- 明文暂存只存在于 `0700` 临时目录，文件权限为 `0600`；
-- 成功或失败退出都清理明文暂存；
-- 口令不通过命令行参数、日志或 shell history 传递；
-- 快照含 schema、VPSKit 版本、创建时间、来源主机摘要、内容清单和每项哈希；
-- 默认不含日志、缓存、核心二进制和无关系统文件；
-- 检查命令在不解密秘密内容的情况下显示公开 envelope。
-
-### 6.2 恢复
-
-- `inspect`、`plan`、`apply` 三段式；
-- 错误口令、损坏文件、旧 schema、新 schema 和部分文件缺失均安全失败；
-- 恢复前自动生成现有状态回滚点；
-- 相同架构和跨架构恢复只复用状态与凭据，核心二进制按目标平台重新下载和校验；
-- 支持“保留原凭据”和“重新生成协议凭据”两条路径；
-- 发布身份是否保留必须单独选择，不默认复制长期管理凭据；
-- 故障注入后能恢复到恢复前状态，或给出明确人工处置说明。
-
-## 7. Hysteria2、WARP 与系统模块门禁
-
-### Hysteria2
-
-- 每个高级字段与锁定 sing-box 版本对应；
-- `server_ports`/`hop_interval` 仅作为客户端能力处理，服务端跳跃范围必须有 VPSKit 管理的防火墙计划、应用和回滚；
-- 不为 sing-box/Xray 核心授予 `CAP_NET_ADMIN`；
-- 云安全组和主机防火墙端口范围分别检查；
-- UDP 不可用时 Reality 仍可连接。
-
-### WARP
-
-- 启用前记录官方客户端版本、模式和资源基线；
-- 只影响选择的 AI/custom 规则，不改变 SSH、系统默认路由和入站监听；
-- direct 与 WARP 出口分别测试 IP、地区、DNS、延迟和目标服务可用性；
-- 目标服务拒绝、WARP 断线和本地代理退出时按用户选择 fail-open 或 fail-closed；
-- 卸载后无残留路由、服务、仓库和配置。
-
-### 系统模块
-
-- 所有修改使用 VPSKit 专属 drop-in；
-- `plan` 输出具体文件、命令和预期重启影响；
-- `apply` 后读回内核/服务实际状态；
-- `rollback` 只撤销 VPSKit 自己创建的对象；
-- 不替换内核，不自动修改 SSH，不覆盖用户防火墙规则。
-
-## 8. 低资源与破坏性测试
-
-目标矩阵至少包含：
-
-- 1 vCPU / 1GB RAM / 10GB 磁盘；
-- 空闲 24 小时、持续传输、配置发布、规则更新、系统升级和磁盘接近阈值；
-- 记录 Xray、sing-box、可选 WARP、订阅发布时的 RSS、CPU、文件数和日志增长；
-- 模拟网络中断、DNS 故障、证书续期失败、磁盘满、进程被杀、发布端不可达、KV 延迟和错误快照；
-- 验证每个失败点是否保持旧配置可用、是否产生可读诊断、是否可回滚。
-
-## 9. 分阶段发布门禁
-
-| 阶段     | 必须通过                                                           |
-| ------ | -------------------------------------------------------------- |
-| v0.1.1 | 现有双协议回归、结构化 Renderer、golden、migrate check/plan、cleanup dry-run |
-| v0.2.0 | 单 VPS Mihomo 订阅、发布凭据隔离、KV 完整修订、Token 轮换、静态导出兜底                 |
-| v0.2.1 | DNS/规则/去广告、来源锁定、误杀回归、公共规则与私有订阅分离                               |
-| v0.3.0 | 加密快照、跨重装恢复、故障注入、明文零残留                                          |
-| v0.4.0 | 真实客户端矩阵、多 VPS 聚合、节点级隔离、状态 schema 迁移                            |
-| v0.5+  | 对应高级功能的版本门禁、资源预算、卸载和回滚证据                                       |
-| v1.0   | 所有 stable 能力达到 E3；核心路径达到 E4；文档、安装包与证据一致                        |
-
-## 10. 发布证据包
-
-每次正式发布保存：
-
-```text
-release-evidence/
-├── manifest.json
-├── environment.json
-├── checksums.txt
-├── unit-and-golden-tests.txt
-├── client-matrix.md
-├── e2e-results.md
-├── rollback-results.md
-├── resource-observations.csv
-└── known-limitations.md
-```
-
-最终原则：无法提供证据的能力只能标为 E0/E1 或 experimental；“官方支持某字段”不能替代 VPSKit 在锁定版本、目标系统和真实客户端上的验证。
+暂停功能不得通过“顺手实现”进入 Release；重新启用必须先增补专属验收门禁。
 
 ---
 
@@ -2514,11 +1349,11 @@ release-evidence/
 
 版本边界：
 
-| 能力                                               | 上游版本信息     | 对当前 `v1.13.14` 的结论   |
-| ------------------------------------------------ | ---------- | -------------------- |
-| Hysteria2 outbound `server_ports`、`hop_interval` | 1.11 起     | 可用于支持该字段的客户端输出，但仍需实测 |
-| AnyTLS                                           | 1.12 起     | 上游具备；VPSKit 未实现      |
-| Gecko、`bbr_profile`、Realm、部分跳跃增强                 | 1.14 文档/变更 | 当前锁定版本不能直接启用         |
+| 能力 | 上游版本信息 | 对当前 `v1.13.14` 的结论 |
+|---|---|---|
+| Hysteria2 outbound `server_ports`、`hop_interval` | 1.11 起 | 可用于支持该字段的客户端输出，但仍需实测 |
+| AnyTLS | 1.12 起 | 上游具备；VPSKit 未实现 |
+| Gecko、`bbr_profile`、Realm、部分跳跃增强 | 1.14 文档/变更 | 当前锁定版本不能直接启用 |
 
 官方 Hysteria 2 端口跳跃说明：<https://v2.hysteria.network/docs/advanced/Port-Hopping/>。该文档中的服务端端口范围与自动防火墙能力属于 Hysteria 官方实现，不能直接等同于 VPSKit 当前 sing-box inbound；本方案选择 VPSKit 管理防火墙重定向，避免给代理核心授予 `CAP_NET_ADMIN`。
 
@@ -2827,122 +1662,49 @@ refresh_policy: build-time
 
 > 标题：VPSKit 功能演进方案审查记录与修订说明
 >
-> 生成时间：2026-07-21 09:05
+> 生成时间：2026-07-21 15:30
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R1
+> 版本：v0.3-R2
 >
-> 用途：记录本次审查范围、问题、处置和未执行事项
+> 用途：记录已完成基线、用户筛选结果和暂停范围
 
-## 1. 审查范围
+## 1. 本轮输入
 
-本次交叉审查了：
+本轮以已完成的 v0.2.0 单 VPS 自动订阅部署与 Windows 11 客户端验收为基线。用户明确要求因实现额度有限，收敛原方案；并提供 `Android-ClashMeta-3xui-Google-All-Proxy-Dual-Schemes-v5.2-20260719.md` 作为 ACL4SSR 与 anti-AD 的方案 A/B 参考。
 
-- 本地 `VPSKit-功能演进完整方案-v0.3-20260720` 原始分卷、完整版和 ZIP；
-- 公共仓库 `filence/vpskit` 的主分支源码、提交、文档和 GitHub Actions；
-- 用户提供的“VPSKit 功能建议”对话；
-- Cloudflare、Mihomo、sing-box、Hysteria 2、v2rayN、Loon 和 WARP 的官方资料；
-- 项目工作区中与前期环境相关的本地忽略文件；凭据可在用户授权的 VPSKit/VPS/Cloudflare 操作范围内直接使用，但不复制其值到方案包。
+## 2. 已完成基线
 
-审查基线：
+- 单 VPS Cloudflare Workers/KV 自动订阅与生产发布；
+- Mihomo/Clash Verge 和 v2rayN 基础订阅交付；
+- 订阅读取令牌轮换、撤销、回读和完整修订发布；
+- Windows 11 Clash Verge Rev 与 v2rayN 自动更新人工验收。
 
-- 日期：2026-07-21；
-- VPSKit 提交：`22b6457db557b3fc3e4b723784e33d6d55f563fe`；
-- 方案修订：v0.3-R1；
-- 首批客户端测试基线：Windows 11；Clash Verge Rev `v2.5.2`；Mihomo `v1.19.29`；v2rayN `v7.23.1`；
-- Cloudflare 准备状态：Active Zone、`sub`/`sub-dev` 候选名称、DNS 无冲突和 Workers/KV 控制台访问已由用户确认；尚未创建 Worker、KV 或订阅 DNS；
-- 修改范围：方案文档、完整版、清单和方案 ZIP；未修改 Go/Bash/CI 源码。
+## 3. 保留的开发范围
 
-## 2. 总体结论
+1. 通用实例模型、Adapter、Renderer Registry；
+2. 结构化 Mihomo Renderer；
+3. 节点名称、地区、提供商、稳定 ID 等元数据；
+4. ACL4SSR 分流、anti-AD、规则远程更新、fake-ip DNS、Sniffer、白名单和回滚；
+5. `doctor --fix` 与 `system inspect`；
+6. Salamander、拥塞控制/带宽建议、端口跳跃、UDP 调优；
+7. Fail2ban、系统更新/重启需求、时间同步、DNS/IPv4/IPv6 健康检查。
 
-原方案的产品方向成立：自动订阅、多客户端、规则与去广告、恢复、多 VPS、Hysteria2 增强、WARP 和系统工具符合个人自用场景。
+## 4. 规则决策
 
-但原方案不能直接作为实现规格，主要原因是：架构兑现过晚、Cloudflare 权限隔离与一致性描述不准确、上游最新版能力与当前锁定版本混用、客户端兼容结论超前、规则/DNS/许可证和秘密材料准备不足。
+- 方案 A 为默认：ACL4SSR + anti-AD；
+- 方案 B 为兼容回退：仅 ACL4SSR；
+- 两者都含 fake-ip DNS 和 Sniffer；
+- Provider 经代理下载，客户端按 24 小时周期检查更新；
+- Google/Gemini 专项规则优先于 UnBan 与 anti-AD；
+- anti-AD 误杀优先通过精确白名单解决，频繁误杀时切换方案 B；
+- 规则源需可追溯、可校验、可回滚，不能把不受控上游分支直接当作稳定发布承诺。
 
-因此本次结论为：
+## 5. 暂停范围
 
-> 方向通过；按 v0.3-R1 的顺序、权限模型、证据门禁和前期准备清单修订后再进入开发。
+加密快照、少量多 VPS、Loon/Shadowrocket、WARP、AnyTLS、XHTTP + REALITY、TUIC、通用 BBR、Swap、通用防火墙管理、Docker、Web 面板、多租户和计费均不进入当前路线。
 
-## 3. 主要问题与修改
+## 6. 文档同步范围
 
-| 级别  | 原方案问题                                   | 风险                                        | v0.3-R1 修改                                                    |
-| --- | --------------------------------------- | ----------------------------------------- | ------------------------------------------------------------- |
-| P0  | Adapter/Renderer/通用状态重构排到 v0.7          | 订阅、多客户端、恢复会继续绑定固定 Reality/Hy2 状态          | v0.1.1 先切 Renderer/Publisher；第三协议前完成 schema 7 通用实例迁移          |
-| P0  | 计划让 VPS 直接使用 KV 写权限，并宣称单节点泄露不能修改其他节点    | Cloudflare KV 写权限为账户级，结论不成立               | 引入 node-scoped 发布入口；Cloudflare 管理 Token 不上 VPS                |
-| P0  | 使用“原子切换 current revision”描述 KV 发布       | Workers KV 最终一致且无跨 key 原子事务               | 使用不可变 revision artifact，manifest 最后发布；只允许完整旧/新修订              |
-| P0  | 初次审查把 Agent 读取本地忽略凭据误判为凭据外泄             | 不必要地阻塞用户已授权的直接执行                          | 明确本地文件是授权凭据入口；允许在任务范围内直接使用，不回显、不入包、不扩大权限；只有真实泄露或生命周期条件触发时轮换   |
-| P1  | 直接规划 Gecko、`bbr_profile`、Realm 等 Hy2 功能 | 当前锁定 sing-box 1.13.14 不具备全部 1.14 能力       | 增加上游版本门禁；核心升级与功能启用分开发布                                        |
-| P1  | 把官方 Hysteria 服务端端口范围直接映射到当前 sing-box    | 实现不同，可能需要过大网络权限                           | 明确 inbound 差异；由 VPSKit 管理防火墙重定向，不给核心 `CAP_NET_ADMIN`          |
-| P1  | 多客户端均进入近期稳定目标                           | Loon/Shadowrocket/Android Clash 缺固定版本实机证据 | Mihomo 为首个 stable；v2rayN 分阶段；Loon/Shadowrocket 先 experimental |
-| P1  | 规则订阅未完整处理 DNS、许可证和 Token 边界             | 规则不命中、泄漏私有订阅、再分发风险                        | 新增 DNS Profile、来源锁定、许可证记录、公共规则 URL 与私有订阅分离                    |
-| P1  | 便携快照与当前本地备份边界模糊                         | 跨机恢复、二进制和凭据处理不清                           | 明确 backup 与 snapshot；快照只带状态/凭据/证书/清单，核心按目标平台重装                |
-| P2  | 只有功能列表，缺用户准备清单                          | 实现时反复索要高权限凭据或无法验收                         | 新增第 11 卷，定义工具、VPS、Cloudflare、客户端和产品决策                         |
-| P2  | “支持”与“计划”混用                             | 读者会误认为当前已有订阅和规则能力                         | 增加 E0–E4 证据等级和分阶段发布门禁                                         |
-
-## 4. 保留的核心决策
-
-以下原方案判断经审查后继续保留：
-
-- Reality 作为 TCP 稳定备用，Hysteria2 作为性能优先节点；
-- 自动订阅优先于继续堆协议；
-- 不把规则塞入单个节点分享链接；
-- Mihomo 完整配置订阅先行；
-- WARP 只做可选精确出站，不接管系统全局路由；
-- 同时支持全新生成和加密恢复两条重装路径；
-- 系统工具保持低优先级、plan/apply/rollback 和专属 drop-in；
-- 不加入多租户计费、公共注册、默认 Docker、Web 面板和第三方魔改内核；
-- 所有新模块默认关闭、可卸载、可回滚，并有静态导出兜底。
-
-## 5. 新的实施顺序
-
-```text
-Renderer/Publisher 与迁移基础
-→ 单 VPS Mihomo 自动订阅
-→ DNS、分流与去广告
-→ 加密便携快照
-→ 更多客户端与少量多 VPS
-→ Hysteria2 高级功能
-→ WARP AI 精确出站
-→ 新协议
-→ 系统工具
-→ v1.0 证据收口
-```
-
-这个顺序不是缩减最终功能，而是让每批功能都能在较小状态迁移和权限范围内独立验收。
-
-## 6. 本次未执行事项
-
-本次没有：
-
-- 修改 VPSKit 源码、版本锁、GitHub Actions 或 Release；
-- 登录、变更或重装任何 VPS；
-- 调用、验证或复制本地文件中的密码和 Token；
-- 创建 Cloudflare Worker、KV、DNS 记录或 API Token；
-- 在客户端导入真实节点；
-- stage、commit、push 或创建 Pull Request；
-- 宣称 Go 测试在本地通过——当前终端未发现 Go。
-
-## 7. 后续执行建议
-
-1. 用户确认第 11 卷的凭据授权范围和 R0 选择；现有凭据可直接用于范围内操作；
-2. 把 v0.1.1 拆成独立实现计划和验收清单；
-3. 先用无秘密 fixture 建立 Renderer golden tests；
-4. 设计 node-scoped Publisher 协议和威胁模型，再创建 Cloudflare 权限；
-5. 订阅 MVP 只做单 VPS + Mihomo + 静态导出兜底；
-6. MVP 达到 E3 后再加入规则包、第二客户端和多 VPS；
-7. 每个阶段同步更新 README、分卷、完整版、安装包说明和发布证据。
-
-## 8. 修订物清单
-
-v0.3-R1 包含：
-
-- 00–10：重写或校正原方案内容；
-- 11：新增前期材料与环境准备；
-- 12：新增审查记录与修订说明；
-- README：更新阅读顺序、证据边界和安全提示；
-- 单文件完整版：由分卷按顺序重新生成；
-- FILE-MANIFEST：记录最终文件大小和 SHA-256；
-- ZIP：从最终白名单文件重建并逐项校验。
-
-最终接受标准：分卷、完整版、README、清单和 ZIP 内容一致；授权凭据只从本地忽略文件按需读取，包内不包含 `前期环境须知.md`、密码、API Token、私钥或其他真实秘密。
+本次已同步执行摘要、规则方案、Hysteria2/系统模块、路线图、README、完整版和文件清单。ZIP 仅作为本地可下载副本，不纳入 Git。

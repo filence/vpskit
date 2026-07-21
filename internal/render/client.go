@@ -87,7 +87,7 @@ func ClientArtifactSet(values model.RuntimeValues) (artifact.Set, error) {
 		}
 		items = append(items, rendered...)
 	}
-	return artifact.NewSet(values.Node.ID, values.ClientRevision, 0, items)
+	return artifact.NewSet(values.Node.ID, values.ClientRevision, values.RulesetRevision, items)
 }
 
 func (renderer MihomoRenderer) Render(values model.RuntimeValues) ([]artifact.Artifact, error) {
@@ -141,13 +141,16 @@ func (renderer LinkRenderer) Render(values model.RuntimeValues) ([]artifact.Arti
 }
 
 type mihomoConfig struct {
-	MixedPort   int                `yaml:"mixed-port"`
-	AllowLAN    bool               `yaml:"allow-lan"`
-	Mode        string             `yaml:"mode"`
-	LogLevel    string             `yaml:"log-level"`
-	Proxies     []any              `yaml:"proxies"`
-	ProxyGroups []mihomoProxyGroup `yaml:"proxy-groups"`
-	Rules       []string           `yaml:"rules"`
+	MixedPort     int                           `yaml:"mixed-port"`
+	AllowLAN      bool                          `yaml:"allow-lan"`
+	Mode          string                        `yaml:"mode"`
+	LogLevel      string                        `yaml:"log-level"`
+	DNS           *mihomoDNS                    `yaml:"dns,omitempty"`
+	Sniffer       *mihomoSniffer                `yaml:"sniffer,omitempty"`
+	Proxies       []any                         `yaml:"proxies"`
+	ProxyGroups   []mihomoProxyGroup            `yaml:"proxy-groups"`
+	RuleProviders map[string]mihomoRuleProvider `yaml:"rule-providers,omitempty"`
+	Rules         []string                      `yaml:"rules"`
 }
 
 type mihomoVLESSRealityProxy struct {
@@ -210,17 +213,15 @@ func Mihomo(values model.RuntimeValues) ([]byte, error) {
 		proxyNames = append(proxyNames, hysteria2Name)
 	}
 	proxyNames = append(proxyNames, "DIRECT")
+	ruleProfile, err := newMihomoRuleProfile(values.RulesProfile)
+	if err != nil {
+		return nil, err
+	}
 	configuration := mihomoConfig{
 		MixedPort: 7890, AllowLAN: false, Mode: "rule", LogLevel: "warning",
-		Proxies:     proxies,
-		ProxyGroups: []mihomoProxyGroup{{Name: "Proxy", Type: "select", Proxies: proxyNames}},
-		Rules: []string{
-			"DOMAIN-SUFFIX,local,DIRECT",
-			"IP-CIDR,10.0.0.0/8,DIRECT,no-resolve",
-			"IP-CIDR,172.16.0.0/12,DIRECT,no-resolve",
-			"IP-CIDR,192.168.0.0/16,DIRECT,no-resolve",
-			"MATCH,Proxy",
-		},
+		DNS: ruleProfile.DNS, Sniffer: ruleProfile.Sniffer,
+		Proxies: proxies, ProxyGroups: []mihomoProxyGroup{{Name: "Proxy", Type: "select", Proxies: proxyNames}},
+		RuleProviders: ruleProfile.Providers, Rules: ruleProfile.Rules,
 	}
 	var buffer bytes.Buffer
 	encoder := yaml.NewEncoder(&buffer)

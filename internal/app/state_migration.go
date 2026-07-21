@@ -88,6 +88,11 @@ func migrateState(state model.State) (model.State, error) {
 				EnabledInSubscription: true,
 			}
 			state.SchemaVersion = 6
+		case 6:
+			// Schema 7 introduces opt-in client rule profiles. Existing exports
+			// remain minimal until the owner explicitly applies a profile.
+			state.Rules = model.RulesState{Profile: model.RulesProfileMinimal, Revision: 0}
+			state.SchemaVersion = 7
 		default:
 			return model.State{}, fmt.Errorf("no migration from state schema %d", state.SchemaVersion)
 		}
@@ -97,6 +102,12 @@ func migrateState(state model.State) (model.State, error) {
 	}
 	if err := validateNodeMetadata(state.Node); err != nil {
 		return model.State{}, fmt.Errorf("invalid schema %d node metadata: %w", state.SchemaVersion, err)
+	}
+	if _, err := normalizedRulesProfile(state.Rules.Profile); err != nil {
+		return model.State{}, fmt.Errorf("invalid schema %d rules profile: %w", state.SchemaVersion, err)
+	}
+	if state.Rules.Revision < 0 {
+		return model.State{}, errors.New("rules revision must not be negative")
 	}
 	return state, nil
 }
