@@ -77,12 +77,26 @@ func migrateState(state model.State) (model.State, error) {
 			// mutations that regenerate client exports increment it.
 			state.ConfigRevision = 1
 			state.SchemaVersion = 5
+		case 5:
+			// Schema 6 adds stable node identity and client-facing labels without
+			// changing legacy export names. Existing installations keep the JP
+			// display prefix until the owner explicitly changes it.
+			state.Node = model.NodeMetadata{
+				ID:                    "node-main",
+				DisplayName:           "JP",
+				Priority:              100,
+				EnabledInSubscription: true,
+			}
+			state.SchemaVersion = 6
 		default:
 			return model.State{}, fmt.Errorf("no migration from state schema %d", state.SchemaVersion)
 		}
 	}
 	if state.ConfigRevision < 1 {
 		state.ConfigRevision = 1
+	}
+	if err := validateNodeMetadata(state.Node); err != nil {
+		return model.State{}, fmt.Errorf("invalid schema %d node metadata: %w", state.SchemaVersion, err)
 	}
 	return state, nil
 }

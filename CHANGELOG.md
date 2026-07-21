@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+- v0.1.1 Renderer 与运维基础已完成：状态 schema 6、节点元数据、结构化 Mihomo、统一 Artifact Set、Renderer capability、static Publisher、迁移预演、清理计划、系统检查和脱敏故障包均已实现。
+- Debian 13 amd64 已完成 v0.1.0→v0.1.1 原位升级、回滚、再次更新、schema 迁移、配置修订、双协议回环和服务重启回归；修复了已运行服务在配置变更后未重新载入的问题。
+- Win11 Clash Verge Rev `v2.5.2` / Mihomo `v1.19.29` 完成完整 YAML GUI 导入和 REALITY/Hysteria2 延迟测试；v2rayN `v7.23.4` 完成节点兼容核验，并对 `v7.23.1` 官方解析源码进行了对照。
+- v0.1.1 的完整证据边界记录于 `docs/V0.1.1_ACCEPTANCE.md`；自动订阅仍由 v0.2.0 实施。
+
 - `v0.1.0`公开版本已完成普通用户从零安装、客户端ZIP下载、Clash Verge/Hiddify导入及REALITY/Hysteria2实际连接验收，第一阶段正式收尾。
 - 方案拆分文档和单文件同步版继续保留在源码仓库；重复的方案ZIP改为本地按需生成，不再作为Git源码对象跟踪。
 - 状态升级至schema 5，新增客户端配置修订号；旧schema 4安装在内存迁移时从修订1开始。

@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$Version = 'v1.19.28',
-    [string]$AssetName = 'mihomo-windows-amd64-v1-v1.19.28.zip',
+    [string]$Version = 'v1.19.29',
+    [string]$AssetName = 'mihomo-windows-amd64-v1-v1.19.29.zip',
     [Parameter(Mandatory)]
     [string]$DestinationRoot
 )

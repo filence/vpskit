@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -94,8 +95,156 @@ func TestStateSchemaFourStartsAtClientConfigRevisionOne(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if state.SchemaVersion != model.SchemaVersion || state.ConfigRevision != 1 {
+	if state.SchemaVersion != model.SchemaVersion || state.ConfigRevision != 1 || state.Node.ID != "node-main" || state.Node.DisplayName != "JP" {
 		t.Fatalf("unexpected migrated client config revision: %#v", state)
+	}
+}
+
+func TestStateSchemaFiveAddsLegacyCompatibleNodeMetadata(t *testing.T) {
+	state, err := decodeInstalledState([]byte(`{
+  "schema_version": 5,
+  "config_revision": 9,
+  "profile": "balanced",
+  "reality": {"enabled": true, "id": "reality-main"},
+  "hysteria2": {"enabled": true, "id": "hy2-backup"}
+}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.SchemaVersion != 6 || state.ConfigRevision != 9 || state.Node.ID != "node-main" || state.Node.DisplayName != "JP" || !state.Node.EnabledInSubscription {
+		t.Fatalf("unexpected schema 5 migration: %#v", state)
+	}
+}
+
+func TestNodeMetadataValidation(t *testing.T) {
+	valid := model.NodeMetadata{ID: "jp-01", DisplayName: "Personal-JP-01", Country: "JP", Priority: 100, EnabledInSubscription: true}
+	if err := validateNodeMetadata(valid); err != nil {
+		t.Fatalf("valid node metadata was rejected: %v", err)
+	}
+	for name, mutate := range map[string]func(*model.NodeMetadata){
+		"id":       func(node *model.NodeMetadata) { node.ID = "Bad_ID" },
+		"name":     func(node *model.NodeMetadata) { node.DisplayName = "" },
+		"country":  func(node *model.NodeMetadata) { node.Country = "Japan" },
+		"priority": func(node *model.NodeMetadata) { node.Priority = 0 },
+	} {
+		candidate := valid
+		mutate(&candidate)
+		if err := validateNodeMetadata(candidate); err == nil {
+			t.Fatalf("invalid node %s was accepted", name)
+		}
+	}
+}
+
+func TestMigrationPlanIsReadOnlyAndExplicit(t *testing.T) {
+	plan, err := buildMigrationPlan(5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !plan.MigrationRequired || !plan.WriteRequired || plan.TargetSchema != model.SchemaVersion || len(plan.Steps) != 1 {
+		t.Fatalf("unexpected migration plan: %#v", plan)
+	}
+	current, err := buildMigrationPlan(model.SchemaVersion)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.MigrationRequired || current.WriteRequired || len(current.Steps) != 0 {
+		t.Fatalf("current schema must produce a zero-write plan: %#v", current)
+	}
+}
+
+func TestStateMutationCommandsAreRollbackCompatible(t *testing.T) {
+	for _, command := range []string{"migrate apply", "node modify", "instance modify"} {
+		if !rollbackCompatibleCommand(command) || !rollbackRequiresSameVersion(command) {
+			t.Fatalf("state mutation command %q is missing rollback compatibility", command)
+		}
+	}
+	if rollbackCompatibleCommand("cleanup apply") {
+		t.Fatal("cleanup history removal must not claim backup rollback compatibility")
+	}
+}
+
+func TestCleanupPlanKeepsNewestAndNonTerminalTransactions(t *testing.T) {
+	root := t.TempDir()
+	backups := filepath.Join(root, "backups")
+	transactions := filepath.Join(root, "transactions")
+	if err := os.MkdirAll(backups, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(transactions, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 7, 21, 0, 0, 0, 0, time.UTC)
+	old := now.Add(-30 * 24 * time.Hour)
+	for _, id := range []string{"BK-001", "BK-002", "BK-003"} {
+		path := filepath.Join(backups, id)
+		if err := os.MkdirAll(path, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(path, "state.json"), []byte(id), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(path, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for id, status := range map[string]string{"TX-001": "COMMITTED", "TX-002": "ROLLED_BACK", "TX-003": "IN_PROGRESS"} {
+		path := filepath.Join(transactions, id)
+		if err := os.MkdirAll(path, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		record := []byte(`{"status":"` + status + `"}`)
+		if err := os.WriteFile(filepath.Join(path, "transaction.json"), record, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(path, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	plan, err := buildCleanupPlan(backups, transactions, now, 1, 1, 7*24*time.Hour, map[string]bool{"BK-001": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, candidate := range plan.Candidates {
+		if candidate.ID == "BK-001" || candidate.ID == "TX-003" {
+			t.Fatalf("protected or in-progress entry became a cleanup candidate: %#v", plan)
+		}
+	}
+	if len(plan.Candidates) != 2 {
+		t.Fatalf("expected one old backup and one terminal transaction candidate: %#v", plan)
+	}
+}
+
+func TestSupportStateRedactsConnectionIdentityAndKeys(t *testing.T) {
+	state := model.State{
+		SchemaVersion:     model.SchemaVersion,
+		ConnectHost:       "node.secret.example",
+		Domain:            "hy2.secret.example",
+		RealityServerName: "target.secret.example",
+		Node:              model.NodeMetadata{ID: "node-main", DisplayName: "My Secret Node", Provider: "Provider", City: "Tokyo", Country: "JP", Priority: 100},
+		Reality:           model.RealityState{Enabled: true, ID: "reality-main", ListenPort: 443, PublicKey: "public-secret", ShortID: "short-secret"},
+	}
+	content, err := json.Marshal(redactedSupportState(state))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(content)
+	for _, secret := range []string{"node.secret.example", "hy2.secret.example", "target.secret.example", "My Secret Node", "Provider", "Tokyo", "public-secret", "short-secret"} {
+		if strings.Contains(text, secret) {
+			t.Fatalf("support state leaked %q: %s", secret, text)
+		}
+	}
+	if !strings.Contains(text, "[REDACTED]") {
+		t.Fatalf("support state did not mark redacted fields: %s", text)
+	}
+}
+
+func TestParseMemInfoUsesAllowlistedFields(t *testing.T) {
+	parsed := parseMemInfo("MemTotal: 1024 kB\nMemAvailable: 512 kB\nSwapTotal: 256 kB\nSecretField: 999 kB\n")
+	if parsed["total"] != 1024 || parsed["available"] != 512 || parsed["swap_total"] != 256 {
+		t.Fatalf("unexpected memory summary: %#v", parsed)
+	}
+	if _, ok := parsed["SecretField"]; ok {
+		t.Fatal("non-allowlisted meminfo field was retained")
 	}
 }
 
@@ -178,6 +327,20 @@ func TestReadACMEConfigAcceptsZeroSSLEABFromEnvironment(t *testing.T) {
 	t.Setenv(acmeEmailEnvKey, "")
 	if _, err := readACMEConfig(); err == nil {
 		t.Fatal("ZeroSSL configuration without EAB or email should fail")
+	}
+}
+
+func TestManagedServiceRestartStepsReloadEnabledService(t *testing.T) {
+	steps := managedServiceRestartSteps(xrayServiceUnitName, true)
+	want := [][]string{{"enable", xrayServiceUnitName}, {"restart", xrayServiceUnitName}}
+	if !reflect.DeepEqual(steps, want) {
+		t.Fatalf("enabled service must be restarted after managed config activation: got %#v want %#v", steps, want)
+	}
+
+	disabled := managedServiceRestartSteps(xrayServiceUnitName, false)
+	disabledWant := [][]string{{"disable", "--now", xrayServiceUnitName}}
+	if !reflect.DeepEqual(disabled, disabledWant) {
+		t.Fatalf("disabled service must be stopped: got %#v want %#v", disabled, disabledWant)
 	}
 }
 
@@ -779,9 +942,12 @@ func TestRealityOnlyArtifactsExcludeHysteria2Everywhere(t *testing.T) {
 		},
 	}
 	secrets := model.Secrets{RealityUUID: "11111111-1111-4111-8111-111111111111", RealityPrivateKey: "private-key"}
-	artifacts, err := renderProfileArtifacts(state, secrets)
+	artifacts, clientSet, err := renderProfileArtifacts(state, secrets)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(clientSet.Artifacts) != 3 {
+		t.Fatalf("Reality-only artifact set should contain three artifacts: %#v", clientSet)
 	}
 	if _, ok := artifacts[filepath.Join(exportRoot, "sing-box-hysteria2.json")]; ok {
 		t.Fatal("Reality-only artifacts unexpectedly contain a Hysteria2 client")

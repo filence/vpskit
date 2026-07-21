@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = 'v0.1.0-lab.1'
+    [string]$Version = 'v0.1.1-lab.1'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -139,6 +139,8 @@ Copy-Item -LiteralPath (Join-Path $projectRoot '.build\assets\sing-box-linux-amd
 Copy-Item -LiteralPath (Join-Path $projectRoot '.build\assets\xray-linux-amd64-v26.3.27\extracted\LICENSE') -Destination (Join-Path $licensesRoot 'xray.LICENSE') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot '.build\assets\lego-linux-amd64\LICENSE') -Destination (Join-Path $licensesRoot 'lego.LICENSE') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'licenses\go-qrcode.LICENSE') -Destination (Join-Path $licensesRoot 'go-qrcode.LICENSE') -Force
+Copy-Item -LiteralPath (Join-Path $projectRoot 'licenses\go-yaml.LICENSE') -Destination (Join-Path $licensesRoot 'go-yaml.LICENSE') -Force
+Copy-Item -LiteralPath (Join-Path $projectRoot 'licenses\go-yaml.NOTICE') -Destination (Join-Path $licensesRoot 'go-yaml.NOTICE') -Force
 
 & $syft "file:$(Join-Path $bundleRoot 'vpskit')" -o "spdx-json=$(Join-Path $bundleRoot 'vpskit.spdx.json')"
 if ($LASTEXITCODE -ne 0) {

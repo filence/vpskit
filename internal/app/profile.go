@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"vpskit.local/vpskit/internal/artifact"
 	"vpskit.local/vpskit/internal/fsutil"
 	"vpskit.local/vpskit/internal/model"
 	"vpskit.local/vpskit/internal/platform"
@@ -145,9 +146,10 @@ func mutateInstalledInstance(operation, target string, port int, realityServerNa
 	}
 
 	updatedState.SchemaVersion = model.SchemaVersion
+	updatedSecrets.SchemaVersion = model.SchemaVersion
 	updatedState.TransactionID = transactionID
 	updatedState.Profile = profileFromInboundState(updatedState.Reality.Enabled, updatedState.Hysteria2.Enabled)
-	artifacts, err := renderProfileArtifacts(updatedState, updatedSecrets)
+	artifacts, clientSet, err := renderProfileArtifacts(updatedState, updatedSecrets)
 	if err != nil {
 		return err
 	}
@@ -225,7 +227,7 @@ func mutateInstalledInstance(operation, target string, port int, realityServerNa
 	}()
 
 	mutated = true
-	if err := activateProfileMutation(artifacts, stateBytes, secretBytes); err != nil {
+	if err := activateProfileMutation(artifacts, clientSet, stateBytes, secretBytes); err != nil {
 		return err
 	}
 	if output, err := runCommand(installedSingBox, "check", "-c", serverConfigPath); err != nil {
@@ -362,6 +364,15 @@ func applyInstanceStateChange(state *model.State, secrets *model.Secrets, operat
 
 func clientFacingChanges(previous, updated model.State) []string {
 	changes := make([]string, 0, 4)
+	if previous.Node.ID != updated.Node.ID {
+		changes = append(changes, "node.id")
+	}
+	if previous.Node.DisplayName != updated.Node.DisplayName {
+		changes = append(changes, "node.display_name")
+	}
+	if previous.Node.Provider != updated.Node.Provider || previous.Node.Country != updated.Node.Country || previous.Node.City != updated.Node.City || previous.Node.Priority != updated.Node.Priority || previous.Node.EnabledInSubscription != updated.Node.EnabledInSubscription || strings.Join(previous.Node.Tags, "\x00") != strings.Join(updated.Node.Tags, "\x00") {
+		changes = append(changes, "node.metadata")
+	}
 	if previous.Reality.Enabled != updated.Reality.Enabled || (previous.Reality.ID == "") != (updated.Reality.ID == "") {
 		changes = append(changes, "reality.availability")
 	}
@@ -394,6 +405,8 @@ func readInstalledSecrets() (model.Secrets, error) {
 
 func runtimeValuesFromState(state model.State, secrets model.Secrets) model.RuntimeValues {
 	return model.RuntimeValues{
+		Node:              state.Node,
+		ClientRevision:    state.ConfigRevision,
 		RealityEnabled:    state.Reality.Enabled,
 		Hysteria2Enabled:  state.Hysteria2.Enabled,
 		ConnectHost:       state.ConnectHost,
@@ -411,37 +424,28 @@ func runtimeValuesFromState(state model.State, secrets model.Secrets) model.Runt
 	}
 }
 
-func renderProfileArtifacts(state model.State, secrets model.Secrets) (map[string][]byte, error) {
+func renderProfileArtifacts(state model.State, secrets model.Secrets) (map[string][]byte, artifact.Set, error) {
 	values := runtimeValuesFromState(state, secrets)
 	serverConfig, err := render.ServerConfig(values)
 	if err != nil {
-		return nil, err
+		return nil, artifact.Set{}, err
 	}
 	xrayConfig, err := render.XrayRealityServerConfig(values)
 	if err != nil {
-		return nil, err
+		return nil, artifact.Set{}, err
+	}
+	clientSet, err := render.ClientArtifactSet(values)
+	if err != nil {
+		return nil, artifact.Set{}, err
 	}
 	artifacts := map[string][]byte{
-		serverConfigPath:                             serverConfig,
-		xrayServerConfigPath:                         xrayConfig,
-		filepath.Join(exportRoot, "mihomo.yaml"):     render.Mihomo(values),
-		filepath.Join(exportRoot, "share-links.txt"): render.ShareLinks(values),
+		serverConfigPath:     serverConfig,
+		xrayServerConfigPath: xrayConfig,
 	}
-	if state.Reality.Enabled {
-		client, err := render.SingBoxRealityClient(values, 2080)
-		if err != nil {
-			return nil, err
-		}
-		artifacts[filepath.Join(exportRoot, "sing-box-reality.json")] = client
+	for _, item := range clientSet.Artifacts {
+		artifacts[filepath.Join(exportRoot, item.Name)] = item.Content
 	}
-	if state.Hysteria2.Enabled {
-		client, err := render.SingBoxHysteria2Client(values, 2081)
-		if err != nil {
-			return nil, err
-		}
-		artifacts[filepath.Join(exportRoot, "sing-box-hysteria2.json")] = client
-	}
-	return artifacts, nil
+	return artifacts, clientSet, nil
 }
 
 func exportStateForProfile(state model.State) []model.ExportState {
@@ -476,8 +480,11 @@ func stageProfileMutation(stagingDirectory string, artifacts map[string][]byte, 
 	return fsutil.WriteFileAtomic(filepath.Join(stagingDirectory, "instances.json"), append(secretBytes, '\n'), 0o600)
 }
 
-func activateProfileMutation(artifacts map[string][]byte, stateBytes, secretBytes []byte) error {
+func activateProfileMutation(artifacts map[string][]byte, clientSet artifact.Set, stateBytes, secretBytes []byte) error {
 	for path, content := range artifacts {
+		if filepath.Dir(path) == exportRoot {
+			continue
+		}
 		mode := os.FileMode(0o600)
 		if path == serverConfigPath || path == xrayServerConfigPath {
 			mode = 0o640
@@ -485,6 +492,9 @@ func activateProfileMutation(artifacts map[string][]byte, stateBytes, secretByte
 		if err := fsutil.WriteFileAtomic(path, content, mode); err != nil {
 			return err
 		}
+	}
+	if err := publishStaticClientArtifacts(clientSet); err != nil {
+		return err
 	}
 	for _, path := range allProfileExportPaths {
 		if _, present := artifacts[path]; present {

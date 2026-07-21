@@ -224,6 +224,8 @@ func manifest(arguments []string) error {
 		{ID: "third-party-licenses", Version: *releaseID, File: "THIRD_PARTY_LICENSES.md", SourceURL: "vpskit dependency license inventory"},
 		{ID: "sbom-vpskit", Version: *releaseID, File: "vpskit.spdx.json", SourceURL: "Syft SPDX 2.3 build output"},
 		{ID: "license-go-qrcode", Version: "v0.0.0-20200617195104-da1b6568686e", File: "licenses/go-qrcode.LICENSE", SourceURL: "https://github.com/skip2/go-qrcode"},
+		{ID: "license-go-yaml", Version: "v3.0.4", File: "licenses/go-yaml.LICENSE", SourceURL: "https://github.com/yaml/go-yaml/tree/v3.0.4"},
+		{ID: "notice-go-yaml", Version: "v3.0.4", File: "licenses/go-yaml.NOTICE", SourceURL: "https://github.com/yaml/go-yaml/tree/v3.0.4"},
 		{ID: "license-lego", Version: "5.2.2", File: "licenses/lego.LICENSE", SourceURL: "https://github.com/go-acme/lego/tree/v5.2.2"},
 		{ID: "license-sing-box", Version: "1.13.14", File: "licenses/sing-box.LICENSE", SourceURL: "https://github.com/SagerNet/sing-box/tree/v1.13.14"},
 		{ID: "license-xray", Version: "26.3.27", File: "licenses/xray.LICENSE", SourceURL: "https://github.com/XTLS/Xray-core/tree/v26.3.27"},

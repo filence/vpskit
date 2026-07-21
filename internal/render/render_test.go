@@ -13,6 +13,8 @@ import (
 
 func testValues() model.RuntimeValues {
 	return model.RuntimeValues{
+		Node:              model.NodeMetadata{ID: "node-main", DisplayName: "Personal-JP-01", EnabledInSubscription: true},
+		ClientRevision:    7,
 		RealityEnabled:    true,
 		Hysteria2Enabled:  true,
 		ConnectHost:       "node.example.com",
@@ -21,8 +23,8 @@ func testValues() model.RuntimeValues {
 		TCPPort:           443,
 		UDPPort:           443,
 		RealityUUID:       "11111111-2222-4333-8444-555555555555",
-		RealityPrivateKey: "private",
-		RealityPublicKey:  "public",
+		RealityPrivateKey: "MPWnZh-8Lcud4TULcibJKQ9oovNzGoBzdS0Br6LQ-W0",
+		RealityPublicKey:  "esdj56PLQGb8O3gFsAw-LanV7ZVgIiEFod2siUTCqiY",
 		RealityShortID:    "aabbccddeeff0011",
 		Hysteria2Password: "password",
 		CertificatePath:   "/managed/cert.crt",
@@ -108,7 +110,11 @@ func TestXrayRealityServerConfigIsJSON(t *testing.T) {
 }
 
 func TestMihomoDoesNotDisableCertificateVerification(t *testing.T) {
-	output := string(Mihomo(testValues()))
+	configuration, err := Mihomo(testValues())
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := string(configuration)
 	if strings.Contains(output, "skip-cert-verify: true") {
 		t.Fatal("Mihomo output must not disable certificate verification")
 	}
@@ -136,11 +142,120 @@ func TestShareLinksBracketIPv6Authorities(t *testing.T) {
 func TestDisabledProtocolIsAbsentFromAllExports(t *testing.T) {
 	values := testValues()
 	values.Hysteria2Enabled = false
-	if output := string(Mihomo(values)); strings.Contains(output, "JP-Hysteria2") {
+	configuration, err := Mihomo(values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if output := string(configuration); strings.Contains(output, "Personal-JP-01-Hysteria2") {
 		t.Fatalf("disabled Hysteria2 remained in Mihomo output: %s", output)
 	}
 	if output := string(ShareLinks(values)); strings.Contains(output, "hysteria2://") {
 		t.Fatalf("disabled Hysteria2 remained in share links: %s", output)
+	}
+}
+
+func TestMihomoRenderingIsDeterministicAndUsesNodeMetadata(t *testing.T) {
+	values := testValues()
+	first, err := Mihomo(values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := Mihomo(values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(first) != string(second) {
+		t.Fatal("Mihomo rendering must be byte deterministic")
+	}
+	output := string(first)
+	if !strings.Contains(output, "Personal-JP-01-Reality") || !strings.Contains(output, "# Client revision: 7") {
+		t.Fatalf("Mihomo metadata was not rendered: %s", output)
+	}
+}
+
+func TestMihomoGoldenProfiles(t *testing.T) {
+	for _, profile := range []struct {
+		name    string
+		reality bool
+		hy2     bool
+	}{{"balanced", true, true}, {"reality-only", true, false}, {"hysteria2-only", false, true}} {
+		t.Run(profile.name, func(t *testing.T) {
+			values := testValues()
+			values.RealityEnabled = profile.reality
+			values.Hysteria2Enabled = profile.hy2
+			configuration, err := Mihomo(values)
+			if err != nil {
+				t.Fatal(err)
+			}
+			golden, err := os.ReadFile(filepath.Join("testdata", "mihomo-"+profile.name+".golden.yaml"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(configuration) != string(golden) {
+				t.Fatalf("Mihomo %s output drifted\n--- got ---\n%s\n--- want ---\n%s", profile.name, configuration, golden)
+			}
+		})
+	}
+}
+
+func TestMihomoEscapesUnicodeAndYAMLKeywords(t *testing.T) {
+	values := testValues()
+	values.Node.DisplayName = "东京: yes"
+	values.Hysteria2Password = "no: #secret"
+	configuration, err := Mihomo(values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(configuration), "东京: yes-Reality") {
+		t.Fatalf("Unicode display name is missing: %s", configuration)
+	}
+}
+
+func TestClientArtifactSetDeclaresCompatibilityAndDigests(t *testing.T) {
+	set, err := ClientArtifactSet(testValues())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if set.SchemaVersion != 1 || set.NodeID != "node-main" || set.ClientRevision != 7 || len(set.Artifacts) != 4 {
+		t.Fatalf("unexpected client artifact set: %#v", set)
+	}
+	for _, item := range set.Artifacts {
+		if item.SHA256 == "" || item.RendererVersion < 1 || item.CompatibilityProfile == "" {
+			t.Fatalf("artifact lacks renderer metadata: %#v", item)
+		}
+	}
+}
+
+func TestRendererCapabilitiesTrackPinnedWindowsClients(t *testing.T) {
+	capabilities := RendererCapabilities()
+	joined := ""
+	for _, capability := range capabilities {
+		joined += capability.CompatibilityProfile + " " + capability.MinimumTestedClientVersion + "\n"
+	}
+	for _, wanted := range []string{"mihomo-1.19.29", "Clash Verge Rev 2.5.2", "v2rayn-7.23.1", "v2rayN 7.23.1"} {
+		if !strings.Contains(joined, wanted) {
+			t.Fatalf("missing compatibility baseline %q in %s", wanted, joined)
+		}
+	}
+}
+
+func TestMihomoPinnedBinaryParsesConfig(t *testing.T) {
+	binary := os.Getenv("VPSKIT_MIHOMO_TEST_BIN")
+	if binary == "" {
+		t.Skip("VPSKIT_MIHOMO_TEST_BIN is not set")
+	}
+	configuration, err := Mihomo(testValues())
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory := t.TempDir()
+	path := filepath.Join(directory, "mihomo.yaml")
+	if err := os.WriteFile(path, configuration, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	output, err := exec.Command(binary, "-t", "-d", directory, "-f", path).CombinedOutput()
+	if err != nil {
+		t.Fatalf("Mihomo rejected generated configuration: %v: %s", err, output)
 	}
 }
 

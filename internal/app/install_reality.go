@@ -206,6 +206,9 @@ func validateRealityOnlyInstallOptions(options InstallOptions) error {
 	if options.TCPPort < 1 || options.TCPPort > 65535 {
 		return fmt.Errorf("invalid TCP port: %d", options.TCPPort)
 	}
+	if err := validateNodeMetadata(nodeMetadataFromOptions(options)); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -245,14 +248,9 @@ func installRealityOnlyManagedFiles(options InstallOptions, vpskitAsset, singBox
 	if err != nil {
 		return err
 	}
-	realityClient, err := render.SingBoxRealityClient(values, 2080)
+	clientSet, err := render.ClientArtifactSet(values)
 	if err != nil {
 		return err
-	}
-	exportFiles := map[string][]byte{
-		filepath.Join(exportRoot, "sing-box-reality.json"): realityClient,
-		filepath.Join(exportRoot, "mihomo.yaml"):           render.Mihomo(values),
-		filepath.Join(exportRoot, "share-links.txt"):       render.ShareLinks(values),
 	}
 	if err := fsutil.WriteFileAtomic(serverConfigPath, serverConfig, 0o640); err != nil {
 		return err
@@ -264,10 +262,8 @@ func installRealityOnlyManagedFiles(options InstallOptions, vpskitAsset, singBox
 	if err := fsutil.WriteFileAtomic(xrayServerConfigPath, xrayConfig, 0o640); err != nil {
 		return err
 	}
-	for path, content := range exportFiles {
-		if err := fsutil.WriteFileAtomic(path, content, 0o600); err != nil {
-			return err
-		}
+	if err := publishStaticClientArtifacts(clientSet); err != nil {
+		return err
 	}
 	secrets := model.Secrets{
 		SchemaVersion:     model.SchemaVersion,
@@ -287,6 +283,7 @@ func installRealityOnlyManagedFiles(options InstallOptions, vpskitAsset, singBox
 		TransactionID:     transactionID,
 		InstalledAt:       time.Now().UTC(),
 		Profile:           "reality-only",
+		Node:              nodeMetadataFromOptions(options),
 		ConnectHost:       values.ConnectHost,
 		RealityServerName: values.RealityServerName,
 		Core: model.CoreState{

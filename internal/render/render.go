@@ -141,57 +141,8 @@ func clientBase(socksPort int, outbound map[string]any) map[string]any {
 	}
 }
 
-func Mihomo(values model.RuntimeValues) []byte {
-	quote := strconv.Quote
-	var output strings.Builder
-	output.WriteString("mixed-port: 7890\n")
-	output.WriteString("allow-lan: false\n")
-	output.WriteString("mode: rule\n")
-	output.WriteString("log-level: warning\n")
-	output.WriteString("proxies:\n")
-	proxies := make([]string, 0, 2)
-	if values.RealityEnabled {
-		proxies = append(proxies, "JP-Reality")
-		output.WriteString("  - name: JP-Reality\n")
-		output.WriteString("    type: vless\n")
-		output.WriteString("    server: " + quote(values.ConnectHost) + "\n")
-		output.WriteString(fmt.Sprintf("    port: %d\n", values.TCPPort))
-		output.WriteString("    uuid: " + quote(values.RealityUUID) + "\n")
-		output.WriteString("    network: tcp\n")
-		output.WriteString("    tls: true\n")
-		output.WriteString("    udp: true\n")
-		output.WriteString("    flow: xtls-rprx-vision\n")
-		output.WriteString("    servername: " + quote(values.RealityServerName) + "\n")
-		output.WriteString("    client-fingerprint: chrome\n")
-		output.WriteString("    reality-opts:\n")
-		output.WriteString("      public-key: " + quote(values.RealityPublicKey) + "\n")
-		output.WriteString("      short-id: " + quote(values.RealityShortID) + "\n")
-	}
-	if values.Hysteria2Enabled {
-		proxies = append(proxies, "JP-Hysteria2")
-		output.WriteString("  - name: JP-Hysteria2\n")
-		output.WriteString("    type: hysteria2\n")
-		output.WriteString("    server: " + quote(values.ConnectHost) + "\n")
-		output.WriteString(fmt.Sprintf("    port: %d\n", values.UDPPort))
-		output.WriteString("    password: " + quote(values.Hysteria2Password) + "\n")
-		output.WriteString("    sni: " + quote(values.Domain) + "\n")
-		output.WriteString("    skip-cert-verify: false\n")
-	}
-	output.WriteString("proxy-groups:\n")
-	output.WriteString("  - name: Proxy\n")
-	output.WriteString("    type: select\n")
-	proxies = append(proxies, "DIRECT")
-	output.WriteString("    proxies: [" + strings.Join(proxies, ", ") + "]\n")
-	output.WriteString("rules:\n")
-	output.WriteString("  - DOMAIN-SUFFIX,local,DIRECT\n")
-	output.WriteString("  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve\n")
-	output.WriteString("  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve\n")
-	output.WriteString("  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve\n")
-	output.WriteString("  - MATCH,Proxy\n")
-	return []byte(output.String())
-}
-
 func ShareLinks(values model.RuntimeValues) []byte {
+	realityName, hysteria2Name := protocolDisplayNames(values.Node)
 	links := make([]string, 0, 2)
 	if values.RealityEnabled {
 		realityQuery := url.Values{}
@@ -204,16 +155,16 @@ func ShareLinks(values model.RuntimeValues) []byte {
 		realityQuery.Set("sid", values.RealityShortID)
 		realityQuery.Set("type", "tcp")
 		links = append(links, fmt.Sprintf(
-			"vless://%s@%s?%s#JP-Reality",
-			url.PathEscape(values.RealityUUID), net.JoinHostPort(values.ConnectHost, strconv.Itoa(values.TCPPort)), realityQuery.Encode(),
+			"vless://%s@%s?%s#%s",
+			url.PathEscape(values.RealityUUID), net.JoinHostPort(values.ConnectHost, strconv.Itoa(values.TCPPort)), realityQuery.Encode(), url.PathEscape(realityName),
 		))
 	}
 	if values.Hysteria2Enabled {
 		hy2Query := url.Values{}
 		hy2Query.Set("sni", values.Domain)
 		links = append(links, fmt.Sprintf(
-			"hysteria2://%s@%s?%s#JP-Hysteria2",
-			url.PathEscape(values.Hysteria2Password), net.JoinHostPort(values.ConnectHost, strconv.Itoa(values.UDPPort)), hy2Query.Encode(),
+			"hysteria2://%s@%s?%s#%s",
+			url.PathEscape(values.Hysteria2Password), net.JoinHostPort(values.ConnectHost, strconv.Itoa(values.UDPPort)), hy2Query.Encode(), url.PathEscape(hysteria2Name),
 		))
 	}
 	return []byte(strings.Join(links, "\n") + "\n")

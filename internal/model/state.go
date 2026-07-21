@@ -2,7 +2,7 @@ package model
 
 import "time"
 
-const SchemaVersion = 5
+const SchemaVersion = 6
 
 type State struct {
 	SchemaVersion       int            `json:"schema_version"`
@@ -10,6 +10,7 @@ type State struct {
 	TransactionID       string         `json:"transaction_id"`
 	InstalledAt         time.Time      `json:"installed_at"`
 	Profile             string         `json:"profile"`
+	Node                NodeMetadata   `json:"node"`
 	ConnectHost         string         `json:"connect_host"`
 	Domain              string         `json:"domain"`
 	RealityServerName   string         `json:"reality_server_name"`
@@ -22,6 +23,17 @@ type State struct {
 	RealityConfigSHA256 string         `json:"reality_config_sha256"`
 	ConfigRevision      int            `json:"config_revision"`
 	Exports             []ExportState  `json:"exports"`
+}
+
+type NodeMetadata struct {
+	ID                    string   `json:"node_id"`
+	DisplayName           string   `json:"display_name"`
+	Provider              string   `json:"provider,omitempty"`
+	Country               string   `json:"country,omitempty"`
+	City                  string   `json:"city,omitempty"`
+	Priority              int      `json:"priority"`
+	Tags                  []string `json:"tags,omitempty"`
+	EnabledInSubscription bool     `json:"enabled_in_subscription"`
 }
 
 type CoreState struct {
@@ -74,6 +86,8 @@ type Secrets struct {
 }
 
 type RuntimeValues struct {
+	Node              NodeMetadata
+	ClientRevision    int
 	RealityEnabled    bool
 	Hysteria2Enabled  bool
 	ConnectHost       string

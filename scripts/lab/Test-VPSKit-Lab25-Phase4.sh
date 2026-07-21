@@ -43,7 +43,7 @@ from pathlib import Path
 
 profile, reality, hysteria2, tcp_port, udp_port = sys.argv[1:]
 state = json.loads(Path('/var/lib/vpskit/state.json').read_text(encoding='utf-8'))
-assert state['schema_version'] == 3
+assert state['schema_version'] == 6
 assert state['profile'] == profile, (state['profile'], profile)
 assert state['reality'].get('enabled', False) is (reality == 'true')
 assert state['hysteria2'].get('enabled', False) is (hysteria2 == 'true')
@@ -64,8 +64,8 @@ assert hysteria2_export.exists() is (hysteria2 == 'true')
 
 mihomo = Path('/etc/vpskit/exports/mihomo.yaml').read_text(encoding='utf-8')
 links = Path('/etc/vpskit/exports/share-links.txt').read_text(encoding='utf-8')
-assert ('JP-Reality' in mihomo) is (reality == 'true')
-assert ('JP-Hysteria2' in mihomo) is (hysteria2 == 'true')
+assert ('-Reality' in mihomo) is (reality == 'true')
+assert ('-Hysteria2' in mihomo) is (hysteria2 == 'true')
 assert ('vless://' in links) is (reality == 'true')
 assert ('hysteria2://' in links) is (hysteria2 == 'true')
 PY

@@ -5,6 +5,7 @@
 | 平台 | 架构 | 当前等级 | 证据 |
 | --- | --- | --- | --- |
 | Debian 13 | amd64 | v0.1.0公开版本实机与GUI已验证 | 双核心 balanced clean install、TCP/UDP同数字端口、证书受管副本、实例启停、备份/恢复、自更新、卸载/重装、重启持久化、orphan scan、Reality扫描器、schema 5迁移、目标切换恢复、安全客户端ZIP、固定Bootstrap、中文菜单、SCP下载和公网GUI客户端均通过 |
+| Debian 13 | amd64 | v0.1.1 实现分支实机升级已验证 | schema 5→6、节点元数据、结构化 Renderer、Artifact/static Publisher、迁移预演、运维命令、升级回滚、服务配置重载、双协议回环和 Win11 客户端复核均通过 |
 | Debian 12 | amd64 | 目标支持 | CI 容器 CLI 冒烟已配置，systemd VM 尚未运行 |
 | Ubuntu 24.04 | amd64 | 目标支持 | CI 容器 CLI 冒烟已配置，systemd VM 尚未运行 |
 | Debian 12/13 | arm64 | 目标支持 | 交叉编译已配置，云实机尚未运行 |
@@ -13,6 +14,10 @@
 ## v0.1.0公开版本验收
 
 2026-07-20，用户在重装后的Debian 13 amd64 VPS上使用公开 `v0.1.0` Release完整执行普通用户流程，客户端ZIP成功下载并导入Clash Verge与Hiddify，REALITY和Hysteria2均可实际使用。该结论只覆盖本表中Debian 13 amd64行，不替代其他系统、架构或长时间稳定性验证。完整结论见[`v0.1.0 第一阶段实机验收报告`](PHASE1_ACCEPTANCE.md)。
+
+## v0.1.1 实现验收
+
+2026-07-21，在同一 Debian 13 amd64 VPS 上完成原位升级、回滚、schema 迁移、节点元数据、运维命令、客户端导出和双协议回归。Win11 上 Clash Verge Rev `v2.5.2` / Mihomo `v1.19.29` 完成 GUI 验收；v2rayN 实际版本为 `v7.23.4`，同时核对 `v7.23.1` 官方解析源码。完整边界见[`v0.1.1 实施验收报告`](V0.1.1_ACCEPTANCE.md)。
 
 ## lab31 客户端证据
 
