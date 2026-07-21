@@ -147,6 +147,8 @@ func Run(arguments []string, version, publicKeyBase64 string) error {
 		return runCleanup(arguments[1:])
 	case "system":
 		return runSystem(arguments[1:])
+	case "security":
+		return runSecurity(arguments[1:])
 	case "rules":
 		return runRules(arguments[1:])
 	case "support":
@@ -167,7 +169,7 @@ func Run(arguments []string, version, publicKeyBase64 string) error {
 }
 
 func usageError() error {
-	return errors.New("usage: vpskit <version|bundle verify|reality scan|cert status|cert renew|update self|update core|backup|restore <backup-id> --yes|rollback <transaction-id> --yes|recover|orphan scan|uninstall --yes|preflight|install balanced|instance <enable|disable|modify|delete>|node <show|modify>|rules <show|plan|apply>|migrate <check|plan|apply>|cleanup <plan|apply>|system inspect|support bundle|subscription <plan|configure|publish|status|rotate-read-token|revoke-read-token|rollback|remove>|menu|status|doctor|export>")
+	return errors.New("usage: vpskit <version|bundle verify|reality scan|cert status|cert renew|update self|update core|backup|restore <backup-id> --yes|rollback <transaction-id> --yes|recover|orphan scan|uninstall --yes|preflight|install balanced|instance <enable|disable|modify|delete>|node <show|modify>|rules <show|plan|apply>|migrate <check|plan|apply>|cleanup <plan|apply>|system inspect|security fail2ban <status|plan|apply|remove>|support bundle|subscription <plan|configure|publish|status|rotate-read-token|revoke-read-token|rollback|remove>|menu|status|doctor|export>")
 }
 
 func runBundle(arguments []string, publicKeyBase64 string) error {

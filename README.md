@@ -12,7 +12,7 @@ VPSKit 是一个面向个人 VPS 的低资源、可回滚代理节点部署与�
 
 `v0.2.0-lab.1` 的单 VPS 自动订阅 MVP 已完成 Cloudflare 预发布和正式后端的实机部署。它包含 Workers/KV 发布端、Mihomo 完整配置订阅、v2rayN 节点订阅、Token 轮换/吊销、远端回读和回滚；Windows 11 上的 Clash Verge Rev 与 v2rayN 已完成订阅导入和更新实测。详见 [`v0.2.0 自动订阅实机验收报告`](docs/V0.2.0_ACCEPTANCE.md)；公开 GitHub Release 仍须另行完成发布门禁。后端部署说明见 [Cloudflare Worker README](deploy/cloudflare/README.md)。
 
-`v0.2.1-lab.4` 已在同一 Debian 13 amd64 VPS 完成 ACL4SSR + anti-AD 方案 A 的订阅验收、`doctor --fix` 和扩展 `system inspect` 的实机验收。Clash Verge Rev 已确认 r0007 可加载、切换并实际使用。当前远程规则仍直接引用上游 rule-provider URL；来源固定/镜像缓存尚未实现，不能把它当作已锁定的供应链输入。
+`v0.2.1-lab.6` 已在同一 Debian 13 amd64 VPS 完成 ACL4SSR + anti-AD 方案 A 的订阅验收、`doctor --fix`、扩展 `system inspect` 和 Fail2ban SSH jail 的实机验收。Clash Verge Rev 已确认 r0007 可加载、切换并实际使用；Fail2ban 已完成应用、删除、重新应用的生命周期验证。当前远程规则仍直接引用上游 rule-provider URL；来源固定/镜像缓存尚未实现，不能把它当作已锁定的供应链输入。
 
 lab32 已在同一实验 VPS 完成 schema 5 迁移、无效 REALITY 目标零写入、目标切换并恢复、修订号递增、安全 ZIP、双协议回环及本地固定版本解析；修订3配置随后在 Clash Verge 与 Hiddify 中完成 REALITY、Hysteria2 四项 GUI 重新导入验收。
 
@@ -74,6 +74,8 @@ sudo vpskit migrate check
 sudo vpskit cleanup plan
 sudo vpskit system inspect
 sudo vpskit rules show
+sudo vpskit security fail2ban status
+sudo vpskit security fail2ban plan
 sudo vpskit support bundle
 ```
 

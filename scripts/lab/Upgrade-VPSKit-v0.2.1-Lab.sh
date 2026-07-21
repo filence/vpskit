@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly version='v0.2.1-lab.4'
+readonly version='v0.2.1-lab.6'
 readonly archive="/root/${version}-linux-amd64.tar.gz"
 readonly root="/root/vpskit-${version}-upgrade"
 readonly bundle="${root}/${version}"

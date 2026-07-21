@@ -1,21 +1,21 @@
-# VPSKit 功能演进完整方案 v0.3-R3
+# VPSKit 功能演进完整方案 v0.3-R4
 
 > 标题：VPSKit 功能演进完整方案
 >
-> 生成时间：2026-07-21 16:20
+> 生成时间：2026-07-21 16:35
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R3
+> 版本：v0.3-R4
 >
 > 用途：用户筛选后的 VPSKit 后续功能实施依据
 
 - 原编制日期：2026-07-20
 - 精简修订日期：2026-07-21
-- 当前产品基线：VPSKit 0.2.1-lab.4；方案 A、doctor --fix 与扩展 system inspect 已完成对应实机验收
+- 当前产品基线：VPSKit `v0.2.1-lab.6`；方案 A、`doctor --fix`、扩展 `system inspect` 与 Fail2ban 已完成对应实机验收
 - 证据原则：仅保留功能进入实施路线；暂停功能不安排版本号
 
-本文件由同目录 00–12 分卷按顺序机械合并。出现歧义时，以分卷、FILE-MANIFEST.md 和当前源码为准。
+本文件由同目录 00–12 分卷按顺序机械合并。出现歧义时，以分卷、`FILE-MANIFEST.md` 和当前源码为准。
 
 ## 目录
 
@@ -37,11 +37,11 @@
 
 > 标题：VPSKit 功能演进执行摘要与决策清单
 >
-> 生成时间：2026-07-21 16:20
+> 生成时间：2026-07-21 16:35
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R3
+> 版本：v0.3-R4
 >
 > 用途：记录用户筛选后的后续功能范围与实施优先级
 
@@ -100,7 +100,7 @@
 4. Hysteria2 混淆、拥塞控制/带宽建议、端口跳跃与 UDP 调优；
 5. Fail2ban、系统更新/重启需求、时间同步、DNS/IPv6 健康检查。
 
-截至 2026-07-21 的实施状态：方案 A 已通过 Clash Verge Rev 的订阅更新、加载与实际连接验收；`doctor --fix` 和扩展后的 `system inspect` 已通过 Debian 13 amd64 实机验收。Fail2ban、Hysteria2 四项强化、系统更新候选检查和规则来源固定仍未实施。
+截至 2026-07-21 的实施状态：方案 A 已通过 Clash Verge Rev 的订阅更新、加载与实际连接验收；`doctor --fix`、扩展后的 `system inspect` 和 Fail2ban 的“应用 → 删除 → 重新应用”已通过 Debian 13 amd64 实机验收。Hysteria2 四项强化、系统更新候选检查和规则来源固定仍未实施。
 
 ## 6. 不变的安全原则
 
@@ -1099,11 +1099,11 @@ WARP 与 AI 精确出站不在本轮保留范围，不安排版本号、不创�
 
 > 标题：VPSKit Hysteria2 与最小系统运维方案
 >
-> 生成时间：2026-07-21 16:20
+> 生成时间：2026-07-21 16:35
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R3
+> 版本：v0.3-R4
 >
 > 用途：定义保留的 Hysteria2 强化、诊断、安全和系统健康能力
 
@@ -1151,7 +1151,18 @@ WARP 与 AI 精确出站不在本轮保留范围，不安排版本号、不创�
 
 ## 5. Fail2ban
 
-可选保护 SSH 及未来有可靠文本日志的服务。Reality/Hy2 认证失败不做未经验证的自动封禁，避免误封和日志放大。安装、jail、白名单、启停与删除均独立受管。
+已实现并在 Debian 13 amd64 实机通过。命令为：
+
+```bash
+vpskit security fail2ban status
+vpskit security fail2ban plan
+vpskit security fail2ban apply --yes
+vpskit security fail2ban remove --yes
+```
+
+VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：使用 systemd journal、Debian 内置 `sshd` jail、当前有效 SSH 端口、`maxretry=5`、`findtime=10m`、`bantime=1h`。它不创建第二个 sshd jail，避免与 Debian 默认 jail 争用 nftables 资源；不修改 `sshd_config`、不管理 Reality/Hy2 日志，也不删除 Fail2ban 软件包。
+
+所有权记录保存覆盖文件摘要。配置文件被手工修改或记录缺失时，应用与删除均拒绝覆盖。实机已验证“应用 → 删除覆盖文件并保留软件包 → 重新应用”完整生命周期。
 
 ## 6. 系统健康检查
 
@@ -1163,7 +1174,7 @@ WARP 与 AI 精确出站不在本轮保留范围，不安排版本号、不创�
 - 端口跳跃在启用、重启、回滚和卸载后均验证端口范围不残留；
 - UDP 调优在 1C1G 条件下验证内存余量和恢复原值；
 - `doctor --fix` 不得触碰非 VPSKit 文件；
-- Fail2ban 只对已声明日志来源生效，并有白名单/卸载测试；
+- Fail2ban 只对已声明日志来源生效，并有覆盖文件所有权、应用/删除/重新应用测试；白名单自定义仍待实现；
 - `system inspect` 在无 root 写权限时仍可输出安全的只读报告。
 
 ---
@@ -1172,11 +1183,11 @@ WARP 与 AI 精确出站不在本轮保留范围，不安排版本号、不创�
 
 > 标题：VPSKit 精简版版本路线图
 >
-> 生成时间：2026-07-21 16:20
+> 生成时间：2026-07-21 16:35
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R3
+> 版本：v0.3-R4
 >
 > 用途：将用户筛选后的功能拆成低风险、可验收的版本切片
 
@@ -1184,7 +1195,7 @@ WARP 与 AI 精确出站不在本轮保留范围，不安排版本号、不创�
 
 `v0.2.0-lab.1` 已完成单 VPS 自动订阅、Mihomo/Clash Verge 与 v2rayN 基础交付、生产 Workers/KV 发布、令牌轮换/撤销和用户客户端自动更新验收。
 
-`v0.2.1-lab.4` 已完成结构化 Mihomo、节点元数据、方案 A/B 的服务端渲染、方案 A Windows 11 Clash Verge Rev r0007 验收、`doctor --fix` 和 DNS/IPv4/IPv6 扩展 `system inspect`。规则来源固定、方案 B 人工回退、白名单、Fail2ban、更新候选检查和 Hysteria2 强化尚未完成。
+`v0.2.1-lab.6` 已完成结构化 Mihomo、节点元数据、方案 A/B 的服务端渲染、方案 A Windows 11 Clash Verge Rev r0007 验收、`doctor --fix`、DNS/IPv4/IPv6 扩展 `system inspect`，以及 Fail2ban SSH jail 的完整生命周期验收。规则来源固定、方案 B 人工回退、白名单、更新候选检查和 Hysteria2 强化尚未完成。
 
 ## 2. 下一个版本：架构、渲染与规则交付
 
@@ -1197,7 +1208,7 @@ WARP 与 AI 精确出站不在本轮保留范围，不安排版本号、不创�
 ## 3. 运维版本：安全修复与可观察性
 
 - 系统更新候选；
-- Fail2ban（仅 SSH 等有可靠日志的服务）。
+- Fail2ban 白名单与可读的状态摘要。
 
 ## 4. Hysteria2 版本：现有性能主节点强化
 
@@ -1229,11 +1240,11 @@ WARP 与 AI 精确出站不在本轮保留范围，不安排版本号、不创�
 
 > 标题：VPSKit 精简范围验收与发布门禁
 >
-> 生成时间：2026-07-21 15:30
+> 生成时间：2026-07-21 16:35
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R2
+> 版本：v0.3-R4
 >
 > 用途：限定当前保留功能的测试证据和发布条件
 
@@ -1263,7 +1274,7 @@ WARP 与 AI 精确出站不在本轮保留范围，不安排版本号、不创�
 
 - `doctor --fix` 仅改变 VPSKit 受管对象；
 - `system inspect` 在低资源机器输出内存、磁盘、服务、UDP、DNS、时间、IPv4/IPv6 与重启需求；
-- Fail2ban 仅对声明的日志源封禁，白名单、停止与卸载均回读；
+- Fail2ban 仅对 SSH systemd journal 封禁，覆盖文件所有权、应用、删除和重新应用均回读；白名单仍待实现；
 - 更新检查只报告，不自动升级或重启。
 
 ## 5. Hysteria2
@@ -1662,11 +1673,11 @@ refresh_policy: build-time
 
 > 标题：VPSKit 功能演进方案审查记录与修订说明
 >
-> 生成时间：2026-07-21 15:30
+> 生成时间：2026-07-21 16:35
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R2
+> 版本：v0.3-R4
 >
 > 用途：记录已完成基线、用户筛选结果和暂停范围
 
@@ -1690,6 +1701,13 @@ refresh_policy: build-time
 5. `doctor --fix` 与 `system inspect`；
 6. Salamander、拥塞控制/带宽建议、端口跳跃、UDP 调优；
 7. Fail2ban、系统更新/重启需求、时间同步、DNS/IPv4/IPv6 健康检查。
+
+## 3.1 本轮实施事实
+
+- 方案 A 的 r0007 已经通过 Windows 11 Clash Verge Rev 的加载、切换和实际连接验收；
+- `doctor --fix`、`system inspect`、Fail2ban SSH jail 已在 Debian 13 amd64 实机通过；
+- Fail2ban 使用现有 `sshd` jail 的 VPSKit 覆盖文件，完整验证应用、删除和重新应用；
+- 规则来源固定/镜像缓存、白名单、方案 B 客户端回退、系统更新候选和 Hysteria2 四项强化仍未完成。
 
 ## 4. 规则决策
 
