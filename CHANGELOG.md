@@ -4,9 +4,9 @@
 
 ## Unreleased
 
-- v0.2.0 单 VPS 自动订阅高优先级基础已进入 Draft：新增 Cloudflare Workers/KV Publisher、节点级 HMAC 发布、不可变修订、旧修订拒绝覆盖、回读收敛、Mihomo/v2rayN/manifest 固定入口、ETag/HEAD/304、读取 Token 轮换/吊销、发布回滚和静态导出降级。
+- v0.2.0 单 VPS 自动订阅高优先级基础已完成实机验收：Cloudflare Workers/KV Publisher、节点级 HMAC 发布、不可变修订、旧修订拒绝覆盖、回读收敛、Mihomo/v2rayN/manifest 固定入口、ETag/HEAD/304、读取 Token 轮换/吊销、发布回滚和静态导出降级均已打通。
 - 新增 `vpskit subscription plan/configure/publish/status/rotate-read-token/revoke-read-token/rollback/remove`；订阅故障只标记 `DEGRADED`，不会回滚已成功的节点配置或停止 Xray/sing-box。
-- 新增固定 Wrangler `4.112.0` 的 Cloudflare 开发环境部署脚本；脚本将 Cloudflare 管理 Token 与下发 VPS 的节点发布凭据分离，并拒绝隐式覆盖已有 Worker 或凭据文件。Cloudflare 预发布实机部署和 Win11 URL 自动更新仍待完成，不宣称 v0.2.0 已发布。
+- 新增固定 Wrangler `4.112.0` 的 Cloudflare 部署脚本；脚本将 Cloudflare 管理 Token 与下发 VPS 的节点发布凭据分离，并拒绝隐式覆盖已有 Worker 或凭据文件。预发与正式 Worker/KV/Custom Domain 都已通过实机健康检查；Win11 Clash Verge Rev 与 v2rayN 订阅 URL 更新均已通过人工验收。
 - v0.1.1 Renderer 与运维基础已完成：状态 schema 6、节点元数据、结构化 Mihomo、统一 Artifact Set、Renderer capability、static Publisher、迁移预演、清理计划、系统检查和脱敏故障包均已实现。
 - Debian 13 amd64 已完成 v0.1.0→v0.1.1 原位升级、回滚、再次更新、schema 迁移、配置修订、双协议回环和服务重启回归；修复了已运行服务在配置变更后未重新载入的问题。
 - Win11 Clash Verge Rev `v2.5.2` / Mihomo `v1.19.29` 完成完整 YAML GUI 导入和 REALITY/Hysteria2 延迟测试；v2rayN `v7.23.4` 完成节点兼容核验，并对 `v7.23.1` 官方解析源码进行了对照。

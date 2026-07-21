@@ -220,6 +220,9 @@ if (Test-Path -LiteralPath $CredentialOutput) {
 }
 
 $script:managementToken = Get-ManagementToken
+$hadCloudflareApiToken = Test-Path Env:CLOUDFLARE_API_TOKEN
+$previousCloudflareApiToken = $env:CLOUDFLARE_API_TOKEN
+$env:CLOUDFLARE_API_TOKEN = $script:managementToken
 $verify = Invoke-CloudflareApi -Method GET -Path '/user/tokens/verify'
 if ($verify.status -ne 'active') {
     throw 'Cloudflare management token is not active.'
@@ -335,7 +338,14 @@ custom_domain = true
     })
 }
 finally {
-    $script:managementToken = $null
+	if ($hadCloudflareApiToken) {
+		$env:CLOUDFLARE_API_TOKEN = $previousCloudflareApiToken
+	}
+	else {
+		Remove-Item Env:CLOUDFLARE_API_TOKEN -ErrorAction SilentlyContinue
+	}
+	$previousCloudflareApiToken = $null
+	$script:managementToken = $null
     $publishSecret = $null
     $readToken = $null
     $readTokenHash = $null

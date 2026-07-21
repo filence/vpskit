@@ -1,8 +1,11 @@
 .build/
+.wrangler/
 _Report/
 _archive/
 前期环境须知.md
+.前期环境须知.md
 *.local
 *.secret
 source-references/repos/
 /VPSKit-完整方案-*.zip
+/VPSKit-功能演进完整方案-*.zip

@@ -10,7 +10,7 @@ VPSKit 是一个面向个人 VPS 的低资源、可回滚代理节点部署与�
 
 `v0.1.1` Renderer 与运维基础已在实现分支完成，包含 schema 6 节点元数据、结构化 Mihomo、统一 Artifact/Publisher、迁移预演、清理、系统检查和脱敏故障包，并已通过 Debian 13 amd64 升级/回滚及 Win11 Clash Verge/v2rayN 验收。当前公开稳定安装入口仍保持 `v0.1.0`，直到后续统一发布流程完成；证据见[`v0.1.1 实施验收报告`](docs/V0.1.1_ACCEPTANCE.md)。
 
-`v0.2.0` 的单 VPS 自动订阅 MVP 已在实现分支进入 Draft：代码已包含 Workers/KV 发布端、Mihomo 完整配置订阅、v2rayN 节点订阅、Token 轮换/吊销、远端回读和回滚，但尚未完成 Cloudflare 预发布环境与 Win11 固定 URL 更新实测，因此不属于当前稳定功能。后端部署说明见 [Cloudflare Worker README](deploy/cloudflare/README.md)。
+`v0.2.0-lab.1` 的单 VPS 自动订阅 MVP 已完成 Cloudflare 预发布和正式后端的实机部署。它包含 Workers/KV 发布端、Mihomo 完整配置订阅、v2rayN 节点订阅、Token 轮换/吊销、远端回读和回滚；Windows 11 上的 Clash Verge Rev 与 v2rayN 已完成订阅导入和更新实测。详见 [`v0.2.0 自动订阅实机验收报告`](docs/V0.2.0_ACCEPTANCE.md)；公开 GitHub Release 仍须另行完成发布门禁。后端部署说明见 [Cloudflare Worker README](deploy/cloudflare/README.md)。
 
 lab32 已在同一实验 VPS 完成 schema 5 迁移、无效 REALITY 目标零写入、目标切换并恢复、修订号递增、安全 ZIP、双协议回环及本地固定版本解析；修订3配置随后在 Clash Verge 与 Hiddify 中完成 REALITY、Hysteria2 四项 GUI 重新导入验收。
 
@@ -118,9 +118,9 @@ Reality-only部署不会包含Hysteria2客户端文件。使用SCP或SFTP下载�
 sudo vpskit export --format qr
 ```
 
-静态文件、分享链接和二维码不会自动更新。配置修订号变化后必须重新导出并导入。首个正式版本默认不开放常驻HTTP订阅端口，完整说明见[客户端配置导出与更新](docs/CLIENT_CONFIGS.md)。
+静态文件、分享链接和二维码不会自动更新。已配置 v0.2.0 Workers 订阅的节点则可通过 Mihomo 或 v2rayN 订阅 URL 更新；未配置订阅时，修订号变化后仍必须重新导出并导入。完整说明见[客户端配置导出与更新](docs/CLIENT_CONFIGS.md)。
 
-在 v0.2.0 Draft 中，Cloudflare 后端准备完成后可先做只读计划，再安装节点级凭据并发布：
+在 v0.2.0 中，受信任的本地管理端先部署 Cloudflare 后端，再在 VPS 安装节点级凭据并发布：
 
 ```bash
 sudo vpskit subscription plan --credentials-file /root/vpskit-subscription.json
@@ -129,7 +129,7 @@ sudo vpskit subscription publish
 sudo vpskit subscription status
 ```
 
-Cloudflare 账户级管理 Token 不得复制到 VPS；VPS 只接收受 `node_id` 约束的发布 Secret 与订阅读取 Token。当前命令属于实现分支接口，不应在公开 `v0.1.0` 二进制上执行。
+Cloudflare 账户级管理 Token 不得复制到 VPS；VPS 只接收受 `node_id` 约束的发布 Secret 与订阅读取 Token。此组命令要求 v0.2.0 或更高二进制，不应在公开 `v0.1.0` 二进制上执行。
 
 ## 安全边界
 

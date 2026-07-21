@@ -92,6 +92,20 @@ sudo vpskit export --format qr
 
 `vpskit status` 和 `vpskit export` 都会返回当前 `config_revision`。静态YAML、JSON、分享链接和二维码不会自行更新；修订号变化后必须重新导出并导入。
 
+### 4.1 v0.2.0 Cloudflare 订阅
+
+已配置 Workers 订阅的节点会在节点、协议或客户端可见配置变化后自动发布新修订。客户端应导入该节点生成的明确 URL：
+
+```text
+https://<subscription-host>/s/<read-token>/mihomo
+https://<subscription-host>/s/<read-token>/v2rayn
+```
+
+- Mihomo/Clash Verge 导入 `mihomo` URL；
+- v2rayN 导入 `v2rayn` URL；
+- 静态导出仍作为订阅故障时的离线回退，不具备自动更新能力；
+- 订阅 URL 含读取凭据，泄露后使用 `vpskit subscription rotate-read-token` 轮换，并视需要立即吊销旧 Token。
+
 ## 5. 更换REALITY目标
 
 先查看候选：
