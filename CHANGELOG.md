@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+- `v0.2.2-lab.2`：新增 `vpskit rules refresh --yes`。它下载 ACL4SSR、MetaCubeX Google 与 anti-AD 规则，执行每源 1 MiB 上限与 SHA-256 记录，按 ruleset revision 缓存，并把 Mihomo 主配置、v2rayN、manifest 与最多 20 个规则工件作为完整修订发布到 Workers/KV。
+- Workers 订阅后端支持经读取 Token 保护的 `/s/<token>/rules/<name>`；发布、回读和回滚以候选修订中实际的 target 集合为准，并保留旧三工件修订回滚兼容。
+- 发布请求上限提高至 2 MiB；规则工件发布的默认 HTTP 等待时间提高至 90 秒。实机发现旧 20 秒等待不足时会返回 `DEGRADED`，现已通过 r0008 重新发布和 Windows 11 Clash Verge Rev 更新/切换/实际连接验收。
+- 新增现有 Worker 的只读检查和原位更新脚本；更新保留 KV 绑定与 Worker Secret，不轮换读取 Token 或节点发布 Secret。
 - v0.2.0 单 VPS 自动订阅高优先级基础已完成实机验收：Cloudflare Workers/KV Publisher、节点级 HMAC 发布、不可变修订、旧修订拒绝覆盖、回读收敛、Mihomo/v2rayN/manifest 固定入口、ETag/HEAD/304、读取 Token 轮换/吊销、发布回滚和静态导出降级均已打通。
 - 新增 `vpskit subscription plan/configure/publish/status/rotate-read-token/revoke-read-token/rollback/remove`；订阅故障只标记 `DEGRADED`，不会回滚已成功的节点配置或停止 Xray/sing-box。
 - 新增固定 Wrangler `4.112.0` 的 Cloudflare 部署脚本；脚本将 Cloudflare 管理 Token 与下发 VPS 的节点发布凭据分离，并拒绝隐式覆盖已有 Worker 或凭据文件。预发与正式 Worker/KV/Custom Domain 都已通过实机健康检查；Win11 Clash Verge Rev 与 v2rayN 订阅 URL 更新均已通过人工验收。

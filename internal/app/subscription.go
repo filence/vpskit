@@ -551,7 +551,15 @@ func currentClientArtifactSet(state model.State) (artifact.Set, error) {
 	if err != nil {
 		return artifact.Set{}, err
 	}
-	return render.ClientArtifactSet(runtimeValuesFromState(state, secrets))
+	values, err := runtimeValuesForRender(state, secrets)
+	if err != nil {
+		return artifact.Set{}, err
+	}
+	set, err := render.ClientArtifactSet(values)
+	if err != nil {
+		return artifact.Set{}, err
+	}
+	return appendManagedRuleCacheArtifacts(state, set)
 }
 
 func subscriptionDocuments(installedNodeID string, input subscriptionCredentialInput) (subscriptionConfig, subscriptionSecrets, error) {
@@ -803,7 +811,7 @@ func requireJSONEOF(decoder *json.Decoder) error {
 
 func subscriptionURLs(endpoint, token string) map[string]string {
 	root := strings.TrimRight(endpoint, "/") + "/s/" + token + "/"
-	return map[string]string{"mihomo": root + "mihomo", "v2rayn": root + "v2rayn", "manifest": root + "manifest"}
+	return map[string]string{"mihomo": root + "mihomo", "v2rayn": root + "v2rayn", "manifest": root + "manifest", "rules": root + "rules/"}
 }
 
 func randomSubscriptionToken() (string, error) {

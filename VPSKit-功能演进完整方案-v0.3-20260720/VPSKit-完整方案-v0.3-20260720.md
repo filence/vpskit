@@ -1,37 +1,23 @@
-# VPSKit 功能演进完整方案 v0.3-R5
+# VPSKit 功能演进完整方案 v0.3-R11
 
 > 标题：VPSKit 功能演进完整方案
 >
-> 生成时间：2026-07-21 16:50
+> 生成时间：2026-07-21 17:13
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R5
+> 版本：v0.3-R11
 >
 > 用途：用户筛选后的 VPSKit 后续功能实施依据
 
 - 原编制日期：2026-07-20
 - 精简修订日期：2026-07-21
-- 当前产品基线：VPSKit `v0.2.1-lab.7`；方案 A、`doctor --fix`、扩展 `system inspect`、Fail2ban 与只读更新候选检查已完成对应实机验收
+- 当前产品基线：VPSKit `v0.2.2-lab.2`；方案 A r0008、`doctor --fix`、扩展 `system inspect`、Fail2ban 与系统更新候选检查已完成对应实机验收
 - 证据原则：仅保留功能进入实施路线；暂停功能不安排版本号
 
 本文件由同目录 00–12 分卷按顺序机械合并。出现歧义时，以分卷、`FILE-MANIFEST.md` 和当前源码为准。
 
-## 目录
-
-1. 00｜执行摘要与决策清单
-2. 01｜现状审计与产品边界
-3. 02｜目标架构与扩展模型
-4. 03｜自动订阅与多客户端交付
-5. 04｜分流规则与去广告方案
-6. 05｜WARP 与 AI 出站方案（暂停）
-7. 06｜恢复与多 VPS（暂停）
-8. 07｜Hysteria2 与最小系统运维功能
-9. 08｜精简版路线图与优先级
-10. 09｜测试验收与发布门禁
-11. 10｜参考项目与资料
-12. 11｜前期材料与环境准备
-13. 12｜审查记录与修订说明
+---
 
 # 00｜执行摘要与决策清单
 
@@ -962,7 +948,7 @@ Shadowrocket 缺少与开源项目同等级、可由 CI 固定的官方解析器
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R3
+> 版本：v0.3-R11
 >
 > 用途：定义保留的 Mihomo 分流、去广告、DNS、更新和回退能力
 
@@ -976,7 +962,7 @@ Shadowrocket 缺少与开源项目同等级、可由 CI 固定的官方解析器
 
 | Profile | 内容 | 适用场景 |
 | --- | --- | --- |
-| `acl4ssr-antiad`（方案 A，默认） | ACL4SSR + anti-AD + fake-ip DNS + Sniffer | 已完成 Clash Verge Rev r0007 加载、切换与实际连接验收。 |
+| `acl4ssr-antiad`（方案 A，默认） | ACL4SSR + anti-AD + fake-ip DNS + Sniffer | 已完成 Clash Verge Rev r0008 受管规则更新、切换与实际连接验收。 |
 | `acl4ssr`（方案 B） | ACL4SSR + fake-ip DNS + Sniffer | 已生成并通过渲染测试；仍待 Windows 客户端人工回退验收。 |
 
 Profile 是订阅主配置的选择，不是单条节点链接的属性。切换 A/B 后客户端刷新主订阅；仅刷新 Rule Provider 不会切换 Profile 结构。
@@ -1025,18 +1011,17 @@ Google 专项规则高于 anti-AD 是刻意选择：Google 旗下广告或统计
 
 ## 5. 更新、来源与回滚
 
-每个 Provider 的客户端检查周期为 `86400` 秒。当前来源为 ACL4SSR、anti-AD 和 MetaCubeX Google 数据集的远程 URL；Mihomo 负责下载和本地缓存。这提供了自动更新，但**当前版本尚未记录上游 revision、摘要、许可证或生成时间，也未建立 VPSKit 镜像缓存**。
+`v0.2.2-lab.2` 已实现受管缓存。`vpskit rules refresh --yes` 由 VPS 下载 ACL4SSR、anti-AD 和 MetaCubeX Google 候选源，对每个源施加 1 MiB 上限并记录 SHA-256、字节数、来源 URL、创建时间和 ruleset revision。只有全部源成功后，Mihomo 主配置才改为引用读取 Token 保护的 Worker `/rules/<name>` 地址。
 
 发布链路：
 
 ```text
-当前：VPSKit 渲染 profile → 发布订阅主配置 → Mihomo 每 24 小时下载 provider 并使用其本地缓存。
-
-目标闭环（未实施）：拉取候选规则 → 格式/大小/摘要检查 → 生成不可变 ruleset revision
-→ Mihomo 解析与规则 smoke test → 发布主配置引用 → 回读
+VPS 下载候选规则 → 每源限额与 SHA-256 检查 → 写入不可变缓存 revision
+→ 渲染主配置引用 Worker 规则地址 → 作为一套订阅修订发布 → 全部 target 远端回读
+→ 客户端更新主订阅并按原有 interval 使用本地缓存。
 ```
 
-当前不能保证上游内容的不可变性；上游不可用时由客户端使用已有 rule-provider 缓存。实现目标闭环前，不能宣称具备“规则 revision 回滚”。
+上游 URL 本身仍可能变化，因此“固定”的对象是 VPSKit 已下载、已哈希并已发布的 revision，而不是上游仓库分支。Worker 保留历史 target；订阅回滚会恢复同一修订中的主配置与规则工件。r0008 已完成 20 个规则 target 的发布、回读和 Windows 11 Clash Verge Rev 实际连接验收。
 
 ## 6. 白名单与误杀处理
 
@@ -1050,10 +1035,11 @@ anti-AD 可处理第三方广告、追踪、统计和部分启动广告域名；
 
 首个 stable 验收：
 
-- 方案 A 显示 21 个 Provider，含 anti-AD；方案 B 显示 20 个 Provider，不含 anti-AD；
+- 方案 A 的 r0008 已显示并使用受管规则地址；服务器端已回读 20 个远程规则工件；
+- 方案 B 显示 20 个 Provider，不含 anti-AD；
 - ACL4SSR 与 anti-AD 可在 24 小时周期外手动刷新；
 - Google/Gemini/AI/GitHub/Telegram 命中代理，国内域名/IP 命中直连，未知流量命中 `MATCH,PROXY`；
-- A/B 切换、白名单、上游更新失败和回滚仍需在 Clash Verge 当前 Mihomo 版本验证。
+- 方案 B 客户端回退、白名单与刻意上游失败回滚仍需在 Clash Verge 当前 Mihomo 版本验证。
 
 不在本次精简范围：Loon/Shadowrocket Renderer、v2rayN 独立路由产物、MITM、HTTPS 解密和脚本去广告。
 
@@ -1684,7 +1670,7 @@ refresh_policy: build-time
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R4
+> 版本：v0.3-R11
 >
 > 用途：记录已完成基线、用户筛选结果和暂停范围
 
@@ -1711,20 +1697,21 @@ refresh_policy: build-time
 
 ## 3.1 本轮实施事实
 
-- 方案 A 的 r0007 已经通过 Windows 11 Clash Verge Rev 的加载、切换和实际连接验收；
+- 方案 A 的 r0007 已通过 Windows 11 Clash Verge Rev 的加载、切换和实际连接验收；
+- `v0.2.2-lab.2` 已将 20 个 ACL4SSR、MetaCubeX Google 与 anti-AD 来源下载、限额检查、SHA-256 记录并发布为 r0008 的受管规则工件；r0008 已通过 Windows 11 Clash Verge Rev 更新、切换和实际连接验收；
 - `doctor --fix`、`system inspect`、Fail2ban SSH jail 已在 Debian 13 amd64 实机通过；
 - Fail2ban 使用现有 `sshd` jail 的 VPSKit 覆盖文件，完整验证应用、删除和重新应用；
-- 规则来源固定/镜像缓存、白名单、方案 B 客户端回退、系统更新候选和 Hysteria2 四项强化仍未完成。
+- 白名单、方案 B 客户端回退和 Hysteria2 四项强化仍未完成；系统更新候选检查已完成；规则来源受管缓存已完成，但上游候选的许可证登记和格式 smoke test 仍待补充。
 
 ## 4. 规则决策
 
 - 方案 A 为默认：ACL4SSR + anti-AD；
 - 方案 B 为兼容回退：仅 ACL4SSR；
 - 两者都含 fake-ip DNS 和 Sniffer；
-- Provider 经代理下载，客户端按 24 小时周期检查更新；
+- VPSKit 刷新时下载并哈希 Provider，客户端通过受读取 Token 保护的 Worker 规则地址按 24 小时周期检查更新；
 - Google/Gemini 专项规则优先于 UnBan 与 anti-AD；
 - anti-AD 误杀优先通过精确白名单解决，频繁误杀时切换方案 B；
-- 规则源需可追溯、可校验、可回滚，不能把不受控上游分支直接当作稳定发布承诺。
+- 规则源 revision 已可追溯、校验并与订阅修订一起回滚；不把不受控上游分支直接当作稳定发布承诺。
 
 ## 5. 暂停范围
 

@@ -2,7 +2,7 @@ package model
 
 import "time"
 
-const SchemaVersion = 7
+const SchemaVersion = 8
 
 type State struct {
 	SchemaVersion       int            `json:"schema_version"`
@@ -41,13 +41,16 @@ const (
 	RulesProfileMinimal       = "minimal"
 	RulesProfileACL4SSR       = "acl4ssr"
 	RulesProfileACL4SSRAntiAD = "acl4ssr-antiad"
+	RulesSourceDirect         = "direct"
+	RulesSourceManaged        = "managed"
 )
 
 // RulesState controls client-side routing only. It never changes proxy
 // inbounds or protocol credentials.
 type RulesState struct {
-	Profile  string `json:"profile"`
-	Revision int    `json:"revision"`
+	Profile    string `json:"profile"`
+	Revision   int    `json:"revision"`
+	SourceMode string `json:"source_mode"`
 }
 
 type CoreState struct {
@@ -100,22 +103,24 @@ type Secrets struct {
 }
 
 type RuntimeValues struct {
-	Node              NodeMetadata
-	ClientRevision    int
-	RulesProfile      string
-	RulesetRevision   int
-	RealityEnabled    bool
-	Hysteria2Enabled  bool
-	ConnectHost       string
-	Domain            string
-	RealityServerName string
-	TCPPort           int
-	UDPPort           int
-	RealityUUID       string
-	RealityPrivateKey string
-	RealityPublicKey  string
-	RealityShortID    string
-	Hysteria2Password string
-	CertificatePath   string
-	KeyPath           string
+	Node                NodeMetadata
+	ClientRevision      int
+	RulesProfile        string
+	RulesetRevision     int
+	RulesSourceMode     string
+	RuleProviderBaseURL string
+	RealityEnabled      bool
+	Hysteria2Enabled    bool
+	ConnectHost         string
+	Domain              string
+	RealityServerName   string
+	TCPPort             int
+	UDPPort             int
+	RealityUUID         string
+	RealityPrivateKey   string
+	RealityPublicKey    string
+	RealityShortID      string
+	Hysteria2Password   string
+	CertificatePath     string
+	KeyPath             string
 }

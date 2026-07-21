@@ -416,6 +416,7 @@ func runtimeValuesFromState(state model.State, secrets model.Secrets) model.Runt
 		ClientRevision:    state.ConfigRevision,
 		RulesProfile:      state.Rules.Profile,
 		RulesetRevision:   state.Rules.Revision,
+		RulesSourceMode:   state.Rules.SourceMode,
 		RealityEnabled:    state.Reality.Enabled,
 		Hysteria2Enabled:  state.Hysteria2.Enabled,
 		ConnectHost:       state.ConnectHost,
@@ -433,8 +434,24 @@ func runtimeValuesFromState(state model.State, secrets model.Secrets) model.Runt
 	}
 }
 
-func renderProfileArtifacts(state model.State, secrets model.Secrets) (map[string][]byte, artifact.Set, error) {
+func runtimeValuesForRender(state model.State, secrets model.Secrets) (model.RuntimeValues, error) {
 	values := runtimeValuesFromState(state, secrets)
+	if state.Rules.SourceMode != model.RulesSourceManaged {
+		return values, nil
+	}
+	baseURL, err := managedRuleProviderBaseURL()
+	if err != nil {
+		return model.RuntimeValues{}, err
+	}
+	values.RuleProviderBaseURL = baseURL
+	return values, nil
+}
+
+func renderProfileArtifacts(state model.State, secrets model.Secrets) (map[string][]byte, artifact.Set, error) {
+	values, err := runtimeValuesForRender(state, secrets)
+	if err != nil {
+		return nil, artifact.Set{}, err
+	}
 	serverConfig, err := render.ServerConfig(values)
 	if err != nil {
 		return nil, artifact.Set{}, err
@@ -447,11 +464,18 @@ func renderProfileArtifacts(state model.State, secrets model.Secrets) (map[strin
 	if err != nil {
 		return nil, artifact.Set{}, err
 	}
+	clientSet, err = appendManagedRuleCacheArtifacts(state, clientSet)
+	if err != nil {
+		return nil, artifact.Set{}, err
+	}
 	artifacts := map[string][]byte{
 		serverConfigPath:     serverConfig,
 		xrayServerConfigPath: xrayConfig,
 	}
 	for _, item := range clientSet.Artifacts {
+		if strings.HasPrefix(item.Target, "rule/") {
+			continue
+		}
 		artifacts[filepath.Join(exportRoot, item.Name)] = item.Content
 	}
 	return artifacts, clientSet, nil

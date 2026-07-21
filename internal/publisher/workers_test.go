@@ -145,6 +145,29 @@ func TestWorkersReadbackWaitsForACompleteRevision(t *testing.T) {
 	}
 }
 
+func TestWorkersPublicationIncludesManagedRuleTarget(t *testing.T) {
+	set := testWorkersArtifactSet(t)
+	capability := artifact.Capability{Name: "managed-rule-cache", RendererVersion: 1, CompatibilityProfile: "mihomo-managed-rules-v1", SupportsRemoteRules: true}
+	rule, err := artifact.New("rule-anti-ad.rules", "rule/anti-ad", "application/octet-stream", false, capability, []byte("rule-data"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	set, err = artifact.NewSet(set.NodeID, set.ClientRevision, 3, append(set.Artifacts, rule))
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := publicationPayload(set)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Artifacts) != 4 {
+		t.Fatalf("unexpected artifact count: %d", len(payload.Artifacts))
+	}
+	if publisher := (&Workers{config: WorkersConfig{Endpoint: "https://sub.example", ReadToken: strings.Repeat("r", 43)}}); publisher.subscriptionURL("rule-anti-ad") != "https://sub.example/s/"+strings.Repeat("r", 43)+"/rules/anti-ad" {
+		t.Fatalf("rule subscription URL was not mapped safely")
+	}
+}
+
 func testWorkersArtifactSet(t *testing.T) artifact.Set {
 	t.Helper()
 	capability := artifact.Capability{Name: "test", RendererVersion: 1, CompatibilityProfile: "test/v1"}

@@ -217,6 +217,11 @@ func Mihomo(values model.RuntimeValues) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if values.RulesSourceMode == model.RulesSourceManaged {
+		if err := useManagedMihomoRuleSources(&ruleProfile, values.RulesProfile, values.RuleProviderBaseURL); err != nil {
+			return nil, err
+		}
+	}
 	configuration := mihomoConfig{
 		MixedPort: 7890, AllowLAN: false, Mode: "rule", LogLevel: "warning",
 		DNS: ruleProfile.DNS, Sniffer: ruleProfile.Sniffer,

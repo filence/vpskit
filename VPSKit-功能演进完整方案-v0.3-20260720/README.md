@@ -1,11 +1,11 @@
 # VPSKit 功能演进完整方案包
 
 - 方案版本：v0.3
-- 审查修订：R5（系统更新检查与 Hysteria2 兼容性调研）
+- 审查修订：R11（受管规则缓存与 r0008 实机验收）
 - 原编制日期：2026-07-20
 - 本次修订日期：2026-07-21
 - 对应项目：[filence/vpskit](https://github.com/filence/vpskit)
-- 当前产品基线：VPSKit `v0.2.1-lab.6`；方案 A 已完成 Windows 11 Clash Verge Rev r0007 验收，`doctor --fix`、扩展 `system inspect` 与 Fail2ban 已完成 Debian 13 amd64 实机验收
+- 当前产品基线：VPSKit `v0.2.2-lab.2`；方案 A 已完成 Windows 11 Clash Verge Rev r0008 受管规则验收，`doctor --fix`、扩展 `system inspect`、Fail2ban 与系统更新候选检查已完成 Debian 13 amd64 实机验收
 - 使用对象：开发者个人自用、少量 VPS、低资源环境
 
 ## 本次精简结论
@@ -15,13 +15,13 @@
 ```text
 通用实例/Adapter/Renderer
 → 结构化 Mihomo 与节点元数据
-→ ACL4SSR + anti-AD 方案 A/B、DNS、规则自动更新（方案 A 已验收；来源固定待完成）
+→ ACL4SSR + anti-AD 方案 A/B、DNS、规则自动更新（方案 A r0008 已验收；受管缓存已完成）
 → doctor --fix 与 system inspect（已验收）
 → Hysteria2 强化与 UDP 调优
 → Fail2ban（已验收）与剩余系统健康检查
 ```
 
-规则默认是方案 A：ACL4SSR + anti-AD + fake-ip DNS + Sniffer；发生 anti-AD 误杀时可切换方案 B：仅 ACL4SSR + fake-ip DNS + Sniffer。当前 Rule Provider 直连上游并由 Mihomo 缓存，尚未具备来源固定或 VPSKit 镜像缓存。
+规则默认是方案 A：ACL4SSR + anti-AD + fake-ip DNS + Sniffer；发生 anti-AD 误杀时可切换方案 B：仅 ACL4SSR + fake-ip DNS + Sniffer。`rules refresh` 会将规则下载、限额检查、哈希并作为受管 Worker 工件发布；客户端不再直接访问 ACL4SSR、anti-AD 或 MetaCubeX URL。
 
 加密快照、多 VPS、更多 iOS Renderer、WARP、新协议、通用 BBR/Swap/防火墙和面板从活跃路线移除，未来需要时再独立评估。
 

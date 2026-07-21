@@ -1,7 +1,7 @@
-const MAX_BODY_BYTES = 1024 * 1024;
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const MAX_CLOCK_SKEW_SECONDS = 300;
 const NONCE_TTL_SECONDS = 600;
-const TARGETS = new Set(["mihomo", "v2rayn", "manifest"]);
+const REQUIRED_TARGETS = new Set(["mihomo", "v2rayn", "manifest"]);
 const HEX_64 = /^[a-f0-9]{64}$/;
 const PUBLICATION_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const nodePublishQueues = new Map();
@@ -28,7 +28,7 @@ async function route(request, env) {
     });
   }
 
-  const subscription = url.pathname.match(/^\/s\/([^/]+)\/(mihomo|v2rayn|manifest)$/);
+  const subscription = url.pathname.match(/^\/s\/([^/]+)\/(mihomo|v2rayn|manifest|rules\/[a-z0-9][a-z0-9-]{0,95})$/);
   if (subscription) {
     if (request.method !== "GET" && request.method !== "HEAD") {
       return methodNotAllowed("GET, HEAD");
@@ -116,7 +116,7 @@ async function publishArtifacts(body, env) {
           publication_id: current.publication_id,
           node_revision: current.node_revision,
           published_at: current.published_at,
-          targets: [...TARGETS],
+          targets: current.targets || publicationTargets(payload),
         });
       }
       return jsonResponse({ status: "REJECTED", reason: "REVISION_CONFLICT" }, 409);
@@ -135,7 +135,7 @@ async function publishArtifacts(body, env) {
       await env.SUBSCRIPTIONS.put(key, JSON.stringify(record));
     }
   }
-  for (const target of TARGETS) {
+  for (const target of publicationTargets(payload)) {
     const recordText = await env.SUBSCRIPTIONS.get(revisionKey(target, payload.publication_id));
     if (!recordText) {
       return jsonResponse({ status: "DEGRADED", publication_id: payload.publication_id }, 503);
@@ -149,6 +149,7 @@ async function publishArtifacts(body, env) {
     ruleset_revision: payload.ruleset_revision,
     publication_id: payload.publication_id,
     status: "VALIDATED",
+    targets: publicationTargets(payload),
   }));
 
   // Re-check after candidate writes. This prevents a slower stale request in
@@ -156,11 +157,11 @@ async function publishArtifacts(body, env) {
   const latest = parseJSONOrNull(await env.SUBSCRIPTIONS.get("publication/current"));
   if (latest && latest.node_revision >= payload.node_revision) {
     if (latest.node_revision === payload.node_revision && latest.publication_id === payload.publication_id && await storedPublicationMatches(payload, env)) {
-      return jsonResponse({ status: "COMMITTED", publication_id: latest.publication_id, node_revision: latest.node_revision, published_at: latest.published_at, targets: [...TARGETS] });
+      return jsonResponse({ status: "COMMITTED", publication_id: latest.publication_id, node_revision: latest.node_revision, published_at: latest.published_at, targets: latest.targets || publicationTargets(payload) });
     }
     return jsonResponse({ status: "REJECTED", reason: "STALE_REVISION" }, 409);
   }
-  for (const target of TARGETS) {
+  for (const target of publicationTargets(payload)) {
     const recordText = await env.SUBSCRIPTIONS.get(revisionKey(target, payload.publication_id));
     await env.SUBSCRIPTIONS.put(currentKey(target), recordText);
   }
@@ -171,7 +172,7 @@ async function publishArtifacts(body, env) {
     ruleset_revision: payload.ruleset_revision,
     publication_id: payload.publication_id,
     published_at: publishedAt,
-    targets: [...TARGETS],
+    targets: publicationTargets(payload),
   }));
   await env.SUBSCRIPTIONS.put(`node/${env.NODE_ID}/active`, JSON.stringify({
     schema_version: 1,
@@ -186,7 +187,7 @@ async function publishArtifacts(body, env) {
     publication_id: payload.publication_id,
     node_revision: payload.node_revision,
     published_at: publishedAt,
-    targets: [...TARGETS],
+    targets: publicationTargets(payload),
   });
 }
 
@@ -237,8 +238,12 @@ async function activatePublication(body, env) {
   if (!input || !PUBLICATION_ID.test(input.publication_id || "")) {
     return jsonResponse({ status: "REJECTED", reason: "INVALID_PUBLICATION_ID" }, 400);
   }
+  const targets = await targetsForPublication(env, input.publication_id);
+  if (!targets) {
+    return jsonResponse({ status: "NOT_FOUND" }, 404);
+  }
   const records = new Map();
-  for (const target of TARGETS) {
+  for (const target of targets) {
     const value = await env.SUBSCRIPTIONS.get(revisionKey(target, input.publication_id));
     if (!value) {
       return jsonResponse({ status: "NOT_FOUND" }, 404);
@@ -256,7 +261,7 @@ async function activatePublication(body, env) {
     ruleset_revision: manifest.ruleset_revision,
     publication_id: input.publication_id,
     published_at: new Date().toISOString(),
-    targets: [...TARGETS],
+    targets,
   }));
   return jsonResponse({ status: "ACTIVATED", publication_id: input.publication_id });
 }
@@ -271,7 +276,8 @@ async function serveSubscription(request, env, encodedToken, target) {
   if (!(await validReadToken(token, env))) {
     return notFound();
   }
-  const recordText = await env.SUBSCRIPTIONS.get(currentKey(target));
+  const storageTarget = target.startsWith("rules/") ? `rule-${target.slice("rules/".length)}` : target;
+  const recordText = await env.SUBSCRIPTIONS.get(currentKey(storageTarget));
   if (!recordText) {
     return notFound();
   }
@@ -427,16 +433,39 @@ function validatePublication(payload, nodeID) {
   if (!Number.isInteger(payload.node_revision) || payload.node_revision < 1) return "INVALID_REVISION";
   if (!Number.isInteger(payload.ruleset_revision) || payload.ruleset_revision < 0) return "INVALID_RULESET_REVISION";
   if (!PUBLICATION_ID.test(payload.publication_id || "")) return "INVALID_PUBLICATION_ID";
-  if (!Array.isArray(payload.artifacts) || payload.artifacts.length !== TARGETS.size) return "INVALID_ARTIFACT_COUNT";
+  if (!Array.isArray(payload.artifacts) || payload.artifacts.length < REQUIRED_TARGETS.size || payload.artifacts.length > 32) return "INVALID_ARTIFACT_COUNT";
   const targets = new Set();
   for (const artifact of payload.artifacts) {
-    if (!artifact || !TARGETS.has(artifact.target) || targets.has(artifact.target)) return "INVALID_TARGET";
+    if (!artifact || !validTarget(artifact.target) || targets.has(artifact.target)) return "INVALID_TARGET";
     targets.add(artifact.target);
     if (!HEX_64.test(artifact.sha256 || "") || typeof artifact.content_base64 !== "string") return "INVALID_ARTIFACT";
     if (typeof artifact.media_type !== "string" || artifact.media_type.length < 3 || artifact.media_type.length > 128) return "INVALID_MEDIA_TYPE";
     if (!Number.isInteger(artifact.renderer_version) || artifact.renderer_version < 1) return "INVALID_RENDERER";
   }
+  for (const target of REQUIRED_TARGETS) if (!targets.has(target)) return "MISSING_REQUIRED_TARGET";
   return "";
+}
+
+function validTarget(target) {
+  return REQUIRED_TARGETS.has(target) || /^rule-[a-z0-9][a-z0-9-]{0,95}$/.test(target || "");
+}
+
+function publicationTargets(payload) {
+  return payload.artifacts.map((artifact) => artifact.target);
+}
+
+async function targetsForPublication(env, publicationID) {
+  const candidate = parseJSONOrNull(await env.SUBSCRIPTIONS.get(`node/${env.NODE_ID}/candidate/${publicationID}`));
+  if (candidate && Array.isArray(candidate.targets) && candidate.targets.length >= REQUIRED_TARGETS.size && candidate.targets.every(validTarget)) {
+    return candidate.targets;
+  }
+  // Publication schema v1 stored exactly these three targets. Retaining this
+  // fallback preserves rollback for revisions written before managed rules.
+  const legacyTargets = [...REQUIRED_TARGETS];
+  for (const target of legacyTargets) {
+    if (!await env.SUBSCRIPTIONS.get(revisionKey(target, publicationID))) return null;
+  }
+  return legacyTargets;
 }
 
 function artifactRecord(payload, artifact, publishedAt) {

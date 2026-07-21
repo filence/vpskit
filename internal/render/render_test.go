@@ -277,6 +277,49 @@ func TestClientArtifactSetDeclaresCompatibilityAndDigests(t *testing.T) {
 	}
 }
 
+func TestMihomoManagedRuleSourcesUseAuthenticatedBaseURL(t *testing.T) {
+	values := testValues()
+	values.RulesProfile = model.RulesProfileACL4SSRAntiAD
+	values.RulesSourceMode = model.RulesSourceManaged
+	values.RuleProviderBaseURL = "https://sub.example/s/read-token/rules"
+	content, err := Mihomo(values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(content)
+	for _, expected := range []string{
+		"https://sub.example/s/read-token/rules/acl4ssr-openai",
+		"https://sub.example/s/read-token/rules/anti-ad",
+	} {
+		if !strings.Contains(text, expected) {
+			t.Fatalf("managed rules configuration is missing %q:\n%s", expected, text)
+		}
+	}
+	if strings.Contains(text, "raw.githubusercontent.com/ACL4SSR") || strings.Contains(text, "https://anti-ad.net/") {
+		t.Fatalf("managed rules configuration still contains an upstream URL:\n%s", text)
+	}
+}
+
+func TestMihomoRuleSourcesAreStableAndComplete(t *testing.T) {
+	sources, err := MihomoRuleSources(model.RulesProfileACL4SSRAntiAD)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sources) != 20 {
+		t.Fatalf("unexpected managed rule source count: %d", len(sources))
+	}
+	seen := map[string]bool{}
+	for _, source := range sources {
+		if seen[source.Target] || source.Target == "" || source.URL == "" || source.MediaType == "" {
+			t.Fatalf("invalid source: %#v", source)
+		}
+		seen[source.Target] = true
+	}
+	if !seen["anti-ad"] || !seen["google-all-domain"] || !seen["acl4ssr-openai"] {
+		t.Fatalf("expected source targets missing: %#v", seen)
+	}
+}
+
 func TestRendererCapabilitiesTrackPinnedWindowsClients(t *testing.T) {
 	capabilities := RendererCapabilities()
 	joined := ""

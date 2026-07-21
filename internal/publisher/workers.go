@@ -23,7 +23,7 @@ import (
 
 const (
 	workersPayloadSchema = 1
-	workersMaxBodyBytes  = 1 << 20
+	workersMaxBodyBytes  = 2 << 20
 )
 
 type WorkersConfig struct {
@@ -124,7 +124,10 @@ func NewWorkers(config WorkersConfig) (*Workers, error) {
 		return nil, errors.New("Workers read token must contain at least 256 bits of entropy")
 	}
 	if config.HTTPClient == nil {
-		config.HTTPClient = &http.Client{Timeout: 20 * time.Second}
+		// A managed ACL4SSR + anti-AD revision writes more than twenty
+		// immutable KV records before activation. Keep this below the Workers
+		// request ceiling while allowing eventual KV writes to finish.
+		config.HTTPClient = &http.Client{Timeout: 90 * time.Second}
 	}
 	if config.Now == nil {
 		config.Now = time.Now
@@ -429,7 +432,11 @@ func (publisher *Workers) Healthcheck() error {
 }
 
 func (publisher *Workers) subscriptionURL(target string) string {
-	return publisher.config.Endpoint + "/s/" + url.PathEscape(publisher.config.ReadToken) + "/" + url.PathEscape(target)
+	root := publisher.config.Endpoint + "/s/" + url.PathEscape(publisher.config.ReadToken) + "/"
+	if strings.HasPrefix(target, "rule-") {
+		return root + "rules/" + url.PathEscape(strings.TrimPrefix(target, "rule-"))
+	}
+	return root + url.PathEscape(target)
 }
 
 func (publisher *Workers) signedRequest(ctx context.Context, method, path string, body []byte) (*http.Response, error) {
@@ -473,20 +480,25 @@ func (publisher *Workers) revisionAction(ctx context.Context, action string, pay
 }
 
 func publicationPayload(set artifact.Set) (PublicationPayload, error) {
-	remote := make([]RemoteArtifact, 0, 3)
+	remote := make([]RemoteArtifact, 0, len(set.Artifacts)+1)
+	targets := map[string]bool{}
 	for _, item := range set.Artifacts {
 		target, publish := remoteTarget(item)
 		if !publish {
 			continue
 		}
+		if targets[target] {
+			return PublicationPayload{}, fmt.Errorf("Workers publication has duplicate target %q", target)
+		}
+		targets[target] = true
 		remote = append(remote, RemoteArtifact{
 			Target: target, MediaType: item.MediaType, SHA256: item.SHA256,
 			ContentBase64: base64.StdEncoding.EncodeToString(item.Content), Renderer: item.Renderer,
 			RendererVersion: item.RendererVersion, CompatibilityProfile: item.CompatibilityProfile,
 		})
 	}
-	if len(remote) != 2 {
-		return PublicationPayload{}, errors.New("Workers publication requires exactly Mihomo and v2rayN artifacts")
+	if !targets["mihomo"] || !targets["v2rayn"] {
+		return PublicationPayload{}, errors.New("Workers publication requires Mihomo and v2rayN artifacts")
 	}
 	manifest, err := publicationManifest(set)
 	if err != nil {
@@ -507,7 +519,7 @@ func publicationPayload(set artifact.Set) (PublicationPayload, error) {
 		return PublicationPayload{}, err
 	}
 	if len(body) > workersMaxBodyBytes {
-		return PublicationPayload{}, errors.New("Workers publication exceeds the one MiB request limit")
+		return PublicationPayload{}, errors.New("Workers publication exceeds the two MiB request limit")
 	}
 	return payload, nil
 }
@@ -553,8 +565,27 @@ func remoteTarget(item artifact.Artifact) (string, bool) {
 	case "share-links", "v2rayn":
 		return "v2rayn", true
 	default:
+		if strings.HasPrefix(item.Target, "rule/") {
+			name := strings.TrimPrefix(item.Target, "rule/")
+			if validRuleTarget(name) {
+				return "rule-" + name, true
+			}
+		}
 		return "", false
 	}
+}
+
+func validRuleTarget(value string) bool {
+	if len(value) < 1 || len(value) > 96 {
+		return false
+	}
+	for index, character := range value {
+		if (character >= 'a' && character <= 'z') || (character >= '0' && character <= '9') || (character == '-' && index > 0 && index < len(value)-1) {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func sanitizedHTTPError(operation string, response *http.Response) error {

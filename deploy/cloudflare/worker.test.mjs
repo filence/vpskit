@@ -76,13 +76,30 @@ test("rejects wrong signatures, replayed nonces, oversized bodies, and methods",
   const replay = signedRequest("/api/v1/nodes/node-main/publish", "POST", body, nonce);
   assert.equal((await worker.fetch(replay, env)).status, 401);
 
-  const tooLarge = new Request("https://sub.example/api/v1/nodes/node-main/publish", { method: "POST", body: "x", headers: { "Content-Length": String(1024 * 1024 + 1) } });
+  const tooLarge = new Request("https://sub.example/api/v1/nodes/node-main/publish", { method: "POST", body: "x", headers: { "Content-Length": String(2 * 1024 * 1024 + 1) } });
   assert.equal((await worker.fetch(tooLarge, env)).status, 413);
   assert.equal((await worker.fetch(new Request(`https://sub.example/s/${READ_TOKEN}/mihomo`, { method: "POST" }), env)).status, 405);
 
   const wrongType = signedRequest("/api/v1/nodes/node-main/publish", "POST", body, crypto.randomUUID().replaceAll("-", ""));
   wrongType.headers.set("Content-Type", "text/plain");
   assert.equal((await worker.fetch(wrongType, env)).status, 415);
+});
+
+test("publishes authenticated managed rule artifacts and restores them on rollback", async () => {
+  const kv = new MemoryKV();
+  const env = { SUBSCRIPTIONS: kv, NODE_ID, NODE_PUBLISH_SECRET: PUBLISH_SECRET, INITIAL_READ_TOKEN_HASH: await sha256Hex(text(READ_TOKEN)) };
+  const first = publication("node-main-r0001", 1, "first", [["rule-anti-ad", "application/octet-stream", "first-rule\n"]]);
+  assert.equal((await signedFetch(env, "/api/v1/nodes/node-main/publish", "POST", first)).status, 200);
+  const rule = await worker.fetch(new Request(`https://sub.example/s/${READ_TOKEN}/rules/anti-ad`), env);
+  assert.equal(rule.status, 200);
+  assert.equal(await rule.text(), "first-rule\n");
+
+  const second = publication("node-main-r0002", 2, "second", [["rule-anti-ad", "application/octet-stream", "second-rule\n"]]);
+  assert.equal((await signedFetch(env, "/api/v1/nodes/node-main/publish", "POST", second)).status, 200);
+  assert.equal((await worker.fetch(new Request(`https://sub.example/s/${READ_TOKEN}/rules/anti-ad`), env)).status, 200);
+  assert.equal((await signedFetch(env, "/api/v1/nodes/node-main/rollback", "POST", { publication_id: "node-main-r0001" })).status, 200);
+  const restored = await worker.fetch(new Request(`https://sub.example/s/${READ_TOKEN}/rules/anti-ad`), env);
+  assert.equal(await restored.text(), "first-rule\n");
 });
 
 test("revoking the initial token cannot reactivate its environment fallback", async () => {
@@ -114,11 +131,12 @@ test("zero-overlap rotation invalidates the previous token", async () => {
   assert.equal((await worker.fetch(new Request(`https://sub.example/s/${READ_TOKEN}/manifest`), env)).status, 404);
 });
 
-function publication(publicationID, revision, prefix) {
+function publication(publicationID, revision, prefix, extraArtifacts = []) {
   const artifacts = [
     ["mihomo", "text/yaml; charset=utf-8", `${prefix}-mihomo\n`],
     ["v2rayn", "text/plain; charset=utf-8", `${prefix}-v2rayn\n`],
     ["manifest", "application/json", JSON.stringify({ publication_id: publicationID, node_revision: revision }) + "\n"],
+    ...extraArtifacts,
   ];
   return {
     schema_version: 1,

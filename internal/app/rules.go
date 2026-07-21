@@ -25,7 +25,7 @@ func normalizedRulesProfile(value string) (string, error) {
 
 func runRules(arguments []string) error {
 	if len(arguments) == 0 {
-		return errors.New("usage: vpskit rules <show|plan|apply> [--profile minimal|acl4ssr|acl4ssr-antiad] [--yes]")
+		return errors.New("usage: vpskit rules <show|plan|apply|refresh> [--profile minimal|acl4ssr|acl4ssr-antiad] [--yes]")
 	}
 	if !platform.IsRoot() {
 		return errors.New("rules inspection and mutation require root privileges")
@@ -68,6 +68,7 @@ func runRules(arguments []string) error {
 		}
 		updated := state
 		updated.Rules.Profile = normalized
+		updated.Rules.SourceMode = model.RulesSourceDirect
 		updated.Rules.Revision++
 		updated.ConfigRevision++
 		secrets, err := readInstalledSecrets()
@@ -79,6 +80,39 @@ func runRules(arguments []string) error {
 			return err
 		}
 		return printJSON(commandResult{Command: "rules apply", Status: "PASS", Detail: map[string]any{"profile": commit.State.Rules.Profile, "ruleset_revision": commit.State.Rules.Revision, "config_revision": commit.State.ConfigRevision, "client_update_required": true, "transaction_id": commit.TransactionID, "previous_backup_id": commit.BackupID, "subscription_publish": commit.SubscriptionPublish}})
+	case "refresh":
+		flags := flag.NewFlagSet("rules refresh", flag.ContinueOnError)
+		yes := flags.Bool("yes", false, "confirm downloading, hashing, and publishing the active rule sources")
+		if err := flags.Parse(arguments[1:]); err != nil {
+			return err
+		}
+		if flags.NArg() != 0 || !*yes {
+			return errors.New("rules refresh requires explicit --yes confirmation")
+		}
+		if state.Rules.Profile == model.RulesProfileMinimal {
+			return errors.New("rules refresh requires acl4ssr or acl4ssr-antiad")
+		}
+		if _, err := managedRuleProviderBaseURL(); err != nil {
+			return err
+		}
+		nextRulesetRevision := state.Rules.Revision + 1
+		manifest, err := refreshManagedRuleCache(state.Rules.Profile, nextRulesetRevision)
+		if err != nil {
+			return err
+		}
+		updated := state
+		updated.Rules.SourceMode = model.RulesSourceManaged
+		updated.Rules.Revision = nextRulesetRevision
+		updated.ConfigRevision++
+		secrets, err := readInstalledSecrets()
+		if err != nil {
+			return err
+		}
+		commit, err := commitManagedStateChange(state, updated, secrets, "rules refresh", "rules", []string{"rules.source_mode", "rules.revision", "rules.cache"})
+		if err != nil {
+			return err
+		}
+		return printJSON(commandResult{Command: "rules refresh", Status: "PASS", Detail: map[string]any{"profile": commit.State.Rules.Profile, "source_mode": commit.State.Rules.SourceMode, "ruleset_revision": commit.State.Rules.Revision, "config_revision": commit.State.ConfigRevision, "sources": len(manifest.Sources), "client_update_required": true, "transaction_id": commit.TransactionID, "previous_backup_id": commit.BackupID, "subscription_publish": commit.SubscriptionPublish}})
 	default:
 		return fmt.Errorf("unsupported rules operation %q", arguments[0])
 	}

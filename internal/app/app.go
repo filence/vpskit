@@ -46,6 +46,7 @@ const (
 	certificateRoot                 = "/var/lib/vpskit/certificates"
 	backupRoot                      = "/var/lib/vpskit/backups"
 	transactionRoot                 = "/var/lib/vpskit/transactions"
+	rulesCacheRoot                  = "/var/lib/vpskit/rules"
 	legoStateRoot                   = "/var/lib/vpskit/lego"
 	logRoot                         = "/var/log/vpskit"
 	auditLogPath                    = "/var/log/vpskit/audit.jsonl"

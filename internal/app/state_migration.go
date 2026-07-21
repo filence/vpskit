@@ -93,6 +93,12 @@ func migrateState(state model.State) (model.State, error) {
 			// remain minimal until the owner explicitly applies a profile.
 			state.Rules = model.RulesState{Profile: model.RulesProfileMinimal, Revision: 0}
 			state.SchemaVersion = 7
+		case 7:
+			// Schema 8 makes the rule source explicit. Existing installations
+			// retain their direct upstream behavior until the owner explicitly
+			// refreshes a verified, VPSKit-managed rule cache.
+			state.Rules.SourceMode = model.RulesSourceDirect
+			state.SchemaVersion = 8
 		default:
 			return model.State{}, fmt.Errorf("no migration from state schema %d", state.SchemaVersion)
 		}
@@ -108,6 +114,12 @@ func migrateState(state model.State) (model.State, error) {
 	}
 	if state.Rules.Revision < 0 {
 		return model.State{}, errors.New("rules revision must not be negative")
+	}
+	if state.Rules.SourceMode == "" {
+		state.Rules.SourceMode = model.RulesSourceDirect
+	}
+	if state.Rules.SourceMode != model.RulesSourceDirect && state.Rules.SourceMode != model.RulesSourceManaged {
+		return model.State{}, fmt.Errorf("invalid rules source mode %q", state.Rules.SourceMode)
 	}
 	return state, nil
 }

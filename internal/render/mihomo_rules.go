@@ -2,10 +2,21 @@ package render
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"vpskit.local/vpskit/internal/model"
 )
+
+// MihomoRuleSource is an upstream rule file which can be captured by VPSKit
+// and published through the owner's authenticated subscription endpoint.
+// Target is URL-safe and stable across revisions.
+type MihomoRuleSource struct {
+	Name      string
+	Target    string
+	URL       string
+	MediaType string
+}
 
 type mihomoDNS struct {
 	Enable            bool                `yaml:"enable"`
@@ -61,6 +72,60 @@ func newMihomoRuleProfile(profile string) (mihomoRuleProfile, error) {
 	default:
 		return mihomoRuleProfile{}, fmt.Errorf("unsupported Mihomo rules profile %q", profile)
 	}
+}
+
+// MihomoRuleSources returns the complete remote source set used by a profile.
+// Inline providers such as Google-Antigravity deliberately do not appear here.
+func MihomoRuleSources(profile string) ([]MihomoRuleSource, error) {
+	ruleProfile, err := newMihomoRuleProfile(profile)
+	if err != nil {
+		return nil, err
+	}
+	sources := make([]MihomoRuleSource, 0, len(ruleProfile.Providers))
+	for name, provider := range ruleProfile.Providers {
+		if provider.Type != "http" || strings.TrimSpace(provider.URL) == "" {
+			continue
+		}
+		mediaType := "text/plain; charset=utf-8"
+		if provider.Format == "mrs" {
+			mediaType = "application/octet-stream"
+		}
+		sources = append(sources, MihomoRuleSource{
+			Name: name, Target: mihomoRuleTarget(name), URL: provider.URL, MediaType: mediaType,
+		})
+	}
+	sort.Slice(sources, func(left, right int) bool { return sources[left].Target < sources[right].Target })
+	return sources, nil
+}
+
+func mihomoRuleTarget(name string) string {
+	var result strings.Builder
+	for _, value := range strings.ToLower(strings.TrimSpace(name)) {
+		switch {
+		case value >= 'a' && value <= 'z', value >= '0' && value <= '9':
+			result.WriteRune(value)
+		default:
+			result.WriteByte('-')
+		}
+	}
+	return strings.Trim(result.String(), "-")
+}
+
+func useManagedMihomoRuleSources(ruleProfile *mihomoRuleProfile, profile, baseURL string) error {
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if baseURL == "" {
+		return fmt.Errorf("managed rules profile %q requires a subscription rule URL", profile)
+	}
+	sources, err := MihomoRuleSources(profile)
+	if err != nil {
+		return err
+	}
+	for _, source := range sources {
+		provider := ruleProfile.Providers[source.Name]
+		provider.URL = baseURL + "/" + source.Target
+		ruleProfile.Providers[source.Name] = provider
+	}
+	return nil
 }
 
 func acl4SSRRuleProfile(withAntiAD bool) mihomoRuleProfile {
