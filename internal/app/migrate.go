@@ -104,6 +104,7 @@ func runMigrate(arguments []string) error {
 			"client_update_required": false,
 			"transaction_id":         commit.TransactionID,
 			"previous_backup_id":     commit.BackupID,
+			"subscription_publish":   commit.SubscriptionPublish,
 		}})
 	default:
 		return fmt.Errorf("unsupported migrate operation %q", arguments[0])

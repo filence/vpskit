@@ -155,6 +155,7 @@ func runNode(arguments []string) error {
 		"client_update_required": true,
 		"transaction_id":         commit.TransactionID,
 		"previous_backup_id":     commit.BackupID,
+		"subscription_publish":   commit.SubscriptionPublish,
 	}})
 }
 

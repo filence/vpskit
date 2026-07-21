@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -13,9 +14,10 @@ import (
 )
 
 type stateChangeCommit struct {
-	TransactionID string
-	BackupID      string
-	State         model.State
+	TransactionID       string
+	BackupID            string
+	State               model.State
+	SubscriptionPublish subscriptionPostCommit
 }
 
 func commitManagedStateChange(previous, updated model.State, secrets model.Secrets, command, backupSuffix string, changedFields []string) (result stateChangeCommit, returnErr error) {
@@ -134,12 +136,14 @@ func commitManagedStateChange(previous, updated model.State, secrets model.Secre
 		return stateChangeCommit{}, err
 	}
 	committed = true
+	subscriptionPublish := attemptAutoPublishSubscription(context.Background())
 	_ = appendAudit(map[string]any{
 		"time":           time.Now().UTC(),
 		"transaction_id": transactionID,
 		"command":        command,
 		"status":         "COMMITTED",
 		"backup_id":      backupID,
+		"subscription":   subscriptionPublish.Status,
 	})
-	return stateChangeCommit{TransactionID: transactionID, BackupID: backupID, State: updated}, nil
+	return stateChangeCommit{TransactionID: transactionID, BackupID: backupID, State: updated, SubscriptionPublish: subscriptionPublish}, nil
 }

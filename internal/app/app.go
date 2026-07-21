@@ -67,6 +67,14 @@ const (
 	managedKey                      = "/var/lib/vpskit/certificates/hysteria2.key"
 )
 
+var (
+	subscriptionConfigPath    = "/etc/vpskit/subscription.json"
+	subscriptionSecretPath    = "/var/lib/vpskit/secrets/subscription.json"
+	publicationStatePath      = "/var/lib/vpskit/subscription-state.json"
+	subscriptionOwnershipPath = ownershipPath
+	subscriptionLockPath      = "/var/lib/vpskit/locks/vpskit.lock"
+)
+
 type InstallOptions struct {
 	BundleDir           string
 	NodeID              string
@@ -141,6 +149,8 @@ func Run(arguments []string, version, publicKeyBase64 string) error {
 		return runSystem(arguments[1:])
 	case "support":
 		return runSupport(arguments[1:])
+	case "subscription":
+		return runSubscription(arguments[1:])
 	case "menu":
 		return runMenu(arguments[1:], version, publicKeyBase64)
 	case "status", "doctor":
@@ -153,7 +163,7 @@ func Run(arguments []string, version, publicKeyBase64 string) error {
 }
 
 func usageError() error {
-	return errors.New("usage: vpskit <version|bundle verify|reality scan|cert status|cert renew|update self|update core|backup|restore <backup-id> --yes|rollback <transaction-id> --yes|recover|orphan scan|uninstall --yes|preflight|install balanced|instance <enable|disable|modify|delete>|node <show|modify>|migrate <check|plan|apply>|cleanup <plan|apply>|system inspect|support bundle|menu|status|doctor|export>")
+	return errors.New("usage: vpskit <version|bundle verify|reality scan|cert status|cert renew|update self|update core|backup|restore <backup-id> --yes|rollback <transaction-id> --yes|recover|orphan scan|uninstall --yes|preflight|install balanced|instance <enable|disable|modify|delete>|node <show|modify>|migrate <check|plan|apply>|cleanup <plan|apply>|system inspect|support bundle|subscription <plan|configure|publish|status|rotate-read-token|revoke-read-token|rollback|remove>|menu|status|doctor|export>")
 }
 
 func runBundle(arguments []string, publicKeyBase64 string) error {

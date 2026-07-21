@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -261,6 +262,7 @@ func mutateInstalledInstance(operation, target string, port int, realityServerNa
 		return err
 	}
 	committed = true
+	subscriptionPublish := attemptAutoPublishSubscription(context.Background())
 	_ = appendAudit(map[string]any{
 		"time":           time.Now().UTC(),
 		"transaction_id": transactionID,
@@ -268,6 +270,7 @@ func mutateInstalledInstance(operation, target string, port int, realityServerNa
 		"instance":       target,
 		"status":         "COMMITTED",
 		"backup_id":      backupID,
+		"subscription":   subscriptionPublish.Status,
 	})
 	return printJSON(commandResult{Command: command, Status: "PASS", Detail: map[string]any{
 		"result":                 map[string]string{"enable": "ENABLED", "disable": "DISABLED", "modify": "MODIFIED", "delete": "DELETED"}[operation],
@@ -280,6 +283,7 @@ func mutateInstalledInstance(operation, target string, port int, realityServerNa
 		"changed_client_fields":  changedClientFields,
 		"exports_regenerated":    true,
 		"reality_server_name":    updatedState.RealityServerName,
+		"subscription_publish":   subscriptionPublish,
 	}})
 }
 

@@ -158,6 +158,9 @@ var uninstallAllowedFiles = map[string]bool{
 	secretPath:                      true,
 	cloudflareEnvPath:               true,
 	acmeEnvPath:                     true,
+	subscriptionConfigPath:          true,
+	subscriptionSecretPath:          true,
+	publicationStatePath:            true,
 }
 
 var uninstallAllowedDirectories = map[string]bool{
