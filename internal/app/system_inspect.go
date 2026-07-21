@@ -13,14 +13,60 @@ import (
 )
 
 func runSystem(arguments []string) error {
-	if len(arguments) != 1 || arguments[0] != "inspect" {
-		return errors.New("usage: vpskit system inspect")
+	if len(arguments) != 1 {
+		return errors.New("usage: vpskit system <inspect|updates>")
 	}
-	report, err := collectSystemInspect()
+	switch arguments[0] {
+	case "inspect":
+		report, err := collectSystemInspect()
+		if err != nil {
+			return err
+		}
+		return printJSON(commandResult{Command: "system inspect", Status: "PASS", Detail: report})
+	case "updates":
+		report, err := collectSystemUpdateCandidates()
+		if err != nil {
+			return err
+		}
+		return printJSON(commandResult{Command: "system updates", Status: "PASS", Detail: report})
+	default:
+		return errors.New("usage: vpskit system <inspect|updates>")
+	}
+}
+
+func collectSystemUpdateCandidates() (map[string]any, error) {
+	if runtime.GOOS != "linux" {
+		return nil, fmt.Errorf("system updates is only supported on Linux, got %s", runtime.GOOS)
+	}
+	output, err := runCommand("apt-get", "-s", "upgrade")
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("simulate system package upgrade: %w: %s", err, sanitizeText(output, ""))
 	}
-	return printJSON(commandResult{Command: "system inspect", Status: "PASS", Detail: report})
+	packages := parseAPTUpgradeCandidates(output)
+	return map[string]any{
+		"checked_at":      time.Now().UTC(),
+		"mode":            "simulation_only",
+		"candidate_count": len(packages),
+		"candidates":      packages,
+		"reboot_required": fileExists("/var/run/reboot-required"),
+		"note":            "No package was installed, upgraded, removed, or rebooted.",
+	}, nil
+}
+
+func parseAPTUpgradeCandidates(output string) []string {
+	packages := make([]string, 0)
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == "Inst" {
+			packages = append(packages, fields[1])
+		}
+	}
+	return packages
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func collectSystemInspect() (map[string]any, error) {

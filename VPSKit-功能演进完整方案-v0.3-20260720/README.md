@@ -1,7 +1,7 @@
 # VPSKit 功能演进完整方案包
 
 - 方案版本：v0.3
-- 审查修订：R4（Fail2ban 实机验收）
+- 审查修订：R5（系统更新检查与 Hysteria2 兼容性调研）
 - 原编制日期：2026-07-20
 - 本次修订日期：2026-07-21
 - 对应项目：[filence/vpskit](https://github.com/filence/vpskit)

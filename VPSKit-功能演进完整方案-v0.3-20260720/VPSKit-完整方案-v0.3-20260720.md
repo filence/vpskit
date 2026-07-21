@@ -1,18 +1,18 @@
-# VPSKit 功能演进完整方案 v0.3-R4
+# VPSKit 功能演进完整方案 v0.3-R5
 
 > 标题：VPSKit 功能演进完整方案
 >
-> 生成时间：2026-07-21 16:35
+> 生成时间：2026-07-21 16:50
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R4
+> 版本：v0.3-R5
 >
 > 用途：用户筛选后的 VPSKit 后续功能实施依据
 
 - 原编制日期：2026-07-20
 - 精简修订日期：2026-07-21
-- 当前产品基线：VPSKit `v0.2.1-lab.6`；方案 A、`doctor --fix`、扩展 `system inspect` 与 Fail2ban 已完成对应实机验收
+- 当前产品基线：VPSKit `v0.2.1-lab.7`；方案 A、`doctor --fix`、扩展 `system inspect`、Fail2ban 与只读更新候选检查已完成对应实机验收
 - 证据原则：仅保留功能进入实施路线；暂停功能不安排版本号
 
 本文件由同目录 00–12 分卷按顺序机械合并。出现歧义时，以分卷、`FILE-MANIFEST.md` 和当前源码为准。
@@ -37,11 +37,11 @@
 
 > 标题：VPSKit 功能演进执行摘要与决策清单
 >
-> 生成时间：2026-07-21 16:35
+> 生成时间：2026-07-21 16:50
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R4
+> 版本：v0.3-R5
 >
 > 用途：记录用户筛选后的后续功能范围与实施优先级
 
@@ -100,7 +100,7 @@
 4. Hysteria2 混淆、拥塞控制/带宽建议、端口跳跃与 UDP 调优；
 5. Fail2ban、系统更新/重启需求、时间同步、DNS/IPv6 健康检查。
 
-截至 2026-07-21 的实施状态：方案 A 已通过 Clash Verge Rev 的订阅更新、加载与实际连接验收；`doctor --fix`、扩展后的 `system inspect` 和 Fail2ban 的“应用 → 删除 → 重新应用”已通过 Debian 13 amd64 实机验收。Hysteria2 四项强化、系统更新候选检查和规则来源固定仍未实施。
+截至 2026-07-21 的实施状态：方案 A 已通过 Clash Verge Rev 的订阅更新、加载与实际连接验收；`doctor --fix`、扩展后的 `system inspect`、Fail2ban 的“应用 → 删除 → 重新应用”和只读 `system updates` 已通过 Debian 13 amd64 实机验收。Hysteria2 四项强化和规则来源固定仍未实施。
 
 ## 6. 不变的安全原则
 
@@ -1099,11 +1099,11 @@ WARP 与 AI 精确出站不在本轮保留范围，不安排版本号、不创�
 
 > 标题：VPSKit Hysteria2 与最小系统运维方案
 >
-> 生成时间：2026-07-21 16:35
+> 生成时间：2026-07-21 16:50
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R4
+> 版本：v0.3-R5
 >
 > 用途：定义保留的 Hysteria2 强化、诊断、安全和系统健康能力
 
@@ -1130,6 +1130,14 @@ WARP 与 AI 精确出站不在本轮保留范围，不安排版本号、不创�
 不得修改 SSH、未知服务、用户手写防火墙、系统包、内核或用户配置。
 
 ## 4. Hysteria2 强化
+
+### 4.0 2026-07-21 兼容性调研结论
+
+实机运行的 sing-box 是 `1.13.14`。官方 Hysteria2 入站文档确认 Salamander 可用；Gecko 和 `bbr_profile` 标记为 sing-box `1.14.0` 新字段，当前不可下发。当前 Mihomo 仓库的代码检索未发现 `hopInterval`、Salamander 或 Hysteria2 `obfs` 处理，因此不能向已验收的 Clash Verge Rev/Mihomo `1.19.29` 订阅直接发布这些字段。
+
+官方 Hysteria 2 `v2.10.0` 的端口跳跃文档要求客户端支持多端口地址与 `hopInterval`，服务端依赖端口范围以及 nftables/iptables 重定向权限；这不等同于当前 sing-box 入站能力。社区 Issue `apernet/hysteria#1590` 还记录过特定 IPv6 地址下的自动重定向失败，已在 `v2.9.3` 修复。当前 VPS 没有 IPv6 路由，但仍不能据此跳过客户端与核心兼容验证。
+
+结论：本轮仅记录基线和调研证据，不启用 Salamander、Gecko、BBR profile 或端口跳跃。重新进入实施前必须先完成锁定 core 升级、Windows 目标客户端导入/连接验证和独立回滚。
 
 ### 4.1 Salamander 混淆
 
@@ -1166,7 +1174,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 
 ## 6. 系统健康检查
 
-已实现：`reboot-required`、时间同步、DNS 可用性、IPv4/IPv6 配置与默认路由、磁盘使用量提示。系统更新候选和磁盘增长趋势仍待实现。默认只报告；系统更新、重启和 SSH 安全改动始终由用户单独执行。
+已实现：`reboot-required`、时间同步、DNS 可用性、IPv4/IPv6 配置与默认路由、磁盘使用量提示和 `vpskit system updates`。更新检查调用 `apt-get -s upgrade`，只列出候选包，绝不下载、安装、删除或重启。磁盘增长趋势仍待实现。默认只报告；系统更新、重启和 SSH 安全改动始终由用户单独执行。
 
 ## 7. 发布门
 
@@ -1183,11 +1191,11 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 
 > 标题：VPSKit 精简版版本路线图
 >
-> 生成时间：2026-07-21 16:35
+> 生成时间：2026-07-21 16:50
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R4
+> 版本：v0.3-R5
 >
 > 用途：将用户筛选后的功能拆成低风险、可验收的版本切片
 
@@ -1195,7 +1203,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 
 `v0.2.0-lab.1` 已完成单 VPS 自动订阅、Mihomo/Clash Verge 与 v2rayN 基础交付、生产 Workers/KV 发布、令牌轮换/撤销和用户客户端自动更新验收。
 
-`v0.2.1-lab.6` 已完成结构化 Mihomo、节点元数据、方案 A/B 的服务端渲染、方案 A Windows 11 Clash Verge Rev r0007 验收、`doctor --fix`、DNS/IPv4/IPv6 扩展 `system inspect`，以及 Fail2ban SSH jail 的完整生命周期验收。规则来源固定、方案 B 人工回退、白名单、更新候选检查和 Hysteria2 强化尚未完成。
+`v0.2.1-lab.7` 已完成结构化 Mihomo、节点元数据、方案 A/B 的服务端渲染、方案 A Windows 11 Clash Verge Rev r0007 验收、`doctor --fix`、DNS/IPv4/IPv6 扩展 `system inspect`、Fail2ban SSH jail 完整生命周期以及只读系统更新候选检查。规则来源固定、方案 B 人工回退、白名单和 Hysteria2 强化尚未完成。
 
 ## 2. 下一个版本：架构、渲染与规则交付
 
@@ -1207,7 +1215,6 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 
 ## 3. 运维版本：安全修复与可观察性
 
-- 系统更新候选；
 - Fail2ban 白名单与可读的状态摘要。
 
 ## 4. Hysteria2 版本：现有性能主节点强化

@@ -778,6 +778,14 @@ func TestSystemInspectParsers(t *testing.T) {
 	}
 }
 
+func TestParseAPTUpgradeCandidates(t *testing.T) {
+	output := "Reading package lists...\nInst openssl [3.0.0] (3.0.1 Debian:13/stable)\nInst linux-image-amd64 [6.1] (6.2 Debian:13/stable)\nConf openssl (3.0.1 Debian:13/stable)\n"
+	packages := parseAPTUpgradeCandidates(output)
+	if len(packages) != 2 || packages[0] != "openssl" || packages[1] != "linux-image-amd64" {
+		t.Fatalf("unexpected APT candidates: %#v", packages)
+	}
+}
+
 func TestFail2banSSHDJailRendering(t *testing.T) {
 	contents := renderFail2banSSHDJail(2222)
 	for _, expected := range []string{"[sshd]", "backend = systemd", "port = 2222", "maxretry = 5"} {
