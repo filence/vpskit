@@ -32,3 +32,18 @@ func TestHysteria2SalamanderUsageRequiresExplicitConfirmation(t *testing.T) {
 		t.Fatalf("unexpected Salamander plan confirmation error: %v", err)
 	}
 }
+
+func TestParseHysteria2ProcessUsage(t *testing.T) {
+	usage, err := parseHysteria2ProcessUsage(" 1.5  20480\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if usage.CPUPercent != 1.5 || usage.RSSKiB != 20480 {
+		t.Fatalf("unexpected parsed usage: %#v", usage)
+	}
+	for _, output := range []string{"", "1.5", "-1 2", "1.5 -2", "1.5 nope"} {
+		if _, err := parseHysteria2ProcessUsage(output); err == nil {
+			t.Fatalf("expected parse error for %q", output)
+		}
+	}
+}

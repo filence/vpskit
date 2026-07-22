@@ -14,7 +14,7 @@ import (
 
 func runHysteria2(arguments []string) error {
 	if len(arguments) == 0 {
-		return errors.New("usage: vpskit hysteria2 <inspect|salamander>")
+		return errors.New("usage: vpskit hysteria2 <inspect|salamander|performance>")
 	}
 	switch arguments[0] {
 	case "inspect":
@@ -31,9 +31,25 @@ func runHysteria2(arguments []string) error {
 		return printJSON(commandResult{Command: "hysteria2 inspect", Status: "PASS", Detail: collectHysteria2Inspect(state)})
 	case "salamander":
 		return runHysteria2Salamander(arguments[1:])
+	case "performance":
+		return runHysteria2Performance(arguments[1:])
 	default:
-		return errors.New("usage: vpskit hysteria2 <inspect|salamander>")
+		return errors.New("usage: vpskit hysteria2 <inspect|salamander|performance>")
 	}
+}
+
+func runHysteria2Performance(arguments []string) error {
+	if len(arguments) != 1 || arguments[0] != "inspect" {
+		return errors.New("usage: vpskit hysteria2 performance inspect")
+	}
+	if !platform.IsRoot() {
+		return errors.New("hysteria2 performance inspection requires root privileges")
+	}
+	state, err := readInstalledState()
+	if err != nil {
+		return err
+	}
+	return printJSON(commandResult{Command: "hysteria2 performance inspect", Status: "PASS", Detail: collectHysteria2PerformanceInspect(state)})
 }
 
 func runHysteria2Salamander(arguments []string) error {
@@ -185,6 +201,71 @@ func collectHysteria2Inspect(state model.State) map[string]any {
 	}
 }
 
+// collectHysteria2PerformanceInspect deliberately does not claim that host
+// process data measures the client-to-VPS path. RTT, throughput and loss must
+// come from an authenticated client or a controlled remote probe.
+func collectHysteria2PerformanceInspect(state model.State) map[string]any {
+	return map[string]any{
+		"inspected_at": time.Now().UTC(),
+		"runtime": map[string]any{
+			"enabled":          state.Hysteria2.Enabled,
+			"service_state":    systemdUnitState(serviceUnitName),
+			"udp_port":         state.Hysteria2.ListenPort,
+			"listener_present": state.Hysteria2.Enabled && listenerPresent("udp", state.Hysteria2.ListenPort),
+		},
+		"process":           collectManagedServiceProcessUsage(serviceUnitName),
+		"udp_buffer":        map[string]any{"rmem_max": readHysteria2Sysctl("net.core.rmem_max"), "wmem_max": readHysteria2Sysctl("net.core.wmem_max")},
+		"kernel_congestion": readHysteria2TextSysctl("net.ipv4.tcp_congestion_control"),
+		"client_path_measurement": map[string]any{
+			"status":   "NOT_MEASURED",
+			"reason":   "server-side inspection cannot measure authenticated client-to-VPS RTT, throughput, or packet loss",
+			"required": []string{"rtt_ms", "throughput_mbps", "packet_loss_percent", "client_core_cpu_percent"},
+		},
+		"recommendation": "collect comparable client-side measurements before changing UDP buffers or congestion-related settings; do not infer throughput from a single latency result",
+	}
+}
+
+func collectManagedServiceProcessUsage(unit string) map[string]any {
+	output, err := runCommand("systemctl", "show", "--property=MainPID", "--value", unit)
+	if err != nil {
+		return map[string]any{"status": "UNAVAILABLE"}
+	}
+	pid, err := strconv.ParseInt(strings.TrimSpace(output), 10, 64)
+	if err != nil || pid < 1 {
+		return map[string]any{"status": "NOT_RUNNING"}
+	}
+	output, err = runCommand("ps", "-o", "pcpu=,rss=", "-p", strconv.FormatInt(pid, 10))
+	if err != nil {
+		return map[string]any{"status": "UNAVAILABLE", "pid": pid}
+	}
+	usage, err := parseHysteria2ProcessUsage(output)
+	if err != nil {
+		return map[string]any{"status": "UNAVAILABLE", "pid": pid}
+	}
+	return map[string]any{"status": "AVAILABLE", "pid": pid, "cpu_percent": usage.CPUPercent, "rss_kib": usage.RSSKiB}
+}
+
+type hysteria2ProcessUsage struct {
+	CPUPercent float64
+	RSSKiB     int64
+}
+
+func parseHysteria2ProcessUsage(output string) (hysteria2ProcessUsage, error) {
+	fields := strings.Fields(output)
+	if len(fields) != 2 {
+		return hysteria2ProcessUsage{}, errors.New("unexpected ps output")
+	}
+	cpu, err := strconv.ParseFloat(fields[0], 64)
+	if err != nil || cpu < 0 {
+		return hysteria2ProcessUsage{}, errors.New("invalid process CPU percentage")
+	}
+	rss, err := strconv.ParseInt(fields[1], 10, 64)
+	if err != nil || rss < 0 {
+		return hysteria2ProcessUsage{}, errors.New("invalid process RSS")
+	}
+	return hysteria2ProcessUsage{CPUPercent: cpu, RSSKiB: rss}, nil
+}
+
 func readHysteria2Sysctl(name string) map[string]any {
 	output, err := runCommand("sysctl", "-n", name)
 	if err != nil {
@@ -195,6 +276,14 @@ func readHysteria2Sysctl(name string) map[string]any {
 		return map[string]any{"status": "UNAVAILABLE"}
 	}
 	return map[string]any{"status": "AVAILABLE", "bytes": value}
+}
+
+func readHysteria2TextSysctl(name string) map[string]any {
+	output, err := runCommand("sysctl", "-n", name)
+	if err != nil || strings.TrimSpace(output) == "" {
+		return map[string]any{"status": "UNAVAILABLE"}
+	}
+	return map[string]any{"status": "AVAILABLE", "value": strings.TrimSpace(output)}
 }
 
 func hysteria2CapabilityStatus(supported bool) string {
