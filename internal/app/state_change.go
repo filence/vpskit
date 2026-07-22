@@ -21,6 +21,13 @@ type stateChangeCommit struct {
 }
 
 func commitManagedStateChange(previous, updated model.State, secrets model.Secrets, command, backupSuffix string, changedFields []string) (result stateChangeCommit, returnErr error) {
+	return commitManagedStateChangeWithServiceRestart(previous, updated, secrets, command, backupSuffix, changedFields, false)
+}
+
+// commitManagedStateChangeWithServiceRestart is for mutations that alter an
+// active server config. Client-only state changes keep the existing no-restart
+// behavior, while listener behavior gets an immediate health-checked rollback.
+func commitManagedStateChangeWithServiceRestart(previous, updated model.State, secrets model.Secrets, command, backupSuffix string, changedFields []string, restartServices bool) (result stateChangeCommit, returnErr error) {
 	lock, err := platform.AcquireProcessLock(filepath.Join(stateRoot, "locks", "vpskit.lock"))
 	if err != nil {
 		return stateChangeCommit{}, err
@@ -92,6 +99,7 @@ func commitManagedStateChange(previous, updated model.State, secrets model.Secre
 
 	timerWasActive := execCommandSuccess("systemctl", "is-active", "--quiet", certificateRenewTimerUnitName) == nil
 	mutated := false
+	restartAttempted := false
 	committed := false
 	defer func() {
 		if committed {
@@ -101,7 +109,7 @@ func commitManagedStateChange(previous, updated model.State, secrets model.Secre
 		}
 		var rollbackError error
 		if mutated {
-			rollbackError = rollbackRestore(snapshotEntries, false, timerWasActive, snapshotDirectory, previous)
+			rollbackError = rollbackRestore(snapshotEntries, restartAttempted, timerWasActive, snapshotDirectory, previous)
 		}
 		progressRecord["status"] = "ROLLED_BACK"
 		progressRecord["failed_at"] = time.Now().UTC()
@@ -127,6 +135,15 @@ func commitManagedStateChange(previous, updated model.State, secrets model.Secre
 	}
 	if output, err := runCommand(installedXray, "run", "-test", "-config", xrayServerConfigPath); err != nil {
 		return stateChangeCommit{}, fmt.Errorf("installed Xray configuration check failed: %w: %s", err, sanitizeText(output, ""))
+	}
+	if restartServices {
+		restartAttempted = true
+		if err := restartManagedServices(updated); err != nil {
+			return stateChangeCommit{}, fmt.Errorf("restart after state mutation failed: %w", err)
+		}
+		if err := waitForManagedServiceState(updated, 30*time.Second); err != nil {
+			return stateChangeCommit{}, fmt.Errorf("state mutation health check failed: %w", err)
+		}
 	}
 
 	progressRecord["status"] = "COMMITTED"

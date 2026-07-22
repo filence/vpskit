@@ -181,6 +181,8 @@ type mihomoHysteria2Proxy struct {
 	Password             string `yaml:"password"`
 	SNI                  string `yaml:"sni"`
 	SkipCertVerification bool   `yaml:"skip-cert-verify"`
+	Obfs                 string `yaml:"obfs,omitempty"`
+	ObfsPassword         string `yaml:"obfs-password,omitempty"`
 }
 
 type mihomoProxyGroup struct {
@@ -209,6 +211,7 @@ func Mihomo(values model.RuntimeValues) ([]byte, error) {
 		proxies = append(proxies, mihomoHysteria2Proxy{
 			Name: hysteria2Name, Type: "hysteria2", Server: values.ConnectHost, Port: values.UDPPort,
 			Password: values.Hysteria2Password, SNI: values.Domain, SkipCertVerification: false,
+			Obfs: values.Hysteria2Obfuscation, ObfsPassword: values.Hysteria2ObfuscationPassword,
 		})
 		proxyNames = append(proxyNames, hysteria2Name)
 	}
@@ -272,6 +275,12 @@ func validateClientValues(values model.RuntimeValues) error {
 	if values.Hysteria2Enabled {
 		if values.UDPPort < 1 || values.UDPPort > 65535 || strings.TrimSpace(values.Hysteria2Password) == "" || strings.TrimSpace(values.Domain) == "" {
 			return errors.New("enabled Hysteria2 client is missing required connection fields")
+		}
+		if values.Hysteria2Obfuscation != "" && values.Hysteria2Obfuscation != "salamander" {
+			return fmt.Errorf("unsupported Hysteria2 obfuscation %q", values.Hysteria2Obfuscation)
+		}
+		if values.Hysteria2Obfuscation != "" && strings.TrimSpace(values.Hysteria2ObfuscationPassword) == "" {
+			return errors.New("enabled Hysteria2 obfuscation is missing its password")
 		}
 	}
 	return nil

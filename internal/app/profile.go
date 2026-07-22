@@ -361,6 +361,7 @@ func applyInstanceStateChange(state *model.State, secrets *model.Secrets, operat
 			}
 			state.Hysteria2 = model.Hysteria2State{}
 			secrets.Hysteria2Password = ""
+			secrets.Hysteria2ObfuscationPassword = ""
 		}
 	}
 	return nil
@@ -391,6 +392,9 @@ func clientFacingChanges(previous, updated model.State) []string {
 	}
 	if previous.Hysteria2.ListenPort != updated.Hysteria2.ListenPort {
 		changes = append(changes, "hysteria2.port")
+	}
+	if previous.Hysteria2.Obfuscation != updated.Hysteria2.Obfuscation {
+		changes = append(changes, "hysteria2.obfuscation")
 	}
 	if previous.Rules.Profile != updated.Rules.Profile || previous.Rules.Revision != updated.Rules.Revision || previous.Rules.SourceMode != updated.Rules.SourceMode || !sameUserRules(previous.Rules.UserRules, updated.Rules.UserRules) {
 		changes = append(changes, "rules.profile")
@@ -424,26 +428,28 @@ func readInstalledSecrets() (model.Secrets, error) {
 
 func runtimeValuesFromState(state model.State, secrets model.Secrets) model.RuntimeValues {
 	return model.RuntimeValues{
-		Node:              state.Node,
-		ClientRevision:    state.ConfigRevision,
-		RulesProfile:      state.Rules.Profile,
-		RulesetRevision:   state.Rules.Revision,
-		RulesSourceMode:   state.Rules.SourceMode,
-		UserRules:         append([]model.UserRule(nil), state.Rules.UserRules...),
-		RealityEnabled:    state.Reality.Enabled,
-		Hysteria2Enabled:  state.Hysteria2.Enabled,
-		ConnectHost:       state.ConnectHost,
-		Domain:            state.Domain,
-		RealityServerName: state.RealityServerName,
-		TCPPort:           state.Reality.ListenPort,
-		UDPPort:           state.Hysteria2.ListenPort,
-		RealityUUID:       secrets.RealityUUID,
-		RealityPrivateKey: secrets.RealityPrivateKey,
-		RealityPublicKey:  state.Reality.PublicKey,
-		RealityShortID:    state.Reality.ShortID,
-		Hysteria2Password: secrets.Hysteria2Password,
-		CertificatePath:   state.Hysteria2.CertificatePath,
-		KeyPath:           state.Hysteria2.KeyPath,
+		Node:                         state.Node,
+		ClientRevision:               state.ConfigRevision,
+		RulesProfile:                 state.Rules.Profile,
+		RulesetRevision:              state.Rules.Revision,
+		RulesSourceMode:              state.Rules.SourceMode,
+		UserRules:                    append([]model.UserRule(nil), state.Rules.UserRules...),
+		RealityEnabled:               state.Reality.Enabled,
+		Hysteria2Enabled:             state.Hysteria2.Enabled,
+		ConnectHost:                  state.ConnectHost,
+		Domain:                       state.Domain,
+		RealityServerName:            state.RealityServerName,
+		TCPPort:                      state.Reality.ListenPort,
+		UDPPort:                      state.Hysteria2.ListenPort,
+		RealityUUID:                  secrets.RealityUUID,
+		RealityPrivateKey:            secrets.RealityPrivateKey,
+		RealityPublicKey:             state.Reality.PublicKey,
+		RealityShortID:               state.Reality.ShortID,
+		Hysteria2Password:            secrets.Hysteria2Password,
+		Hysteria2Obfuscation:         state.Hysteria2.Obfuscation,
+		Hysteria2ObfuscationPassword: secrets.Hysteria2ObfuscationPassword,
+		CertificatePath:              state.Hysteria2.CertificatePath,
+		KeyPath:                      state.Hysteria2.KeyPath,
 	}
 }
 

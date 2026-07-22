@@ -15,24 +15,29 @@ import (
 func ServerConfig(values model.RuntimeValues) ([]byte, error) {
 	inbounds := make([]any, 0, 1)
 	if values.Hysteria2Enabled {
-		inbounds = append(inbounds,
-			map[string]any{
-				"type":        "hysteria2",
-				"tag":         "hy2-backup",
-				"listen":      "::",
-				"listen_port": values.UDPPort,
-				"users": []any{map[string]any{
-					"name":     "default",
-					"password": values.Hysteria2Password,
-				}},
-				"tls": map[string]any{
-					"enabled":          true,
-					"server_name":      values.Domain,
-					"certificate_path": values.CertificatePath,
-					"key_path":         values.KeyPath,
-				},
+		inbound := map[string]any{
+			"type":        "hysteria2",
+			"tag":         "hy2-backup",
+			"listen":      "::",
+			"listen_port": values.UDPPort,
+			"users": []any{map[string]any{
+				"name":     "default",
+				"password": values.Hysteria2Password,
+			}},
+			"tls": map[string]any{
+				"enabled":          true,
+				"server_name":      values.Domain,
+				"certificate_path": values.CertificatePath,
+				"key_path":         values.KeyPath,
 			},
-		)
+		}
+		if values.Hysteria2Obfuscation != "" {
+			inbound["obfs"] = map[string]any{
+				"type":     values.Hysteria2Obfuscation,
+				"password": values.Hysteria2ObfuscationPassword,
+			}
+		}
+		inbounds = append(inbounds, inbound)
 	}
 	configuration := map[string]any{
 		"log": map[string]any{
@@ -113,7 +118,7 @@ func SingBoxRealityClient(values model.RuntimeValues, socksPort int) ([]byte, er
 }
 
 func SingBoxHysteria2Client(values model.RuntimeValues, socksPort int) ([]byte, error) {
-	configuration := clientBase(socksPort, map[string]any{
+	outbound := map[string]any{
 		"type":        "hysteria2",
 		"tag":         "proxy",
 		"server":      values.ConnectHost,
@@ -123,7 +128,14 @@ func SingBoxHysteria2Client(values model.RuntimeValues, socksPort int) ([]byte, 
 			"enabled":     true,
 			"server_name": values.Domain,
 		},
-	})
+	}
+	if values.Hysteria2Obfuscation != "" {
+		outbound["obfs"] = map[string]any{
+			"type":     values.Hysteria2Obfuscation,
+			"password": values.Hysteria2ObfuscationPassword,
+		}
+	}
+	configuration := clientBase(socksPort, outbound)
 	return marshalJSON(configuration)
 }
 
@@ -162,6 +174,10 @@ func ShareLinks(values model.RuntimeValues) []byte {
 	if values.Hysteria2Enabled {
 		hy2Query := url.Values{}
 		hy2Query.Set("sni", values.Domain)
+		if values.Hysteria2Obfuscation != "" {
+			hy2Query.Set("obfs", values.Hysteria2Obfuscation)
+			hy2Query.Set("obfs-password", values.Hysteria2ObfuscationPassword)
+		}
 		links = append(links, fmt.Sprintf(
 			"hysteria2://%s@%s?%s#%s",
 			url.PathEscape(values.Hysteria2Password), net.JoinHostPort(values.ConnectHost, strconv.Itoa(values.UDPPort)), hy2Query.Encode(), url.PathEscape(hysteria2Name),

@@ -132,6 +132,54 @@ func TestShareLinksContainBothProtocols(t *testing.T) {
 	}
 }
 
+func TestSalamanderRendersAcrossHysteria2Artifacts(t *testing.T) {
+	values := testValues()
+	values.Hysteria2Obfuscation = "salamander"
+	values.Hysteria2ObfuscationPassword = "obfuscation-password"
+
+	serverConfig, err := ServerConfig(values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var server map[string]any
+	if err := json.Unmarshal(serverConfig, &server); err != nil {
+		t.Fatal(err)
+	}
+	inbound := server["inbounds"].([]any)[0].(map[string]any)
+	obfs := inbound["obfs"].(map[string]any)
+	if obfs["type"] != "salamander" || obfs["password"] != values.Hysteria2ObfuscationPassword {
+		t.Fatalf("server Salamander fields missing: %#v", obfs)
+	}
+
+	clientConfig, err := SingBoxHysteria2Client(values, 2081)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(clientConfig), "\"obfs\"") || !strings.Contains(string(clientConfig), "salamander") {
+		t.Fatalf("sing-box client Salamander fields missing: %s", clientConfig)
+	}
+	mihomoConfig, err := Mihomo(values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(mihomoConfig), "obfs: salamander") || !strings.Contains(string(mihomoConfig), "obfs-password: obfuscation-password") {
+		t.Fatalf("Mihomo Salamander fields missing: %s", mihomoConfig)
+	}
+	shareLink := string(ShareLinks(values))
+	if !strings.Contains(shareLink, "obfs=salamander") || !strings.Contains(shareLink, "obfs-password=obfuscation-password") {
+		t.Fatalf("share-link Salamander fields missing: %s", shareLink)
+	}
+}
+
+func TestMihomoRejectsUnsupportedHysteria2Obfuscation(t *testing.T) {
+	values := testValues()
+	values.Hysteria2Obfuscation = "gecko"
+	values.Hysteria2ObfuscationPassword = "password"
+	if _, err := Mihomo(values); err == nil {
+		t.Fatal("expected unsupported Hysteria2 obfuscation to be rejected")
+	}
+}
+
 func TestShareLinksBracketIPv6Authorities(t *testing.T) {
 	values := testValues()
 	values.ConnectHost = "2001:db8::10"

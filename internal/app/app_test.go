@@ -910,7 +910,7 @@ func TestInstanceDeleteClearsOnlySelectedSecret(t *testing.T) {
 	if err := applyInstanceStateChange(&state, &secrets, "delete", "hysteria2", 0); err != nil {
 		t.Fatal(err)
 	}
-	if state.Hysteria2.ID != "" || secrets.Hysteria2Password != "" {
+	if state.Hysteria2.ID != "" || secrets.Hysteria2Password != "" || secrets.Hysteria2ObfuscationPassword != "" {
 		t.Fatalf("Hysteria2 deletion was incomplete: state=%#v secrets=%#v", state.Hysteria2, secrets)
 	}
 	if state.Reality.ID == "" || secrets.RealityUUID == "" || secrets.RealityPrivateKey == "" {

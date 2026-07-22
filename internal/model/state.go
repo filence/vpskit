@@ -96,14 +96,16 @@ type RealityState struct {
 }
 
 type Hysteria2State struct {
-	Enabled              bool   `json:"enabled"`
-	ID                   string `json:"id"`
-	ListenPort           int    `json:"listen_port"`
-	PasswordRef          string `json:"password_ref"`
-	CertificatePath      string `json:"certificate_path"`
-	KeyPath              string `json:"key_path"`
-	CertificateDNS       string `json:"certificate_dns"`
-	CertificateAuthority string `json:"certificate_authority,omitempty"`
+	Enabled                bool   `json:"enabled"`
+	ID                     string `json:"id"`
+	ListenPort             int    `json:"listen_port"`
+	PasswordRef            string `json:"password_ref"`
+	Obfuscation            string `json:"obfuscation,omitempty"`
+	ObfuscationPasswordRef string `json:"obfuscation_password_ref,omitempty"`
+	CertificatePath        string `json:"certificate_path"`
+	KeyPath                string `json:"key_path"`
+	CertificateDNS         string `json:"certificate_dns"`
+	CertificateAuthority   string `json:"certificate_authority,omitempty"`
 }
 
 type FirewallState struct {
@@ -117,32 +119,35 @@ type ExportState struct {
 }
 
 type Secrets struct {
-	SchemaVersion     int    `json:"schema_version"`
-	RealityUUID       string `json:"reality_uuid"`
-	RealityPrivateKey string `json:"reality_private_key"`
-	Hysteria2Password string `json:"hysteria2_password"`
+	SchemaVersion                int    `json:"schema_version"`
+	RealityUUID                  string `json:"reality_uuid"`
+	RealityPrivateKey            string `json:"reality_private_key"`
+	Hysteria2Password            string `json:"hysteria2_password"`
+	Hysteria2ObfuscationPassword string `json:"hysteria2_obfuscation_password,omitempty"`
 }
 
 type RuntimeValues struct {
-	Node                NodeMetadata
-	ClientRevision      int
-	RulesProfile        string
-	RulesetRevision     int
-	RulesSourceMode     string
-	RuleProviderBaseURL string
-	UserRules           []UserRule
-	RealityEnabled      bool
-	Hysteria2Enabled    bool
-	ConnectHost         string
-	Domain              string
-	RealityServerName   string
-	TCPPort             int
-	UDPPort             int
-	RealityUUID         string
-	RealityPrivateKey   string
-	RealityPublicKey    string
-	RealityShortID      string
-	Hysteria2Password   string
-	CertificatePath     string
-	KeyPath             string
+	Node                         NodeMetadata
+	ClientRevision               int
+	RulesProfile                 string
+	RulesetRevision              int
+	RulesSourceMode              string
+	RuleProviderBaseURL          string
+	UserRules                    []UserRule
+	RealityEnabled               bool
+	Hysteria2Enabled             bool
+	ConnectHost                  string
+	Domain                       string
+	RealityServerName            string
+	TCPPort                      int
+	UDPPort                      int
+	RealityUUID                  string
+	RealityPrivateKey            string
+	RealityPublicKey             string
+	RealityShortID               string
+	Hysteria2Password            string
+	Hysteria2Obfuscation         string
+	Hysteria2ObfuscationPassword string
+	CertificatePath              string
+	KeyPath                      string
 }

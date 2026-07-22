@@ -2,6 +2,8 @@ package app
 
 import (
 	"errors"
+	"flag"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -11,17 +13,127 @@ import (
 )
 
 func runHysteria2(arguments []string) error {
-	if len(arguments) != 1 || arguments[0] != "inspect" {
-		return errors.New("usage: vpskit hysteria2 inspect")
+	if len(arguments) == 0 {
+		return errors.New("usage: vpskit hysteria2 <inspect|salamander>")
+	}
+	switch arguments[0] {
+	case "inspect":
+		if len(arguments) != 1 {
+			return errors.New("usage: vpskit hysteria2 inspect")
+		}
+		if !platform.IsRoot() {
+			return errors.New("hysteria2 inspection requires root privileges")
+		}
+		state, err := readInstalledState()
+		if err != nil {
+			return err
+		}
+		return printJSON(commandResult{Command: "hysteria2 inspect", Status: "PASS", Detail: collectHysteria2Inspect(state)})
+	case "salamander":
+		return runHysteria2Salamander(arguments[1:])
+	default:
+		return errors.New("usage: vpskit hysteria2 <inspect|salamander>")
+	}
+}
+
+func runHysteria2Salamander(arguments []string) error {
+	if len(arguments) == 0 {
+		return errors.New("usage: vpskit hysteria2 salamander <plan|enable|disable> [--yes]")
+	}
+	operation := strings.ToLower(strings.TrimSpace(arguments[0]))
+	flags := flag.NewFlagSet("hysteria2 salamander "+operation, flag.ContinueOnError)
+	yes := flags.Bool("yes", false, "confirm the managed Hysteria2 configuration change")
+	if err := flags.Parse(arguments[1:]); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return errors.New("unexpected positional arguments")
+	}
+	if operation != "plan" && operation != "enable" && operation != "disable" {
+		return fmt.Errorf("unsupported Salamander operation %q", operation)
+	}
+	if operation == "plan" && *yes {
+		return errors.New("hysteria2 salamander plan does not accept --yes")
+	}
+	if (operation == "enable" || operation == "disable") && !*yes {
+		return fmt.Errorf("hysteria2 salamander %s requires explicit --yes confirmation", operation)
 	}
 	if !platform.IsRoot() {
-		return errors.New("hysteria2 inspection requires root privileges")
+		return errors.New("hysteria2 Salamander management requires root privileges")
 	}
 	state, err := readInstalledState()
 	if err != nil {
 		return err
 	}
-	return printJSON(commandResult{Command: "hysteria2 inspect", Status: "PASS", Detail: collectHysteria2Inspect(state)})
+	if !state.Hysteria2.Enabled || state.Hysteria2.ID == "" {
+		return errors.New("Hysteria2 must be enabled before managing Salamander")
+	}
+	if !hysteria2VersionAtLeast(state.Core.Version, "1.13.0") {
+		return fmt.Errorf("Salamander requires sing-box 1.13.0 or newer; current locked version is %q", state.Core.Version)
+	}
+	if operation == "plan" {
+		return printJSON(commandResult{Command: "hysteria2 salamander plan", Status: "PASS", Detail: map[string]any{
+			"enabled":                    state.Hysteria2.Obfuscation == "salamander",
+			"current_obfuscation":        state.Hysteria2.Obfuscation,
+			"server_version":             state.Core.Version,
+			"server_minimum":             "1.13.0",
+			"target_client":              "Clash Verge Rev 2.5.2 / Mihomo 1.19.29",
+			"client_update_required":     true,
+			"manual_validation_required": true,
+			"enable_command":             "vpskit hysteria2 salamander enable --yes",
+			"disable_command":            "vpskit hysteria2 salamander disable --yes",
+		}})
+	}
+	return mutateHysteria2Salamander(state, operation)
+}
+
+func mutateHysteria2Salamander(state model.State, operation string) error {
+	secrets, err := readInstalledSecrets()
+	if err != nil {
+		return err
+	}
+	updated := state
+	switch operation {
+	case "enable":
+		if updated.Hysteria2.Obfuscation == "salamander" {
+			return errors.New("Hysteria2 Salamander is already enabled")
+		}
+		if updated.Hysteria2.Obfuscation != "" {
+			return fmt.Errorf("cannot replace unsupported existing Hysteria2 obfuscation %q", updated.Hysteria2.Obfuscation)
+		}
+		updated.Hysteria2.Obfuscation = "salamander"
+		updated.Hysteria2.ObfuscationPasswordRef = "secret://hy2-backup/obfuscation-password"
+		secrets.Hysteria2ObfuscationPassword = randomBase64(24)
+	case "disable":
+		if updated.Hysteria2.Obfuscation == "" {
+			return errors.New("Hysteria2 Salamander is already disabled")
+		}
+		if updated.Hysteria2.Obfuscation != "salamander" {
+			return fmt.Errorf("refusing to disable unmanaged Hysteria2 obfuscation %q", updated.Hysteria2.Obfuscation)
+		}
+		updated.Hysteria2.Obfuscation = ""
+		updated.Hysteria2.ObfuscationPasswordRef = ""
+		secrets.Hysteria2ObfuscationPassword = ""
+	default:
+		return fmt.Errorf("unsupported Salamander operation %q", operation)
+	}
+	if state.ConfigRevision < 1 {
+		state.ConfigRevision = 1
+	}
+	updated.ConfigRevision = state.ConfigRevision + 1
+	commit, err := commitManagedStateChangeWithServiceRestart(state, updated, secrets, "hysteria2 salamander "+operation, "hysteria2-salamander", []string{"hysteria2.obfuscation", "hysteria2.obfuscation_password", "client.hysteria2"}, true)
+	if err != nil {
+		return err
+	}
+	return printJSON(commandResult{Command: "hysteria2 salamander " + operation, Status: "PASS", Detail: map[string]any{
+		"result":                     map[string]string{"enable": "ENABLED", "disable": "DISABLED"}[operation],
+		"config_revision":            commit.State.ConfigRevision,
+		"transaction_id":             commit.TransactionID,
+		"previous_backup_id":         commit.BackupID,
+		"client_update_required":     true,
+		"manual_validation_required": true,
+		"subscription_publish":       commit.SubscriptionPublish,
+	}})
 }
 
 func collectHysteria2Inspect(state model.State) map[string]any {
@@ -33,6 +145,10 @@ func collectHysteria2Inspect(state model.State) map[string]any {
 			"service_state":    systemdUnitState(serviceUnitName),
 			"udp_port":         state.Hysteria2.ListenPort,
 			"listener_present": state.Hysteria2.Enabled && listenerPresent("udp", state.Hysteria2.ListenPort),
+		},
+		"obfuscation": map[string]any{
+			"type":    state.Hysteria2.Obfuscation,
+			"enabled": state.Hysteria2.Obfuscation != "",
 		},
 		"core": map[string]any{
 			"name":    "sing-box",
