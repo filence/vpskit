@@ -19,7 +19,8 @@ fi
 
 systemctl is-active --quiet vpskit-xray.service
 systemctl is-active --quiet vpskit-sing-box.service
-mkdir -p -m 0700 "$root" "$backup"
+install -d -m 0700 "$root"
+install -d -m 0700 "$backup"
 tar -xzf "$archive" -C "$root"
 "$bundle/vpskit" bundle verify --dir "$bundle"
 install -m 0700 /usr/local/bin/vpskit "$backup_binary"

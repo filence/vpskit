@@ -6,7 +6,7 @@ test "$(/usr/local/bin/vpskit version)" = 'vpskit v0.2.11-lab.1'; test -f "$a"; 
 systemctl is-active --quiet vpskit-xray.service; systemctl is-active --quiet vpskit-sing-box.service
 s="$(sha256sum /var/lib/vpskit/state.json | awk '{print $1}')"; p="$(sha256sum /var/lib/vpskit/subscription-state.json | awk '{print $1}')"; ok=false; installed=false
 cleanup(){ c=$?; if [ "$ok" != true ] && [ "$installed" = true ] && [ -f "$b" ]; then install -m 0755 "$b" /usr/local/bin/vpskit; fi; rm -rf -- "$r"; if [ "$ok" = true ]; then rm -f -- "$a"; fi; trap - EXIT; exit "$c"; }; trap cleanup EXIT
-mkdir -p -m 0700 "$r" "$(dirname "$b")"; tar -xzf "$a" -C "$r"; "$r/$v/vpskit" bundle verify --dir "$r/$v" >/dev/null; install -m 0700 /usr/local/bin/vpskit "$b"; install -m 0755 "$r/$v/vpskit" /usr/local/bin/vpskit; installed=true
+install -d -m 0700 "$r"; install -d -m 0700 "$(dirname "$b")"; tar -xzf "$a" -C "$r"; "$r/$v/vpskit" bundle verify --dir "$r/$v" >/dev/null; install -m 0700 /usr/local/bin/vpskit "$b"; install -m 0755 "$r/$v/vpskit" /usr/local/bin/vpskit; installed=true
 test "$(/usr/local/bin/vpskit version)" = "vpskit $v"; i="$(/usr/local/bin/vpskit instance list)"
 python3 - "$i" <<'PY'
 import json,sys

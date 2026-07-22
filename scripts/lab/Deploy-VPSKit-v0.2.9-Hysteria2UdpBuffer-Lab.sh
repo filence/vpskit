@@ -29,9 +29,12 @@ for key in net.core.rmem_default net.core.wmem_default net.core.rmem_max net.cor
   test "$(sysctl -n "$key")" = "$target_bytes"
 done
 
-readonly state_before="$(sha256sum /var/lib/vpskit/state.json | awk '{print $1}')"
-readonly publication_before="$(sha256sum /var/lib/vpskit/subscription-state.json | awk '{print $1}')"
-mkdir -p -m 0700 "$root" "$backup"
+state_before="$(sha256sum /var/lib/vpskit/state.json | awk '{print $1}')"
+readonly state_before
+publication_before="$(sha256sum /var/lib/vpskit/subscription-state.json | awk '{print $1}')"
+readonly publication_before
+install -d -m 0700 "$root"
+install -d -m 0700 "$backup"
 cp --preserve=mode,timestamps "$sysctl_file" "$root/manual-udp-buffer-before-v0.2.9.conf"
 tar -xzf "$archive" -C "$root"
 "$bundle/vpskit" bundle verify --dir "$bundle"

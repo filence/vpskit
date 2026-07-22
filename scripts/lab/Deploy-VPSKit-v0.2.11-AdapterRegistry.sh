@@ -20,8 +20,10 @@ test ! -e "$backup_binary"
 systemctl is-active --quiet vpskit-xray.service
 systemctl is-active --quiet vpskit-sing-box.service
 
-readonly state_before="$(sha256sum "$state_path" | awk '{print $1}')"
-readonly publication_before="$(sha256sum "$publication_path" | awk '{print $1}')"
+state_before="$(sha256sum "$state_path" | awk '{print $1}')"
+readonly state_before
+publication_before="$(sha256sum "$publication_path" | awk '{print $1}')"
+readonly publication_before
 installed=false
 completed=false
 cleanup() {
@@ -36,7 +38,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p -m 0700 "$root" "$backup"
+install -d -m 0700 "$root"
+install -d -m 0700 "$backup"
 tar -xzf "$archive" -C "$root"
 "$bundle/vpskit" bundle verify --dir "$bundle" >/dev/null
 install -m 0700 /usr/local/bin/vpskit "$backup_binary"

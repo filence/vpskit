@@ -32,7 +32,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p -m 0700 "$r" "$(dirname "$b")"
+install -d -m 0700 "$r"
+install -d -m 0700 "$(dirname "$b")"
 tar -xzf "$a" -C "$r"
 "$r/$v/vpskit" bundle verify --dir "$r/$v" >/dev/null
 install -m 0700 /usr/local/bin/vpskit "$b"

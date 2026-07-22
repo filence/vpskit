@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly before_revision="$(python3 -c 'import json; print(json.load(open("/var/lib/vpskit/state.json"))["config_revision"])')"
+before_revision="$(python3 -c 'import json; print(json.load(open("/var/lib/vpskit/state.json"))["config_revision"])')"
+readonly before_revision
 
 /usr/local/bin/vpskit hysteria2 salamander enable --yes >/root/vpskit-salamander-enable.json
 python3 - "$before_revision" <<'PY'

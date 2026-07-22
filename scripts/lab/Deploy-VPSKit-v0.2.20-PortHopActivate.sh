@@ -45,7 +45,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p -m 0700 "$staging" "$(dirname "$rollback_binary")"
+install -d -m 0700 "$staging"
+install -d -m 0700 "$(dirname "$rollback_binary")"
 cp -p /etc/vpskit/generated/hysteria2-port-hop.nft "$saved_nft"
 cp -p /etc/systemd/system/vpskit-hysteria2-port-hop.service "$saved_unit"
 tar -xzf "$archive" -C "$staging"

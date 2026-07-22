@@ -17,7 +17,8 @@ if [ -e "$root" ] || [ -e "$backup_binary" ]; then
   exit 1
 fi
 
-mkdir -p -m 0700 "$root" "$backup"
+install -d -m 0700 "$root"
+install -d -m 0700 "$backup"
 tar -xzf "$archive" -C "$root"
 "$bundle/vpskit" bundle verify --dir "$bundle"
 install -m 0700 /usr/local/bin/vpskit "$backup_binary"
@@ -34,14 +35,19 @@ assert state['rules']['source_mode'] == 'managed', state
 print(state['rules']['revision'], state['rules']['revision'] + 1)
 PY
 )
-readonly active_root="/var/lib/vpskit/rules/r$(printf '%04d' "$active_revision")"
-readonly candidate_root="/var/lib/vpskit/rules/r$(printf '%04d' "$candidate_revision")"
+active_root="/var/lib/vpskit/rules/r$(printf '%04d' "$active_revision")"
+readonly active_root
+candidate_root="/var/lib/vpskit/rules/r$(printf '%04d' "$candidate_revision")"
+readonly candidate_root
 test -f "$active_root/manifest.json"
 test ! -e "$candidate_root"
 
-readonly state_before="$(sha256sum /var/lib/vpskit/state.json | awk '{print $1}')"
-readonly publication_before="$(sha256sum /var/lib/vpskit/subscription-state.json | awk '{print $1}')"
-readonly manifest_before="$(sha256sum "$active_root/manifest.json" | awk '{print $1}')"
+state_before="$(sha256sum /var/lib/vpskit/state.json | awk '{print $1}')"
+readonly state_before
+publication_before="$(sha256sum /var/lib/vpskit/subscription-state.json | awk '{print $1}')"
+readonly publication_before
+manifest_before="$(sha256sum "$active_root/manifest.json" | awk '{print $1}')"
+readonly manifest_before
 failure_log="$(mktemp)"
 trap 'rm -f "$failure_log"' EXIT
 

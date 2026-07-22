@@ -24,7 +24,8 @@ if [ -e "$root" ] || [ -e "$backup_binary" ]; then
 fi
 
 systemctl is-active --quiet fail2ban.service
-mkdir -p -m 0700 "$root" "$backup"
+install -d -m 0700 "$root"
+install -d -m 0700 "$backup"
 tar -xzf "$archive" -C "$root"
 "$bundle/vpskit" bundle verify --dir "$bundle"
 install -m 0700 /usr/local/bin/vpskit "$backup_binary"

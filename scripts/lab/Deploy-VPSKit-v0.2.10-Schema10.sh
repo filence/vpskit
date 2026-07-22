@@ -21,14 +21,17 @@ test "$(/usr/local/bin/vpskit version)" = 'vpskit v0.2.9-lab.1'
 systemctl is-active --quiet vpskit-xray.service
 systemctl is-active --quiet vpskit-sing-box.service
 
-readonly state_before_sha256="$(sha256sum "$state_path" | awk '{print $1}')"
-readonly publication_before_sha256="$(sha256sum "$publication_path" | awk '{print $1}')"
-readonly config_revision_before="$(python3 - "$state_path" <<'PY'
+state_before_sha256="$(sha256sum "$state_path" | awk '{print $1}')"
+readonly state_before_sha256
+publication_before_sha256="$(sha256sum "$publication_path" | awk '{print $1}')"
+readonly publication_before_sha256
+config_revision_before="$(python3 - "$state_path" <<'PY'
 import json
 import sys
 print(json.load(open(sys.argv[1], encoding='utf-8'))['config_revision'])
 PY
 )"
+readonly config_revision_before
 
 installed_new_binary=false
 completed=false
@@ -46,7 +49,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p -m 0700 "$root" "$backup"
+install -d -m 0700 "$root"
+install -d -m 0700 "$backup"
 tar -xzf "$archive" -C "$root"
 "$bundle/vpskit" bundle verify --dir "$bundle" >/dev/null
 install -m 0700 /usr/local/bin/vpskit "$backup_binary"

@@ -31,7 +31,8 @@ systemctl is-active --quiet vpskit-xray.service
 systemctl is-active --quiet vpskit-sing-box.service
 systemctl is-active --quiet vpskit-hysteria2-port-hop.service
 
-mkdir -p -m 0700 "$staging" "$(dirname "$rollback_binary")"
+install -d -m 0700 "$staging"
+install -d -m 0700 "$(dirname "$rollback_binary")"
 tar -xzf "$archive" -C "$staging"
 "$staging/$version/vpskit" bundle verify --dir "$staging/$version" >/dev/null
 install -m 0700 /usr/local/bin/vpskit "$rollback_binary"
