@@ -4,16 +4,7 @@ title = "VPSKit secret scanning policy"
 useDefault = true
 
 [[allowlists]]
-description = "Local-only paths excluded by .gitignore and never packaged"
-paths = [
-  '''(^|[\\/])\.build[\\/]''',
-  '''(^|[\\/])_Report[\\/]''',
-  '''(^|[\\/])前期环境须知\.md$''',
-  '''(^|[\\/])source-references[\\/]repos[\\/]''',
-]
-
-[[allowlists]]
-description = "Historical synthetic REALITY test fixture; it is not a production credential"
+description = "Historical synthetic REALITY test fixture introduction; scope is one commit, one file, one field pattern"
 condition = "AND"
 commits = [
   '''5ee882d2d2560c6aa314c68e9bca27c7ce3b719a''',
