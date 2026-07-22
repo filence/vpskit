@@ -366,6 +366,8 @@ func readInstalledSecrets() (model.Secrets, error) {
 }
 
 func runtimeValuesFromState(state model.State, secrets model.Secrets) model.RuntimeValues {
+	reality, _ := instanceForAdapter(state, "reality")
+	hysteria2, _ := instanceForAdapter(state, "hysteria2")
 	return model.RuntimeValues{
 		Node:                         state.Node,
 		ClientRevision:               state.ConfigRevision,
@@ -373,13 +375,13 @@ func runtimeValuesFromState(state model.State, secrets model.Secrets) model.Runt
 		RulesetRevision:              state.Rules.Revision,
 		RulesSourceMode:              state.Rules.SourceMode,
 		UserRules:                    append([]model.UserRule(nil), state.Rules.UserRules...),
-		RealityEnabled:               state.Reality.Enabled,
-		Hysteria2Enabled:             state.Hysteria2.Enabled,
+		RealityEnabled:               reality.Enabled,
+		Hysteria2Enabled:             hysteria2.Enabled,
 		ConnectHost:                  state.ConnectHost,
 		Domain:                       state.Domain,
 		RealityServerName:            state.RealityServerName,
-		TCPPort:                      state.Reality.ListenPort,
-		UDPPort:                      state.Hysteria2.ListenPort,
+		TCPPort:                      reality.Listen.Port,
+		UDPPort:                      hysteria2.Listen.Port,
 		RealityUUID:                  secrets.RealityUUID,
 		RealityPrivateKey:            secrets.RealityPrivateKey,
 		RealityPublicKey:             state.Reality.PublicKey,
@@ -440,14 +442,16 @@ func renderProfileArtifacts(state model.State, secrets model.Secrets) (map[strin
 }
 
 func exportStateForProfile(state model.State) []model.ExportState {
+	reality, _ := instanceForAdapter(state, "reality")
+	hysteria2, _ := instanceForAdapter(state, "hysteria2")
 	exports := []model.ExportState{
 		{Format: "mihomo", Path: filepath.Join(exportRoot, "mihomo.yaml")},
 		{Format: "share-link", Path: filepath.Join(exportRoot, "share-links.txt")},
 	}
-	if state.Reality.Enabled {
+	if reality.Enabled {
 		exports = append(exports, model.ExportState{Format: "sing-box-reality", Path: filepath.Join(exportRoot, "sing-box-reality.json")})
 	}
-	if state.Hysteria2.Enabled {
+	if hysteria2.Enabled {
 		exports = append(exports, model.ExportState{Format: "sing-box-hysteria2", Path: filepath.Join(exportRoot, "sing-box-hysteria2.json")})
 	}
 	return exports

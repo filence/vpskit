@@ -42,6 +42,20 @@ func instanceAdapterDetails() []map[string]any {
 	return details
 }
 
+func instanceForAdapter(state model.State, target string) (model.ManagedInstance, bool) {
+	adapter, err := resolveInstanceAdapter(target)
+	if err != nil {
+		return model.ManagedInstance{}, false
+	}
+	state.SynchronizeLegacyInstances()
+	for _, instance := range state.Instances {
+		if instance.Adapter == adapter.ID && instance.Protocol == adapter.Protocol && instance.Listen.Network == adapter.Network {
+			return instance, true
+		}
+	}
+	return model.ManagedInstance{}, false
+}
+
 func applyInstanceStateChange(state *model.State, secrets *model.Secrets, operation, target string, port int) error {
 	adapter, err := resolveInstanceAdapter(target)
 	if err != nil {

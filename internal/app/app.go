@@ -1126,11 +1126,11 @@ func restartManagedServices(state model.State) error {
 	if output, err := runCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("systemd daemon-reload failed: %w: %s", err, output)
 	}
-	if err := restartManagedService(xrayServiceUnitName, state.Reality.Enabled); err != nil {
-		return err
-	}
-	if err := restartManagedService(serviceUnitName, state.Hysteria2.Enabled); err != nil {
-		return err
+	for _, adapter := range registeredInstanceAdapters {
+		instance, present := instanceForAdapter(state, adapter.Target)
+		if err := restartManagedService(adapter.Service, present && instance.Enabled); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1157,7 +1157,24 @@ func managedServiceRestartSteps(name string, enabled bool) [][]string {
 }
 
 func healthCheckState(state model.State) error {
-	return healthCheckProfile(state.Reality.Enabled, state.Reality.ListenPort, state.Hysteria2.Enabled, state.Hysteria2.ListenPort)
+	for _, adapter := range registeredInstanceAdapters {
+		instance, present := instanceForAdapter(state, adapter.Target)
+		if !present || !instance.Enabled {
+			continue
+		}
+		if err := exec.Command("systemctl", "is-active", "--quiet", adapter.Service).Run(); err != nil {
+			return fmt.Errorf("%s service is not active", adapter.Target)
+		}
+		arguments := []string{"-ltnH"}
+		if adapter.Network == model.InstanceNetworkUDP {
+			arguments = []string{"-lunH"}
+		}
+		output, err := runCommand("ss", arguments...)
+		if err != nil || !listenerOutputHasPort(output, instance.Listen.Port) {
+			return fmt.Errorf("%s %s listener %d is missing", adapter.Target, adapter.Network, instance.Listen.Port)
+		}
+	}
+	return nil
 }
 
 func healthCheckProfile(realityEnabled bool, tcpPort int, hysteria2Enabled bool, udpPort int) error {

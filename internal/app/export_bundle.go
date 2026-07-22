@@ -74,11 +74,13 @@ func runClientBundleExport(outputDirectory string) error {
 }
 
 func clientExportPaths(state model.State) []string {
+	reality, _ := instanceForAdapter(state, "reality")
+	hysteria2, _ := instanceForAdapter(state, "hysteria2")
 	paths := []string{filepath.Join(exportRoot, "mihomo.yaml")}
-	if state.Reality.Enabled {
+	if reality.Enabled {
 		paths = append(paths, filepath.Join(exportRoot, "sing-box-reality.json"))
 	}
-	if state.Hysteria2.Enabled {
+	if hysteria2.Enabled {
 		paths = append(paths, filepath.Join(exportRoot, "sing-box-hysteria2.json"))
 	}
 	return append(paths, filepath.Join(exportRoot, "share-links.txt"))
