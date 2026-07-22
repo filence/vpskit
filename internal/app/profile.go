@@ -389,6 +389,9 @@ func runtimeValuesFromState(state model.State, secrets model.Secrets) model.Runt
 		Hysteria2Password:            secrets.Hysteria2Password,
 		Hysteria2Obfuscation:         state.Hysteria2.Obfuscation,
 		Hysteria2ObfuscationPassword: secrets.Hysteria2ObfuscationPassword,
+		Hysteria2PortHoppingEnabled:  state.Hysteria2.PortHopping.Enabled,
+		Hysteria2PortRange:           hysteria2PortRangeString(state.Hysteria2.PortHopping),
+		Hysteria2HopIntervalSeconds:  state.Hysteria2.PortHopping.HopInterval,
 		CertificatePath:              state.Hysteria2.CertificatePath,
 		KeyPath:                      state.Hysteria2.KeyPath,
 	}

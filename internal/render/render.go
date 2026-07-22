@@ -135,6 +135,11 @@ func SingBoxHysteria2Client(values model.RuntimeValues, socksPort int) ([]byte, 
 			"password": values.Hysteria2ObfuscationPassword,
 		}
 	}
+	if values.Hysteria2PortHoppingEnabled {
+		outbound["server_ports"] = []string{values.Hysteria2PortRange}
+		outbound["hop_interval"] = fmt.Sprintf("%ds", values.Hysteria2HopIntervalSeconds)
+		delete(outbound, "server_port")
+	}
 	configuration := clientBase(socksPort, outbound)
 	return marshalJSON(configuration)
 }
@@ -177,6 +182,10 @@ func ShareLinks(values model.RuntimeValues) []byte {
 		if values.Hysteria2Obfuscation != "" {
 			hy2Query.Set("obfs", values.Hysteria2Obfuscation)
 			hy2Query.Set("obfs-password", values.Hysteria2ObfuscationPassword)
+		}
+		if values.Hysteria2PortHoppingEnabled {
+			hy2Query.Set("ports", values.Hysteria2PortRange)
+			hy2Query.Set("hop-interval", strconv.Itoa(values.Hysteria2HopIntervalSeconds))
 		}
 		links = append(links, fmt.Sprintf(
 			"hysteria2://%s@%s?%s#%s",

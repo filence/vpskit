@@ -99,6 +99,13 @@ func parseHysteria2PortRange(value string) (int, int, error) {
 	return start, end, nil
 }
 
+func hysteria2PortRangeString(value model.Hysteria2PortHoppingState) string {
+	if !value.Enabled || value.RangeStart < 1 || value.RangeEnd <= value.RangeStart {
+		return ""
+	}
+	return fmt.Sprintf("%d-%d", value.RangeStart, value.RangeEnd)
+}
+
 func collectHysteria2PortHopPlan(state model.State, start, end, hopInterval int) map[string]any {
 	conflicts := make([]int, 0)
 	for port := start; port <= end; port++ {

@@ -183,6 +183,8 @@ type mihomoHysteria2Proxy struct {
 	SkipCertVerification bool   `yaml:"skip-cert-verify"`
 	Obfs                 string `yaml:"obfs,omitempty"`
 	ObfsPassword         string `yaml:"obfs-password,omitempty"`
+	Ports                string `yaml:"ports,omitempty"`
+	HopInterval          int    `yaml:"hop-interval,omitempty"`
 }
 
 type mihomoProxyGroup struct {
@@ -212,6 +214,7 @@ func Mihomo(values model.RuntimeValues) ([]byte, error) {
 			Name: hysteria2Name, Type: "hysteria2", Server: values.ConnectHost, Port: values.UDPPort,
 			Password: values.Hysteria2Password, SNI: values.Domain, SkipCertVerification: false,
 			Obfs: values.Hysteria2Obfuscation, ObfsPassword: values.Hysteria2ObfuscationPassword,
+			Ports: values.Hysteria2PortRange, HopInterval: values.Hysteria2HopIntervalSeconds,
 		})
 		proxyNames = append(proxyNames, hysteria2Name)
 	}
@@ -281,6 +284,9 @@ func validateClientValues(values model.RuntimeValues) error {
 		}
 		if values.Hysteria2Obfuscation != "" && strings.TrimSpace(values.Hysteria2ObfuscationPassword) == "" {
 			return errors.New("enabled Hysteria2 obfuscation is missing its password")
+		}
+		if values.Hysteria2PortHoppingEnabled && (strings.TrimSpace(values.Hysteria2PortRange) == "" || values.Hysteria2HopIntervalSeconds < 5 || values.Hysteria2HopIntervalSeconds > 3600) {
+			return errors.New("enabled Hysteria2 port hopping is missing a valid range or interval")
 		}
 	}
 	return nil

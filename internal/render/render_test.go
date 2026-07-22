@@ -171,6 +171,32 @@ func TestSalamanderRendersAcrossHysteria2Artifacts(t *testing.T) {
 	}
 }
 
+func TestPortHoppingRendersAcrossHysteria2ClientArtifacts(t *testing.T) {
+	values := testValues()
+	values.Hysteria2PortHoppingEnabled = true
+	values.Hysteria2PortRange = "20000-20010"
+	values.Hysteria2HopIntervalSeconds = 30
+
+	clientConfig, err := SingBoxHysteria2Client(values, 2081)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(clientConfig), "\"server_ports\": [") || !strings.Contains(string(clientConfig), "20000-20010") || !strings.Contains(string(clientConfig), "\"hop_interval\": \"30s\"") {
+		t.Fatalf("sing-box client port hopping fields missing: %s", clientConfig)
+	}
+	mihomoConfig, err := Mihomo(values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(mihomoConfig), "ports: 20000-20010") || !strings.Contains(string(mihomoConfig), "hop-interval: 30") {
+		t.Fatalf("Mihomo port hopping fields missing: %s", mihomoConfig)
+	}
+	shareLink := string(ShareLinks(values))
+	if !strings.Contains(shareLink, "ports=20000-20010") || !strings.Contains(shareLink, "hop-interval=30") {
+		t.Fatalf("share-link port hopping fields missing: %s", shareLink)
+	}
+}
+
 func TestMihomoRejectsUnsupportedHysteria2Obfuscation(t *testing.T) {
 	values := testValues()
 	values.Hysteria2Obfuscation = "gecko"

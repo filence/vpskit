@@ -162,16 +162,24 @@ type RealityState struct {
 }
 
 type Hysteria2State struct {
-	Enabled                bool   `json:"enabled"`
-	ID                     string `json:"id"`
-	ListenPort             int    `json:"listen_port"`
-	PasswordRef            string `json:"password_ref"`
-	Obfuscation            string `json:"obfuscation,omitempty"`
-	ObfuscationPasswordRef string `json:"obfuscation_password_ref,omitempty"`
-	CertificatePath        string `json:"certificate_path"`
-	KeyPath                string `json:"key_path"`
-	CertificateDNS         string `json:"certificate_dns"`
-	CertificateAuthority   string `json:"certificate_authority,omitempty"`
+	Enabled                bool                      `json:"enabled"`
+	ID                     string                    `json:"id"`
+	ListenPort             int                       `json:"listen_port"`
+	PasswordRef            string                    `json:"password_ref"`
+	Obfuscation            string                    `json:"obfuscation,omitempty"`
+	ObfuscationPasswordRef string                    `json:"obfuscation_password_ref,omitempty"`
+	CertificatePath        string                    `json:"certificate_path"`
+	KeyPath                string                    `json:"key_path"`
+	CertificateDNS         string                    `json:"certificate_dns"`
+	CertificateAuthority   string                    `json:"certificate_authority,omitempty"`
+	PortHopping            Hysteria2PortHoppingState `json:"port_hopping,omitempty"`
+}
+
+type Hysteria2PortHoppingState struct {
+	Enabled     bool `json:"enabled,omitempty"`
+	RangeStart  int  `json:"range_start,omitempty"`
+	RangeEnd    int  `json:"range_end,omitempty"`
+	HopInterval int  `json:"hop_interval_seconds,omitempty"`
 }
 
 type FirewallState struct {
@@ -214,6 +222,9 @@ type RuntimeValues struct {
 	Hysteria2Password            string
 	Hysteria2Obfuscation         string
 	Hysteria2ObfuscationPassword string
+	Hysteria2PortHoppingEnabled  bool
+	Hysteria2PortRange           string
+	Hysteria2HopIntervalSeconds  int
 	CertificatePath              string
 	KeyPath                      string
 }
