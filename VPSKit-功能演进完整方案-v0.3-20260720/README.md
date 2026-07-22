@@ -1,11 +1,11 @@
 # VPSKit 功能演进完整方案包
 
 - 方案版本：v0.3
-- 审查修订：R14（方案 B r0014 与 Fail2ban SSH 白名单验收）
+- 审查修订：R15（规则刷新失败保护验收）
 - 原编制日期：2026-07-20
 - 本次修订日期：2026-07-22
 - 对应项目：[filence/vpskit](https://github.com/filence/vpskit)
-- 当前产品基线：VPSKit `v0.2.4-lab.2`；方案 A r0008 与方案 B r0014 已完成 Windows 11 Clash Verge Rev 验收，schema 9 白名单/自定义规则已完成 Debian 13 r0012 发布回读，`doctor --fix`、扩展 `system inspect`、Fail2ban SSH 白名单与系统更新候选检查已完成实机验收
+- 当前产品基线：VPSKit `v0.2.5-lab.1`；方案 A r0008 与方案 B r0014 已完成 Windows 11 Clash Verge Rev 验收，schema 9 白名单/自定义规则已完成 Debian 13 r0012 发布回读，`doctor --fix`、扩展 `system inspect`、Fail2ban SSH 白名单、规则刷新失败保护与系统更新候选检查已完成实机验收
 - 使用对象：开发者个人自用、少量 VPS、低资源环境
 
 ## 本次精简结论

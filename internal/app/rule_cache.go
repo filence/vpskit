@@ -46,11 +46,19 @@ type rulesCacheManifest struct {
 }
 
 func rulesCacheRevisionRoot(revision int) string {
-	return filepath.Join(rulesCacheRoot, fmt.Sprintf("r%04d", revision))
+	return rulesCacheRevisionRootAt(rulesCacheRoot, revision)
 }
 
 func rulesCacheManifestPath(revision int) string {
-	return filepath.Join(rulesCacheRevisionRoot(revision), "manifest.json")
+	return rulesCacheManifestPathAt(rulesCacheRoot, revision)
+}
+
+func rulesCacheRevisionRootAt(root string, revision int) string {
+	return filepath.Join(root, fmt.Sprintf("r%04d", revision))
+}
+
+func rulesCacheManifestPathAt(root string, revision int) string {
+	return filepath.Join(rulesCacheRevisionRootAt(root, revision), "manifest.json")
 }
 
 func managedRuleProviderBaseURL() (string, error) {
@@ -62,8 +70,16 @@ func managedRuleProviderBaseURL() (string, error) {
 }
 
 func refreshManagedRuleCache(profile string, revision int) (rulesCacheManifest, error) {
+	return refreshManagedRuleCacheAtRoot(profile, revision, rulesCacheRoot)
+}
+
+func refreshManagedRuleCacheAtRoot(profile string, revision int, cacheRoot string) (rulesCacheManifest, error) {
 	if revision < 1 {
 		return rulesCacheManifest{}, errors.New("managed rules revision must be positive")
+	}
+	cacheRoot = filepath.Clean(cacheRoot)
+	if cacheRoot == "." || cacheRoot == string(filepath.Separator) {
+		return rulesCacheManifest{}, errors.New("managed rules cache root is invalid")
 	}
 	sources, err := render.MihomoRuleSources(profile)
 	if err != nil {
@@ -72,10 +88,19 @@ func refreshManagedRuleCache(profile string, revision int) (rulesCacheManifest, 
 	if len(sources) == 0 {
 		return rulesCacheManifest{}, fmt.Errorf("rules profile %q has no remote providers to cache", profile)
 	}
-	root := rulesCacheRevisionRoot(revision)
-	if err := os.MkdirAll(root, 0o750); err != nil {
+	if err := os.MkdirAll(cacheRoot, 0o750); err != nil {
 		return rulesCacheManifest{}, err
 	}
+	root, err := os.MkdirTemp(cacheRoot, fmt.Sprintf(".r%04d-staging-", revision))
+	if err != nil {
+		return rulesCacheManifest{}, err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = fsutil.RemoveManagedTree(root, cacheRoot)
+		}
+	}()
 	manifest := rulesCacheManifest{SchemaVersion: rulesCacheSchemaVersion, Profile: profile, Revision: revision, CreatedAt: time.Now().UTC(), Sources: make([]rulesCacheSource, 0, len(sources))}
 	for _, source := range sources {
 		content, err := downloadRuleSource(source)
@@ -94,9 +119,19 @@ func refreshManagedRuleCache(profile string, revision int) (rulesCacheManifest, 
 	if err != nil {
 		return rulesCacheManifest{}, err
 	}
-	if err := fsutil.WriteFileAtomic(rulesCacheManifestPath(revision), append(manifestBytes, '\n'), 0o640); err != nil {
+	if err := fsutil.WriteFileAtomic(filepath.Join(root, "manifest.json"), append(manifestBytes, '\n'), 0o640); err != nil {
 		return rulesCacheManifest{}, err
 	}
+	finalRoot := rulesCacheRevisionRootAt(cacheRoot, revision)
+	if _, err := os.Lstat(finalRoot); err == nil {
+		return rulesCacheManifest{}, fmt.Errorf("managed rule cache revision %d already exists", revision)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return rulesCacheManifest{}, err
+	}
+	if err := os.Rename(root, finalRoot); err != nil {
+		return rulesCacheManifest{}, fmt.Errorf("activate managed rule cache revision %d: %w", revision, err)
+	}
+	committed = true
 	return manifest, nil
 }
 

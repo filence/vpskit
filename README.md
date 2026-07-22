@@ -18,6 +18,8 @@ VPSKit 是一个面向个人 VPS 的低资源、可回滚代理节点部署与�
 
 `v0.2.4-lab.2` 已完成 Fail2ban SSH 白名单。它仅更新 VPSKit 自己的 `sshd` 覆盖文件，接受规范化的单一 IP 或 CIDR，最多保存 32 条；每次变更先校验 Fail2ban 配置、重启服务、等待 SSH jail 控制 socket 就绪并回读，失败则自动恢复原文件和服务。Debian 13 已完成“添加保留测试地址 → jail active → 删除 → 空白名单”的实机闭环；代理服务和订阅配置未改动。
 
+`v0.2.5-lab.1` 将受管规则刷新改为临时目录下载、完整校验后原子激活。上游任一规则源不可达、返回错误或超出限额时，当前缓存、订阅修订和客户端配置保持不变，临时目录自动清除。Debian 13 已使用仅对该命令生效的无效代理模拟上游失败，确认状态、订阅、当前规则清单和 Xray/sing-box 服务均未改变。
+
 lab32 已在同一实验 VPS 完成 schema 5 迁移、无效 REALITY 目标零写入、目标切换并恢复、修订号递增、安全 ZIP、双协议回环及本地固定版本解析；修订3配置随后在 Clash Verge 与 Hiddify 中完成 REALITY、Hysteria2 四项 GUI 重新导入验收。
 
 lab33 继续完成固定版本Bootstrap、Linux归档权限、原位自更新与中文菜单实机回归；随后在同一VPS创建本机可校验恢复快照，执行受管卸载与最终Bootstrap从零重装。签名/摘要校验、schema 5初始修订、安全客户端ZIP、doctor、证书、orphan scan、双协议回环和重启持久化均通过；新修订配置已再次通过Clash Verge与Hiddify的REALITY、Hysteria2四项人工验收。验收后已删除远程恢复/安装临时材料和本机恢复副本，仅保留本机accepted客户端配置。

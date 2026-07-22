@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- `v0.2.5-lab.1`：受管规则刷新改为临时目录下载和完整清单写入后原子激活。任一上游下载失败、状态码异常或体积超限时，临时目录自动清除，活动规则修订、订阅状态和客户端配置不变。
+- Debian 13 已以仅该子进程生效的无效 HTTP(S) 代理模拟上游不可达：刷新按预期失败，活动规则 manifest、状态和订阅状态哈希保持不变，候选修订目录不存在，Xray/sing-box 均保持 active。
 - `v0.2.4-lab.2`：新增 `vpskit security fail2ban whitelist list|add|remove --cidr <IP-or-CIDR> --yes`。白名单仅作用于 VPSKit 所有的 Debian `sshd` jail 覆盖文件；IP/CIDR 会规范化、去重并限制为最多 32 条，手工改动或所有权不匹配时拒绝覆盖。
 - 白名单变更在 `fail2ban-client -d` 校验后重启服务，并最多等待 15 秒确认 `sshd` jail 控制 socket 已就绪；失败自动写回原覆盖文件并重启 Fail2ban。Debian 13 实机已完成保留地址添加、jail 回读、删除、空状态以及 Xray/sing-box active 回归。
 - `v0.2.3-lab.1`：状态 schema 升至 9，新增 `vpskit rules whitelist <list|add|remove>` 和 `vpskit rules custom <list|check|add|remove>`。白名单仅允许精确 `DOMAIN,DIRECT`；自定义规则支持 `domain`、`domain-suffix`、`ip-cidr` 与 `direct`、`proxy`、`reject`。
