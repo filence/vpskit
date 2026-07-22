@@ -111,7 +111,7 @@ func TestStateSchemaFiveAddsLegacyCompatibleNodeMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if state.SchemaVersion != model.SchemaVersion || state.ConfigRevision != 9 || state.Node.ID != "node-main" || state.Node.DisplayName != "JP" || !state.Node.EnabledInSubscription || state.Rules.Profile != model.RulesProfileMinimal || state.Rules.Revision != 0 {
+	if state.SchemaVersion != model.SchemaVersion || state.ConfigRevision != 9 || state.Node.ID != "node-main" || state.Node.DisplayName != "JP" || !state.Node.EnabledInSubscription || state.Rules.Profile != model.RulesProfileMinimal || state.Rules.Revision != 0 || len(state.Rules.UserRules) != 0 {
 		t.Fatalf("unexpected schema 5 migration: %#v", state)
 	}
 }
@@ -140,7 +140,7 @@ func TestMigrationPlanIsReadOnlyAndExplicit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !plan.MigrationRequired || !plan.WriteRequired || plan.TargetSchema != model.SchemaVersion || len(plan.Steps) != 1 {
+	if !plan.MigrationRequired || !plan.WriteRequired || plan.TargetSchema != model.SchemaVersion || len(plan.Steps) != 4 {
 		t.Fatalf("unexpected migration plan: %#v", plan)
 	}
 	current, err := buildMigrationPlan(model.SchemaVersion)

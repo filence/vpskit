@@ -2,7 +2,7 @@ package model
 
 import "time"
 
-const SchemaVersion = 8
+const SchemaVersion = 9
 
 type State struct {
 	SchemaVersion       int            `json:"schema_version"`
@@ -48,9 +48,30 @@ const (
 // RulesState controls client-side routing only. It never changes proxy
 // inbounds or protocol credentials.
 type RulesState struct {
-	Profile    string `json:"profile"`
-	Revision   int    `json:"revision"`
-	SourceMode string `json:"source_mode"`
+	Profile    string     `json:"profile"`
+	Revision   int        `json:"revision"`
+	SourceMode string     `json:"source_mode"`
+	UserRules  []UserRule `json:"user_rules,omitempty"`
+}
+
+const (
+	UserRuleSourceWhitelist  = "whitelist"
+	UserRuleSourceCustom     = "custom"
+	UserRuleTypeDomain       = "domain"
+	UserRuleTypeDomainSuffix = "domain-suffix"
+	UserRuleTypeIPCIDR       = "ip-cidr"
+	UserRulePolicyDirect     = "DIRECT"
+	UserRulePolicyProxy      = "Proxy"
+	UserRulePolicyReject     = "REJECT"
+)
+
+// UserRule is a client-side exception owned by VPSKit. It is rendered before
+// remote rule providers, so a precise DIRECT whitelist can override anti-AD.
+type UserRule struct {
+	Source string `json:"source"`
+	Type   string `json:"type"`
+	Value  string `json:"value"`
+	Policy string `json:"policy"`
 }
 
 type CoreState struct {
@@ -109,6 +130,7 @@ type RuntimeValues struct {
 	RulesetRevision     int
 	RulesSourceMode     string
 	RuleProviderBaseURL string
+	UserRules           []UserRule
 	RealityEnabled      bool
 	Hysteria2Enabled    bool
 	ConnectHost         string

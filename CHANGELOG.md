@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+- `v0.2.3-lab.1`：状态 schema 升至 9，新增 `vpskit rules whitelist <list|add|remove>` 和 `vpskit rules custom <list|check|add|remove>`。白名单仅允许精确 `DOMAIN,DIRECT`；自定义规则支持 `domain`、`domain-suffix`、`ip-cidr` 与 `direct`、`proxy`、`reject`。
+- 用户规则以受管状态保存，在 Mihomo 中稳定排在远程 ACL4SSR/anti-AD Provider 前；域名/CIDR 会规范化，重复或同目标冲突规则会被拒绝，`custom check` 可报告范围重叠提示。每次规则例外变更都创建事务备份、递增客户端修订并自动发布；规则缓存 revision 不被虚增，以保持受管缓存引用正确。
+- Debian 13 amd64 已完成 schema 8→9 原位迁移、白名单/自定义规则添加和删除、订阅 r0012 全目标回读及 Xray/sing-box active 回归；测试使用 `.invalid` 保留域名，最终状态不保留测试规则。
 - `v0.2.2-lab.2`：新增 `vpskit rules refresh --yes`。它下载 ACL4SSR、MetaCubeX Google 与 anti-AD 规则，执行每源 1 MiB 上限与 SHA-256 记录，按 ruleset revision 缓存，并把 Mihomo 主配置、v2rayN、manifest 与最多 20 个规则工件作为完整修订发布到 Workers/KV。
 - Workers 订阅后端支持经读取 Token 保护的 `/s/<token>/rules/<name>`；发布、回读和回滚以候选修订中实际的 target 集合为准，并保留旧三工件修订回滚兼容。
 - 发布请求上限提高至 2 MiB；规则工件发布的默认 HTTP 等待时间提高至 90 秒。实机发现旧 20 秒等待不足时会返回 `DEGRADED`，现已通过 r0008 重新发布和 Windows 11 Clash Verge Rev 更新/切换/实际连接验收。

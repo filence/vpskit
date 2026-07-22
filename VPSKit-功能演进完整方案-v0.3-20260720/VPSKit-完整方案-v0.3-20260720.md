@@ -1,18 +1,18 @@
-# VPSKit 功能演进完整方案 v0.3-R11
+# VPSKit 功能演进完整方案 v0.3-R12
 
 > 标题：VPSKit 功能演进完整方案
 >
-> 生成时间：2026-07-21 17:13
+> 生成时间：2026-07-22 08:55
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R11
+> 版本：v0.3-R12
 >
 > 用途：用户筛选后的 VPSKit 后续功能实施依据
 
 - 原编制日期：2026-07-20
 - 精简修订日期：2026-07-21
-- 当前产品基线：VPSKit `v0.2.2-lab.2`；方案 A r0008、`doctor --fix`、扩展 `system inspect`、Fail2ban 与系统更新候选检查已完成对应实机验收
+- 当前产品基线：VPSKit `v0.2.3-lab.1`；方案 A r0008、schema 9 白名单/自定义规则 r0012、`doctor --fix`、扩展 `system inspect`、Fail2ban 与系统更新候选检查已完成对应实机验收
 - 证据原则：仅保留功能进入实施路线；暂停功能不安排版本号
 
 本文件由同目录 00–12 分卷按顺序机械合并。出现歧义时，以分卷、`FILE-MANIFEST.md` 和当前源码为准。
@@ -60,7 +60,7 @@
 规则优先级固定为：
 
 ```text
-用户白名单
+用户白名单 / 自定义规则
 → LAN
 → Google / Gemini / YouTube 专项代理
 → UnBan
@@ -70,7 +70,7 @@
 → MATCH,PROXY
 ```
 
-客户端每 24 小时检查规则更新。当前已验收的 `r0007` 采用客户端直连 ACL4SSR、anti-AD 与 MetaCubeX 的远程 rule-provider URL，因此规则能自动更新，但上游可变分支的变更会直接影响客户端。**这不是已完成的来源固定机制。** 后续应补齐“下载、校验、记录来源修订、由 VPSKit/订阅后端发布不可变缓存”的闭环；在此之前，更新失败由 Mihomo 使用本地 rule-provider 缓存，而非 VPSKit 的镜像缓存。
+客户端按 24 小时 interval 检查规则。`v0.2.2-lab.2` 已完成“下载、限额、SHA-256、受管缓存、Worker 发布、回读”的闭环，r0008 已通过 Clash Verge Rev 实机验收。`v0.2.3-lab.1` 进一步将精确域名白名单和自定义 `DIRECT / PROXY / REJECT` 规则保存为 schema 9 状态，并稳定渲染在 anti-AD 前；Debian 13 已完成添加、删除和 r0012 发布回读。上游分支仍可变化，固定对象是 VPSKit 已下载并发布的 revision，而非上游仓库分支。
 
 ## 4. 暂停规划（不排版本）
 
@@ -86,7 +86,7 @@
 4. Hysteria2 混淆、拥塞控制/带宽建议、端口跳跃与 UDP 调优；
 5. Fail2ban、系统更新/重启需求、时间同步、DNS/IPv6 健康检查。
 
-截至 2026-07-21 的实施状态：方案 A 已通过 Clash Verge Rev 的订阅更新、加载与实际连接验收；`doctor --fix`、扩展后的 `system inspect`、Fail2ban 的“应用 → 删除 → 重新应用”和只读 `system updates` 已通过 Debian 13 amd64 实机验收。Hysteria2 四项强化和规则来源固定仍未实施。
+截至 2026-07-22 的实施状态：方案 A 已通过 Clash Verge Rev 的订阅更新、加载与实际连接验收；受管规则缓存与 schema 9 白名单/自定义规则生命周期已在 Debian 13 amd64 通过。`doctor --fix`、扩展后的 `system inspect`、Fail2ban 的“应用 → 删除 → 重新应用”和只读 `system updates` 已通过实机验收。剩余高优先级为方案 B 的客户端回退/真实误杀白名单验收、通用实例/Adapter 解耦和 Hysteria2 强化。
 
 ## 6. 不变的安全原则
 
@@ -948,7 +948,7 @@ Shadowrocket 缺少与开源项目同等级、可由 CI 固定的官方解析器
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R11
+> 版本：v0.3-R12
 >
 > 用途：定义保留的 Mihomo 分流、去广告、DNS、更新和回退能力
 
@@ -1025,7 +1025,14 @@ VPS 下载候选规则 → 每源限额与 SHA-256 检查 → 写入不可变缓
 
 ## 6. 白名单与误杀处理
 
-用户白名单必须位于 anti-AD 前，优先支持精确 `DOMAIN`，确有必要才使用 `DOMAIN-SUFFIX`。白名单和自定义 DIRECT/PROXY/REJECT 规则在订阅状态中单独保存、可导入导出，并在变更时进行重复/遮蔽检查。
+`v0.2.3-lab.1` 已将用户规则保存到 schema 9 状态，并在 Mihomo 的远程 Provider 规则前稳定渲染。白名单仅允许精确 `DOMAIN,DIRECT`，避免一条宽泛例外放开整类域名：
+
+```bash
+vpskit rules whitelist add --domain captcha.example.com --yes
+vpskit rules whitelist remove --domain captcha.example.com --yes
+```
+
+自定义规则支持 `domain`、`domain-suffix`、`ip-cidr` 与 `direct`、`proxy`、`reject`；输入会规范化，重复或同目标冲突规则会被拒绝，`vpskit rules custom check` 会报告规则范围重叠。每次变更创建事务备份、递增 `config_revision` 并自动发布；不递增受管缓存的 `ruleset revision`，以保持已哈希缓存的引用正确。
 
 方案 A 发生登录、验证码、支付、图片或 App 启动异常时：先从客户端日志找出 `anti-AD → REJECT` 的域名，添加精确白名单；若误杀频繁，切换方案 B，不以关闭全部分流作为处理方式。
 
@@ -1036,10 +1043,11 @@ anti-AD 可处理第三方广告、追踪、统计和部分启动广告域名；
 首个 stable 验收：
 
 - 方案 A 的 r0008 已显示并使用受管规则地址；服务器端已回读 20 个远程规则工件；
+- schema 8→9、白名单/自定义规则添加和删除、最终空规则状态以及 r0012 全目标回读已在 Debian 13 amd64 通过；
 - 方案 B 显示 20 个 Provider，不含 anti-AD；
 - ACL4SSR 与 anti-AD 可在 24 小时周期外手动刷新；
 - Google/Gemini/AI/GitHub/Telegram 命中代理，国内域名/IP 命中直连，未知流量命中 `MATCH,PROXY`；
-- 方案 B 客户端回退、白名单与刻意上游失败回滚仍需在 Clash Verge 当前 Mihomo 版本验证。
+- 方案 B 客户端回退、真实误杀域名白名单命中和刻意上游失败回滚仍需在 Clash Verge 当前 Mihomo 版本验证。
 
 不在本次精简范围：Loon/Shadowrocket Renderer、v2rayN 独立路由产物、MITM、HTTPS 解密和脚本去广告。
 
@@ -1189,14 +1197,16 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 
 `v0.2.0-lab.1` 已完成单 VPS 自动订阅、Mihomo/Clash Verge 与 v2rayN 基础交付、生产 Workers/KV 发布、令牌轮换/撤销和用户客户端自动更新验收。
 
-`v0.2.1-lab.7` 已完成结构化 Mihomo、节点元数据、方案 A/B 的服务端渲染、方案 A Windows 11 Clash Verge Rev r0007 验收、`doctor --fix`、DNS/IPv4/IPv6 扩展 `system inspect`、Fail2ban SSH jail 完整生命周期以及只读系统更新候选检查。规则来源固定、方案 B 人工回退、白名单和 Hysteria2 强化尚未完成。
+`v0.2.1-lab.7` 已完成结构化 Mihomo、节点元数据、方案 A/B 的服务端渲染、方案 A Windows 11 Clash Verge Rev r0007 验收、`doctor --fix`、DNS/IPv4/IPv6 扩展 `system inspect`、Fail2ban SSH jail 完整生命周期以及只读系统更新候选检查。
+
+`v0.2.2-lab.2` 已完成 ACL4SSR/anti-AD 受管缓存和 r0008 实机验收；`v0.2.3-lab.1` 已完成 schema 9 的精确白名单与自定义规则生命周期，并通过 Debian 13 的添加、删除、r0012 发布回读和代理服务回归。
 
 ## 2. 下一个版本：架构、渲染与规则交付
 
 目标：不增加协议和 VPS 数量，建立后续维护所需接口，并交付方案 A/B。
 
-- 完成 ACL4SSR/anti-AD 来源固定与镜像缓存；
-- 完成方案 B 的 Clash Verge 人工回退、白名单和规则回滚；
+- 完成方案 B 的 Clash Verge 人工回退与真实误杀域名白名单命中验收；
+- 完成刻意上游失败时保留旧缓存与订阅回滚验收；
 - 完成通用实例模型与 Adapter 的实际解耦（当前只完成 Renderer Registry 侧的扩展基础）。
 
 ## 3. 运维版本：安全修复与可观察性
@@ -1260,7 +1270,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 - 方案 A 有 21 个 Provider，含 anti-AD；方案 B 有 20 个 Provider，不含 anti-AD；
 - fake-ip DNS、Sniffer、代理下载 Provider 和 24 小时更新在目标 Mihomo 验证；
 - Google/Gemini/AI/GitHub/Telegram 代理，国内域名/IP 直连，未知流量 `MATCH,PROXY`；
-- anti-AD 命中、精确白名单、A/B 切换、上游失败保留旧缓存和 ruleset rollback 均实测；
+- anti-AD 命中、方案 B 切换、真实误杀域名白名单和上游失败保留旧缓存/订阅 rollback 均实测；
 - 不测试或宣称 YouTube 内嵌广告、MITM 或 HTTPS 解密效果。
 
 ## 4. 运维与系统健康
@@ -1670,7 +1680,7 @@ refresh_policy: build-time
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R11
+> 版本：v0.3-R12
 >
 > 用途：记录已完成基线、用户筛选结果和暂停范围
 
@@ -1701,7 +1711,8 @@ refresh_policy: build-time
 - `v0.2.2-lab.2` 已将 20 个 ACL4SSR、MetaCubeX Google 与 anti-AD 来源下载、限额检查、SHA-256 记录并发布为 r0008 的受管规则工件；r0008 已通过 Windows 11 Clash Verge Rev 更新、切换和实际连接验收；
 - `doctor --fix`、`system inspect`、Fail2ban SSH jail 已在 Debian 13 amd64 实机通过；
 - Fail2ban 使用现有 `sshd` jail 的 VPSKit 覆盖文件，完整验证应用、删除和重新应用；
-- 白名单、方案 B 客户端回退和 Hysteria2 四项强化仍未完成；系统更新候选检查已完成；规则来源受管缓存已完成，但上游候选的许可证登记和格式 smoke test 仍待补充。
+- `v0.2.3-lab.1` 已完成 schema 8→9、精确域名白名单与自定义规则的添加/删除、最终空状态和 r0012 全目标回读；测试只使用 `.invalid` 保留域名，不影响真实流量。
+- 方案 B 客户端回退、真实误杀域名白名单命中和 Hysteria2 四项强化仍未完成；系统更新候选检查已完成；规则来源受管缓存已完成，但上游候选的许可证登记和格式 smoke test 仍待补充。
 
 ## 4. 规则决策
 

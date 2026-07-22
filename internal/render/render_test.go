@@ -300,6 +300,33 @@ func TestMihomoManagedRuleSourcesUseAuthenticatedBaseURL(t *testing.T) {
 	}
 }
 
+func TestMihomoUserRulesPrecedeAntiAD(t *testing.T) {
+	values := testValues()
+	values.RulesProfile = model.RulesProfileACL4SSRAntiAD
+	values.UserRules = []model.UserRule{
+		{Source: model.UserRuleSourceWhitelist, Type: model.UserRuleTypeDomain, Value: "captcha.example.com", Policy: model.UserRulePolicyDirect},
+		{Source: model.UserRuleSourceCustom, Type: model.UserRuleTypeDomainSuffix, Value: "example.org", Policy: model.UserRulePolicyProxy},
+		{Source: model.UserRuleSourceCustom, Type: model.UserRuleTypeIPCIDR, Value: "198.51.100.0/24", Policy: model.UserRulePolicyReject},
+	}
+	configuration, err := Mihomo(values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := string(configuration)
+	for _, expected := range []string{
+		"DOMAIN,captcha.example.com,DIRECT",
+		"DOMAIN-SUFFIX,example.org,Proxy",
+		"IP-CIDR,198.51.100.0/24,REJECT,no-resolve",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("missing user rule %q:\n%s", expected, output)
+		}
+		if strings.Index(output, expected) > strings.Index(output, "RULE-SET,anti-AD,REJECT") {
+			t.Fatalf("user rule must precede anti-AD: %q\n%s", expected, output)
+		}
+	}
+}
+
 func TestMihomoRuleSourcesAreStableAndComplete(t *testing.T) {
 	sources, err := MihomoRuleSources(model.RulesProfileACL4SSRAntiAD)
 	if err != nil {

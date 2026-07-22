@@ -99,6 +99,11 @@ func migrateState(state model.State) (model.State, error) {
 			// refreshes a verified, VPSKit-managed rule cache.
 			state.Rules.SourceMode = model.RulesSourceDirect
 			state.SchemaVersion = 8
+		case 8:
+			// Schema 9 keeps owner-defined whitelist and routing exceptions in
+			// state so they are versioned with the generated client config.
+			state.Rules.UserRules = nil
+			state.SchemaVersion = 9
 		default:
 			return model.State{}, fmt.Errorf("no migration from state schema %d", state.SchemaVersion)
 		}
@@ -121,6 +126,11 @@ func migrateState(state model.State) (model.State, error) {
 	if state.Rules.SourceMode != model.RulesSourceDirect && state.Rules.SourceMode != model.RulesSourceManaged {
 		return model.State{}, fmt.Errorf("invalid rules source mode %q", state.Rules.SourceMode)
 	}
+	userRules, err := normalizeUserRules(state.Rules.UserRules)
+	if err != nil {
+		return model.State{}, fmt.Errorf("invalid user rules: %w", err)
+	}
+	state.Rules.UserRules = userRules
 	return state, nil
 }
 

@@ -25,7 +25,7 @@ func normalizedRulesProfile(value string) (string, error) {
 
 func runRules(arguments []string) error {
 	if len(arguments) == 0 {
-		return errors.New("usage: vpskit rules <show|plan|apply|refresh> [--profile minimal|acl4ssr|acl4ssr-antiad] [--yes]")
+		return errors.New("usage: vpskit rules <show|plan|apply|refresh|whitelist|custom> [options]")
 	}
 	if !platform.IsRoot() {
 		return errors.New("rules inspection and mutation require root privileges")
@@ -113,6 +113,10 @@ func runRules(arguments []string) error {
 			return err
 		}
 		return printJSON(commandResult{Command: "rules refresh", Status: "PASS", Detail: map[string]any{"profile": commit.State.Rules.Profile, "source_mode": commit.State.Rules.SourceMode, "ruleset_revision": commit.State.Rules.Revision, "config_revision": commit.State.ConfigRevision, "sources": len(manifest.Sources), "client_update_required": true, "transaction_id": commit.TransactionID, "previous_backup_id": commit.BackupID, "subscription_publish": commit.SubscriptionPublish}})
+	case "whitelist":
+		return runRuleWhitelist(state, arguments[1:])
+	case "custom":
+		return runRuleCustom(state, arguments[1:])
 	default:
 		return fmt.Errorf("unsupported rules operation %q", arguments[0])
 	}

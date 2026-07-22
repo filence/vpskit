@@ -74,6 +74,47 @@ func newMihomoRuleProfile(profile string) (mihomoRuleProfile, error) {
 	}
 }
 
+func userRuleLines(userRules []model.UserRule) ([]string, error) {
+	ordered := append([]model.UserRule(nil), userRules...)
+	sort.Slice(ordered, func(left, right int) bool {
+		leftRank, rightRank := userRuleTypeRank(ordered[left].Type), userRuleTypeRank(ordered[right].Type)
+		if leftRank != rightRank {
+			return leftRank < rightRank
+		}
+		if ordered[left].Value != ordered[right].Value {
+			return ordered[left].Value < ordered[right].Value
+		}
+		return ordered[left].Policy < ordered[right].Policy
+	})
+	lines := make([]string, 0, len(ordered))
+	for _, rule := range ordered {
+		switch rule.Type {
+		case model.UserRuleTypeDomain:
+			lines = append(lines, "DOMAIN,"+rule.Value+","+rule.Policy)
+		case model.UserRuleTypeDomainSuffix:
+			lines = append(lines, "DOMAIN-SUFFIX,"+rule.Value+","+rule.Policy)
+		case model.UserRuleTypeIPCIDR:
+			lines = append(lines, "IP-CIDR,"+rule.Value+","+rule.Policy+",no-resolve")
+		default:
+			return nil, fmt.Errorf("unsupported user rule type %q", rule.Type)
+		}
+	}
+	return lines, nil
+}
+
+func userRuleTypeRank(ruleType string) int {
+	switch ruleType {
+	case model.UserRuleTypeDomain:
+		return 0
+	case model.UserRuleTypeDomainSuffix:
+		return 1
+	case model.UserRuleTypeIPCIDR:
+		return 2
+	default:
+		return 3
+	}
+}
+
 // MihomoRuleSources returns the complete remote source set used by a profile.
 // Inline providers such as Google-Antigravity deliberately do not appear here.
 func MihomoRuleSources(profile string) ([]MihomoRuleSource, error) {

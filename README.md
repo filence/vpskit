@@ -14,6 +14,8 @@ VPSKit 是一个面向个人 VPS 的低资源、可回滚代理节点部署与�
 
 `v0.2.2-lab.2` 已在同一 Debian 13 amd64 VPS 完成 ACL4SSR + anti-AD 方案 A 的受管规则发布。VPSKit 会下载、限额检查并哈希 20 个规则源，按 ruleset revision 缓存后与主订阅一起发布到 Workers/KV；Clash Verge Rev 已完成 r0008 更新、切换和实际连接验收。Worker 更新保留既有 KV、读取 Token 和节点发布 Secret；发布器已将多工件请求等待时间提高到 90 秒，以覆盖规则工件写入与回读。
 
+`v0.2.3-lab.1` 已完成 schema 8→9 的原位迁移和规则例外生命周期。它支持精确域名白名单及域名、域名后缀、IP CIDR 的自定义 `DIRECT / PROXY / REJECT` 规则；规则始终位于 anti-AD 前面，变更会创建备份、递增客户端修订并自动发布。VPS 已完成添加、发布、删除和 r0012 回读闭环；真实误杀域名的 Clash Verge 命中验证仍按需进行。
+
 lab32 已在同一实验 VPS 完成 schema 5 迁移、无效 REALITY 目标零写入、目标切换并恢复、修订号递增、安全 ZIP、双协议回环及本地固定版本解析；修订3配置随后在 Clash Verge 与 Hiddify 中完成 REALITY、Hysteria2 四项 GUI 重新导入验收。
 
 lab33 继续完成固定版本Bootstrap、Linux归档权限、原位自更新与中文菜单实机回归；随后在同一VPS创建本机可校验恢复快照，执行受管卸载与最终Bootstrap从零重装。签名/摘要校验、schema 5初始修订、安全客户端ZIP、doctor、证书、orphan scan、双协议回环和重启持久化均通过；新修订配置已再次通过Clash Verge与Hiddify的REALITY、Hysteria2四项人工验收。验收后已删除远程恢复/安装临时材料和本机恢复副本，仅保留本机accepted客户端配置。
@@ -75,9 +77,26 @@ sudo vpskit cleanup plan
 sudo vpskit system inspect
 sudo vpskit system updates
 sudo vpskit rules show
+sudo vpskit rules whitelist list
+sudo vpskit rules custom list
+sudo vpskit rules custom check
 sudo vpskit security fail2ban status
 sudo vpskit security fail2ban plan
 sudo vpskit support bundle
+```
+
+出现 anti-AD 误杀时，先从 Clash Verge 日志确认被拒绝的域名，再仅添加精确白名单：
+
+```bash
+sudo vpskit rules whitelist add --domain captcha.example.com --yes
+sudo vpskit rules whitelist remove --domain captcha.example.com --yes
+```
+
+需要自行指定路由时，可添加受校验的域名、后缀或 IP 段规则；每次变更都会发布新的 Mihomo 订阅修订：
+
+```bash
+sudo vpskit rules custom add --type domain-suffix --value example.org --policy proxy --yes
+sudo vpskit rules custom remove --type domain-suffix --value example.org --policy proxy --yes
 ```
 
 修改 REALITY 目标时，VPSKit会先执行TLS和端到端REALITY验证，再创建回滚备份、重新渲染服务端与客户端配置并递增配置修订号：

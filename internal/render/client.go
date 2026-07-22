@@ -222,6 +222,11 @@ func Mihomo(values model.RuntimeValues) ([]byte, error) {
 			return nil, err
 		}
 	}
+	userRules, err := userRuleLines(values.UserRules)
+	if err != nil {
+		return nil, err
+	}
+	ruleProfile.Rules = append(userRules, ruleProfile.Rules...)
 	configuration := mihomoConfig{
 		MixedPort: 7890, AllowLAN: false, Mode: "rule", LogLevel: "warning",
 		DNS: ruleProfile.DNS, Sniffer: ruleProfile.Sniffer,

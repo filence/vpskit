@@ -392,10 +392,22 @@ func clientFacingChanges(previous, updated model.State) []string {
 	if previous.Hysteria2.ListenPort != updated.Hysteria2.ListenPort {
 		changes = append(changes, "hysteria2.port")
 	}
-	if previous.Rules.Profile != updated.Rules.Profile || previous.Rules.Revision != updated.Rules.Revision {
+	if previous.Rules.Profile != updated.Rules.Profile || previous.Rules.Revision != updated.Rules.Revision || previous.Rules.SourceMode != updated.Rules.SourceMode || !sameUserRules(previous.Rules.UserRules, updated.Rules.UserRules) {
 		changes = append(changes, "rules.profile")
 	}
 	return changes
+}
+
+func sameUserRules(left, right []model.UserRule) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func readInstalledSecrets() (model.Secrets, error) {
@@ -417,6 +429,7 @@ func runtimeValuesFromState(state model.State, secrets model.Secrets) model.Runt
 		RulesProfile:      state.Rules.Profile,
 		RulesetRevision:   state.Rules.Revision,
 		RulesSourceMode:   state.Rules.SourceMode,
+		UserRules:         append([]model.UserRule(nil), state.Rules.UserRules...),
 		RealityEnabled:    state.Reality.Enabled,
 		Hysteria2Enabled:  state.Hysteria2.Enabled,
 		ConnectHost:       state.ConnectHost,

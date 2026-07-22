@@ -149,6 +149,12 @@ func buildMigrationPlan(source int) (migrationPlan, error) {
 			steps = append(steps, "schema 4 -> 5: preserve client config revision")
 		case 5:
 			steps = append(steps, "schema 5 -> 6: add stable node metadata and Renderer/Publisher state boundary")
+		case 6:
+			steps = append(steps, "schema 6 -> 7: add opt-in client rule profile state")
+		case 7:
+			steps = append(steps, "schema 7 -> 8: record direct or managed rule source mode")
+		case 8:
+			steps = append(steps, "schema 8 -> 9: add owner whitelist and custom client rules")
 		}
 	}
 	return migrationPlan{
