@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.21-lab.1 - 2026-07-22
+
+- 新增 `vpskit hysteria2 port-hop enable --range <start-end> [--hop-interval <秒>] --yes` 与 `disable --yes`。启用前必须确认 VPSKit 自有 redirect systemd unit 已 active、nftables 配置精确匹配范围和 Hysteria2 后端端口、运行中的表可读；随后才以事务方式递增客户端修订、渲染 Mihomo、sing-box JSON 与分享链接并发布订阅。
+- Debian 13 amd64 已完成 `20000-20010/UDP → 443/UDP` 的启用、订阅远端回读、Windows 11 Clash Verge Rev/Mihomo 更新、节点切换和实际使用验收；重启后 redirect 与双核心均自动恢复。关闭→移除 nftables 表→重新准备/启用→再次发布的完整生命周期也已通过，最终客户端字段保持 `ports=20000-20010` / `hop-interval=30`。
+
+## v0.2.20-lab.1 - 2026-07-22
+
+- 端口跳跃 redirect 使用独立的 `inet` NAT 表与受管 systemd oneshot unit；启用前通过 VPS 上的 `nft -c` 预检，并保留升级失败时的 CLI、规则文件和 unit 回退。它不修改现有 Xray/sing-box 监听、状态或订阅。
+
 ## v0.2.15-lab.1 - 2026-07-22
 
 - 新增只读 `vpskit hysteria2 port-hop plan --range <start-end> [--hop-interval <秒>]`：校验范围、当前 UDP 监听冲突、Hysteria2 后端端口、本地防火墙归属和云安全组前置条件；范围上限 64 个端口且禁止包含当前 Hysteria2 监听端口。

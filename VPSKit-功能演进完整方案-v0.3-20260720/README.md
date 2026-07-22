@@ -1,11 +1,11 @@
 # VPSKit 功能演进完整方案包
 
 - 方案版本：v0.3
-- 审查修订：R25（Hysteria2 端口跳跃只读计划实机验收）
+- 审查修订：R27（Hysteria2 端口跳跃受管组件、重启恢复与 Windows 验收）
 - 原编制日期：2026-07-20
 - 本次修订日期：2026-07-22
 - 对应项目：[filence/vpskit](https://github.com/filence/vpskit)
-- 当前产品基线：VPSKit `v0.2.15-lab.1`；方案 A r0008、方案 B r0014 与 Salamander r0015 已完成 Windows 11 Clash Verge Rev 验收，schema 9 白名单/自定义规则已完成 Debian 13 r0012 发布回读，`doctor --fix`、扩展 `system inspect`、Fail2ban SSH 白名单、规则刷新失败保护、Hysteria2 能力矩阵、性能基线、受管 UDP buffer、Adapter Registry 渐进接入与服务等待收口、只读带宽建议、端口跳跃只读计划与系统更新候选检查已完成实机验收
+- 当前产品基线：VPSKit `v0.2.21-lab.1`；方案 A r0008、方案 B r0014 与 Salamander r0015 已完成 Windows 11 Clash Verge Rev 验收，schema 9 白名单/自定义规则已完成 Debian 13 r0012 发布回读，`doctor --fix`、扩展 `system inspect`、Fail2ban SSH 白名单、规则刷新失败保护、Hysteria2 能力矩阵、性能基线、受管 UDP buffer、Adapter Registry 渐进接入与服务等待收口、只读带宽建议、端口跳跃 redirect/客户端导出/重启恢复与系统更新候选检查已完成实机验收
 - 使用对象：开发者个人自用、少量 VPS、低资源环境
 
 ## 本次精简结论

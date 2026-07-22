@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-[string]$Revision = 'R25',
+[string]$Revision = 'R27',
     [string]$DateStamp = '20260722'
 )
 
@@ -21,7 +21,7 @@ foreach ($pattern in $sourceNames) {
 }
 
 $code = [char]96
-$baseline = "- 当前产品基线：VPSKit ${code}v0.2.15-lab.1${code}；方案 A r0008、方案 B r0014、Salamander r0015、schema 9 白名单/自定义规则 r0012、${code}doctor --fix${code}、扩展 ${code}system inspect${code}、Fail2ban SSH 白名单、规则刷新失败保护、Hysteria2 能力矩阵、性能基线、受管 UDP buffer、Adapter Registry 渐进接入与服务等待收口、只读带宽建议、端口跳跃只读计划与系统更新候选检查已完成对应实机验收"
+$baseline = "- 当前产品基线：VPSKit ${code}v0.2.21-lab.1${code}；方案 A r0008、方案 B r0014、Salamander r0015、schema 9 白名单/自定义规则 r0012、${code}doctor --fix${code}、扩展 ${code}system inspect${code}、Fail2ban SSH 白名单、规则刷新失败保护、Hysteria2 能力矩阵、性能基线、受管 UDP buffer、Adapter Registry 渐进接入与服务等待收口、只读带宽建议、端口跳跃 redirect/客户端导出/重启恢复与系统更新候选检查已完成对应实机验收"
 $reference = "本文件由同目录 00–12 分卷按顺序机械合并。出现歧义时，以分卷、${code}${manifestName}${code} 和当前源码为准。"
 $header = @"
 # VPSKit 功能演进完整方案 v0.3-$Revision
@@ -62,7 +62,7 @@ $manifest = @(
     '',
     "- 方案版本：v0.3-$Revision",
     "- 清单生成日期：$((Get-Date).ToString('yyyy-MM-dd'))",
-    '- 工作区基线：v0.2.15-lab.1，方案 A r0008、方案 B r0014、Salamander r0015、schema 9 r0012、Fail2ban SSH 白名单、规则刷新失败保护、Hysteria2 能力矩阵、性能基线、受管 UDP buffer、Adapter Registry 渐进接入、服务等待收口、只读带宽建议与端口跳跃只读计划实机验收；schema 10 通用实例兼容层已完成当前 VPS 部署验收',
+    '- 工作区基线：v0.2.21-lab.1，方案 A r0008、方案 B r0014、Salamander r0015、schema 9 r0012、Fail2ban SSH 白名单、规则刷新失败保护、Hysteria2 能力矩阵、性能基线、受管 UDP buffer、Adapter Registry 渐进接入、服务等待收口、只读带宽建议与端口跳跃 redirect/客户端导出/重启恢复实机验收；schema 10 通用实例兼容层已完成当前 VPS 部署验收',
     '- 说明：为避免自引用，清单不记录自身哈希；ZIP 仍包含本清单。',
     '',
     '| 文件 | 字节数 | SHA-256 |',

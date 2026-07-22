@@ -38,6 +38,8 @@ VPSKit 是一个面向个人 VPS 的低资源、可回滚代理节点部署与�
 
 `v0.2.15-lab.1` 交付 Hysteria2 端口跳跃的只读前置计划：`vpskit hysteria2 port-hop plan --range 20000-20010 --hop-interval 30` 会显示端口占用、当前后端、云安全组动作和实现缺口。当前不开放端口、不写防火墙、不中断服务；真正启用仍需要受管 redirect/回滚、客户端导出以及 Windows 手工验收。
 
+`v0.2.17-lab.1` 至 `v0.2.21-lab.1` 将端口跳跃作为默认关闭的独立组件交付：`prepare` 只写 VPSKit 自有 nftables/systemd 文件，`activate` 才启用 `20000-20010/UDP → 443/UDP` redirect，`enable` 在确认 redirect 活跃且配置精确匹配后才发布客户端范围和 `30s` 跳跃间隔。Debian 13 已完成 nftables 语法预检、启用、订阅回读、重启恢复、关闭→移除规则→重新启用生命周期；Windows 11 Clash Verge Rev/Mihomo 已完成订阅更新、切换和实际使用验收。该组件不接管通用防火墙，也不会给 sing-box 授予 `CAP_NET_ADMIN`。
+
 lab32 已在同一实验 VPS 完成 schema 5 迁移、无效 REALITY 目标零写入、目标切换并恢复、修订号递增、安全 ZIP、双协议回环及本地固定版本解析；修订3配置随后在 Clash Verge 与 Hiddify 中完成 REALITY、Hysteria2 四项 GUI 重新导入验收。
 
 lab33 继续完成固定版本Bootstrap、Linux归档权限、原位自更新与中文菜单实机回归；随后在同一VPS创建本机可校验恢复快照，执行受管卸载与最终Bootstrap从零重装。签名/摘要校验、schema 5初始修订、安全客户端ZIP、doctor、证书、orphan scan、双协议回环和重启持久化均通过；新修订配置已再次通过Clash Verge与Hiddify的REALITY、Hysteria2四项人工验收。验收后已删除远程恢复/安装临时材料和本机恢复副本，仅保留本机accepted客户端配置。

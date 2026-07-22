@@ -1,18 +1,18 @@
-# VPSKit 功能演进完整方案 v0.3-R25
+# VPSKit 功能演进完整方案 v0.3-R27
 
 > 标题：VPSKit 功能演进完整方案
 >
-> 生成时间：2026-07-22 13:13
+> 生成时间：2026-07-22 14:32
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R25
+> 版本：v0.3-R27
 >
 > 用途：用户筛选后的 VPSKit 后续功能实施依据
 
 - 原编制日期：2026-07-20
 - 精简修订日期：2026-07-21
-- 当前产品基线：VPSKit `v0.2.15-lab.1`；方案 A r0008、方案 B r0014、Salamander r0015、schema 9 白名单/自定义规则 r0012、`doctor --fix`、扩展 `system inspect`、Fail2ban SSH 白名单、规则刷新失败保护、Hysteria2 能力矩阵、性能基线、受管 UDP buffer、Adapter Registry 渐进接入与服务等待收口、只读带宽建议、端口跳跃只读计划与系统更新候选检查已完成对应实机验收
+- 当前产品基线：VPSKit `v0.2.21-lab.1`；方案 A r0008、方案 B r0014、Salamander r0015、schema 9 白名单/自定义规则 r0012、`doctor --fix`、扩展 `system inspect`、Fail2ban SSH 白名单、规则刷新失败保护、Hysteria2 能力矩阵、性能基线、受管 UDP buffer、Adapter Registry 渐进接入与服务等待收口、只读带宽建议、端口跳跃 redirect/客户端导出/重启恢复与系统更新候选检查已完成对应实机验收
 - 证据原则：仅保留功能进入实施路线；暂停功能不安排版本号
 
 本文件由同目录 00–12 分卷按顺序机械合并。出现歧义时，以分卷、`FILE-MANIFEST.md` 和当前源码为准。
@@ -27,7 +27,7 @@
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R25
+> 版本：v0.3-R27
 >
 > 用途：记录用户筛选后的后续功能范围与实施优先级
 
@@ -86,7 +86,7 @@
 4. Hysteria2 混淆、拥塞控制/带宽建议、端口跳跃与 UDP 调优；
 5. Fail2ban、系统更新/重启需求、时间同步、DNS/IPv6 健康检查。
 
-截至 2026-07-22 的实施状态：方案 A r0008 与方案 B r0014 均已通过 Clash Verge Rev 的订阅更新、加载、切换与实际连接验收；受管规则缓存与 schema 9 白名单/自定义规则生命周期已在 Debian 13 amd64 通过。`v0.2.10-14` 已将 schema 10 与 Adapter Registry 生命周期逐步收口；`v0.2.13` 已完成只读带宽建议。`v0.2.15` 已完成端口跳跃范围、占用、云安全组和实现缺口的只读计划，尚未开放任何端口。剩余高优先级为真实误杀域名白名单命中，以及端口跳跃受管 redirect、回滚和客户端导出实现后的实际连通性验收。
+截至 2026-07-22 的实施状态：方案 A r0008 与方案 B r0014 均已通过 Clash Verge Rev 的订阅更新、加载、切换与实际连接验收；受管规则缓存与 schema 9 白名单/自定义规则生命周期已在 Debian 13 amd64 通过。`v0.2.10-14` 已将 schema 10 与 Adapter Registry 生命周期逐步收口；`v0.2.13` 已完成只读带宽建议。`v0.2.17-21` 已完成端口跳跃的受管 nftables redirect、客户端导出、订阅回读、关闭/移除/重新启用、重启恢复和 Windows 实际连接验收。剩余高优先级仅为真实 anti-AD 误杀域名的白名单命中验收。
 
 ## 6. 不变的安全原则
 
@@ -1107,7 +1107,7 @@ WARP 与 AI 精确出站不在本轮保留范围，不安排版本号、不创�
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R25
+> 版本：v0.3-R27
 >
 > 用途：定义保留的 Hysteria2 强化、诊断、安全和系统健康能力
 
@@ -1163,11 +1163,11 @@ Debian 13 amd64 已完成签名包升级、只读 `plan`、启用、受管配置
 
 ### 4.3 端口跳跃
 
-`v0.2.15-lab.1` 已先实现 `vpskit hysteria2 port-hop plan --range <start-end> --hop-interval <seconds>`：范围必须为 2–64 个 UDP 端口且不能包含当前 Hysteria2 后端监听；计划回读当前端口占用、后端、云安全组动作和本地防火墙归属。当前实验 VPS 的 `20000-20010` 计划已通过，但命令明确为 `BLOCKED`，不开放端口、不写防火墙、不发布客户端配置。
+`v0.2.15-lab.1` 的只读计划已经由 `v0.2.17–v0.2.21` 完成实施。范围仍限制为 2–64 个 UDP 端口且不能包含当前 Hysteria2 后端监听；本机最终使用 `20000-20010` redirect 至既有 `443/UDP`。
 
-客户端可使用明确的 UDP 端口范围和跳跃间隔。当前 sing-box 入站仍监听单个受管端口，由 VPSKit 的**专用 Hysteria2 redirect 组件**管理精确 IPv4/IPv6 重定向；它不是通用防火墙模块。
+生命周期被刻意拆开：`prepare` 只创建 VPSKit 的 nftables/unit 文件，`activate --yes` 才启用 redirect；只有当 unit active、nftables 表存在且规则与请求精确匹配时，`enable --range ... --hop-interval 30 --yes` 才发布 Mihomo、sing-box JSON 与分享链接的端口范围。`disable --yes` 先收回客户端字段，之后才可按需独立 `deactivate --yes` 删除表。
 
-启用前必须显示端口范围、现有规则影响、云安全组需开放的 UDP 范围和回滚动作。卸载只删除 VPSKit 创建的该组件规则，不给 sing-box `CAP_NET_ADMIN`。
+当前 sing-box 入站仍监听单个受管端口，专用 Hysteria2 redirect 组件不接管通用防火墙，也不给 sing-box `CAP_NET_ADMIN`。Debian 13 已完成启用、订阅回读、关闭→移除→重新启用、重启恢复和 Windows Clash Verge Rev 实际连接验收；其他 VPS 仍须先确认云侧 UDP 范围可达。
 
 ### 4.4 UDP 调优（已完成首个受管档位）
 
@@ -1225,7 +1225,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R25
+> 版本：v0.3-R27
 >
 > 用途：将用户筛选后的功能拆成低风险、可验收的版本切片
 
@@ -1235,7 +1235,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 
 `v0.2.1-lab.7` 已完成结构化 Mihomo、节点元数据、方案 A/B 的服务端渲染、方案 A Windows 11 Clash Verge Rev r0007 验收、`doctor --fix`、DNS/IPv4/IPv6 扩展 `system inspect`、Fail2ban SSH jail 完整生命周期以及只读系统更新候选检查。
 
-`v0.2.2-lab.2` 已完成 ACL4SSR/anti-AD 受管缓存和方案 A r0008 实机验收；`v0.2.3-lab.1` 已完成 schema 9 的精确白名单与自定义规则生命周期，并通过 Debian 13 的添加、删除、r0012 发布回读和代理服务回归。方案 B（不含 anti-AD）的 r0014 已通过 Clash Verge Rev 更新、切换和实际使用验收；`v0.2.4-lab.2` 已完成 Fail2ban SSH 白名单添加/删除、jail active 回读和代理服务回归；`v0.2.5-lab.1` 已完成规则源失败时的原子缓存保护实机验收；`v0.2.6-lab.1` 已完成 Hysteria2 能力矩阵与 UDP buffer 只读实机验收；`v0.2.7-lab.1` 已完成 Salamander 默认关闭开关、r0015 自动订阅发布和 Windows 11 Clash Verge Rev 实机验收；`v0.2.8-lab.1` 已完成 Hysteria2 只读性能基线实机验收；`v0.2.9-lab.1` 已完成受管 UDP buffer 的 `apply → rollback → apply` 实机闭环；`v0.2.10-14` 已完成 schema 10 与 Adapter Registry 的状态、变更、运行时、导出和服务等待渐进接入；`v0.2.13-lab.1` 已完成只读带宽建议部署回读，未产生客户端配置变更。
+`v0.2.2-lab.2` 已完成 ACL4SSR/anti-AD 受管缓存和方案 A r0008 实机验收；`v0.2.3-lab.1` 已完成 schema 9 的精确白名单与自定义规则生命周期，并通过 Debian 13 的添加、删除、r0012 发布回读和代理服务回归。方案 B（不含 anti-AD）的 r0014 已通过 Clash Verge Rev 更新、切换和实际使用验收；`v0.2.4-lab.2` 已完成 Fail2ban SSH 白名单添加/删除、jail active 回读和代理服务回归；`v0.2.5-lab.1` 已完成规则源失败时的原子缓存保护实机验收；`v0.2.6-lab.1` 已完成 Hysteria2 能力矩阵与 UDP buffer 只读实机验收；`v0.2.7-lab.1` 已完成 Salamander 默认关闭开关、r0015 自动订阅发布和 Windows 11 Clash Verge Rev 实机验收；`v0.2.8-lab.1` 已完成 Hysteria2 只读性能基线实机验收；`v0.2.9-lab.1` 已完成受管 UDP buffer 的 `apply → rollback → apply` 实机闭环；`v0.2.10-14` 已完成 schema 10 与 Adapter Registry 的状态、变更、运行时、导出和服务等待渐进接入；`v0.2.13-lab.1` 已完成只读带宽建议部署回读；`v0.2.17-21` 已完成端口跳跃 redirect、客户端字段、订阅远端回读、重启恢复与 Windows 实际连接验收。
 
 ## 2. 下一个版本：架构、渲染与规则交付
 
@@ -1248,7 +1248,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 
 - 仅只读的拥塞控制与带宽建议（`v0.2.13` 已完成；配置写入仍不开放）；
 - RTT/吞吐/丢包/CPU/RSS 基准；
-- 端口跳跃及专用 redirect（只读范围/冲突/云安全组计划已完成，apply 仍未开放）；
+- 端口跳跃及专用 redirect（已完成；其他 VPS 仍须按该机云侧 UDP 可达性重新验证）；
 
 UDP buffer 检查与可回滚调优已经完成首个 2 MiB 保守档；其他 VPS 复用时仍应遵循按机取证而非默认写入。
 
@@ -1278,7 +1278,7 @@ UDP buffer 检查与可回滚调优已经完成首个 2 MiB 保守档；其他 V
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R22
+> 版本：v0.3-R27
 >
 > 用途：限定当前保留功能的测试证据和发布条件
 
@@ -1316,7 +1316,7 @@ UDP buffer 检查与可回滚调优已经完成首个 2 MiB 保守档；其他 V
 
 - `hysteria2 inspect` 必须只读，并报告锁定 sing-box、UDP 监听、UDP buffer 与明确的能力阻止原因；
 - Salamander 已完成服务端、订阅 r0015 与 Clash Verge Rev/Mihomo 实测；后续拥塞控制参数和分享/订阅字段仍须在服务端及目标客户端同时验证；
-- 端口跳跃验证端口范围、IPv4/IPv6 redirect、重启、云安全组提示与精确卸载；
+- 端口跳跃已验证范围、受管 nftables redirect、订阅字段、Windows 实际连接、关闭→移除→重新启用与重启恢复；其他 VPS 仍需确认云侧 UDP 范围可达，且卸载流程须保持仅删除 VPSKit 自有组件；
 - UDP 调优在 1C1G 条件下验证资源余量、吞吐/丢包影响和原值恢复；
 - 性能报告同时记录 RTT、吞吐、丢包、CPU、RSS，不以单次延迟决定配置。
 
@@ -1713,7 +1713,7 @@ refresh_policy: build-time
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R25
+> 版本：v0.3-R27
 >
 > 用途：记录已完成基线、用户筛选结果和暂停范围
 
@@ -1807,6 +1807,14 @@ refresh_policy: build-time
 
 - `v0.2.15-lab.1` 新增端口范围、冲突、云安全组和实现门检查；范围不允许包含 Hysteria2 监听端口，并限制为最多 64 个 UDP 端口。
 - 当前 `20000-20010` 计划在 Debian 13 返回 `PASS`，但 apply 明确仍被阻止：受管 redirect、所有权记录、回滚和客户端导出都尚未实现；没有开放端口或要求客户端测试。
+
+## 3.11 R26 实施事实：Hysteria2 端口跳跃受管组件
+
+- `v0.2.17–v0.2.21` 将端口跳跃从只读计划推进为受管 nftables/systemd 组件；单独的 `prepare`、`activate`、`enable`、`disable` 与 `deactivate` 避免在未验证 redirect 前向客户端发布端口范围；
+- Debian 13 的 `20000-20010/UDP → 443/UDP` 规则先以 VPS 本机 `nft -c` 隔离验证；启用时保留 CLI、规则文件和 unit 的失败回退；
+- 客户端导出事务只有在 unit active、nftables 表存在且规则文本精确匹配时才发布 `ports=20000-20010` 与 `hop-interval=30`；订阅远端回读通过；
+- 用户已在 Windows 11 Clash Verge Rev v2.5.2 / Mihomo v1.19.29 完成自动订阅更新、节点切换和实际使用验收；VPS 重启后 redirect、Xray、sing-box 与订阅回读均恢复；
+- 关闭客户端字段→停止 unit 并删除 nftables 表→重新准备/启用/发布的生命周期已在当前 VPS 回读到最终相同的客户端字段和 active 服务状态。
 
 ## 4. 规则决策
 
