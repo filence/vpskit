@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,8 +34,8 @@ func runInstance(arguments []string) error {
 	}
 	operation := strings.ToLower(strings.TrimSpace(arguments[0]))
 	target := strings.ToLower(strings.TrimSpace(arguments[1]))
-	if target != "reality" && target != "hysteria2" {
-		return fmt.Errorf("unsupported instance %q; use reality or hysteria2", target)
+	if _, err := resolveInstanceAdapter(target); err != nil {
+		return err
 	}
 	flags := flag.NewFlagSet("instance "+operation, flag.ContinueOnError)
 	port := flags.Int("port", 0, "new listen port for instance modify")
@@ -84,10 +83,7 @@ func listInstalledInstances() error {
 	return printJSON(commandResult{Command: "instance list", Status: "PASS", Detail: map[string]any{
 		"state_schema": state.SchemaVersion,
 		"instances":    state.Instances,
-		"adapters": []map[string]any{
-			{"id": model.InstanceAdapterXray, "protocols": []string{model.InstanceProtocolVLESSReality}, "service": xrayServiceUnitName},
-			{"id": model.InstanceAdapterSingBox, "protocols": []string{model.InstanceProtocolHysteria2}, "service": serviceUnitName},
-		},
+		"adapters":     instanceAdapterDetails(),
 	}})
 }
 
@@ -122,7 +118,11 @@ func mutateInstalledInstance(operation, target string, port int, realityServerNa
 	}
 	if operation == "modify" {
 		if port != 0 {
-			if err := verifyNewInstancePortAvailable(target, port); err != nil {
+			adapter, err := resolveInstanceAdapter(target)
+			if err != nil {
+				return err
+			}
+			if err := verifyNewInstancePortAvailable(adapter, port); err != nil {
 				return err
 			}
 		}
@@ -304,86 +304,6 @@ func mutateInstalledInstance(operation, target string, port int, realityServerNa
 		"reality_server_name":    updatedState.RealityServerName,
 		"subscription_publish":   subscriptionPublish,
 	}})
-}
-
-func applyInstanceStateChange(state *model.State, secrets *model.Secrets, operation, target string, port int) error {
-	switch target {
-	case "reality":
-		if state.Reality.ID == "" {
-			return errors.New("reality instance does not exist")
-		}
-		switch operation {
-		case "enable":
-			if state.Reality.Enabled {
-				return errors.New("reality instance is already enabled")
-			}
-			state.Reality.Enabled = true
-		case "disable":
-			if !state.Reality.Enabled {
-				return errors.New("reality instance is already disabled")
-			}
-			if !state.Hysteria2.Enabled {
-				return errors.New("refusing to disable the last enabled instance")
-			}
-			state.Reality.Enabled = false
-		case "modify":
-			if port == 0 {
-				break
-			}
-			if port < 1 || port > 65535 {
-				return fmt.Errorf("invalid Reality TCP port: %d", port)
-			}
-			if port == state.Reality.ListenPort {
-				return errors.New("reality listen port is unchanged")
-			}
-			state.Reality.ListenPort = port
-		case "delete":
-			if !state.Hysteria2.Enabled {
-				return errors.New("refusing to delete the last enabled instance")
-			}
-			state.Reality = model.RealityState{}
-			secrets.RealityUUID = ""
-			secrets.RealityPrivateKey = ""
-		}
-	case "hysteria2":
-		if state.Hysteria2.ID == "" {
-			return errors.New("Hysteria2 instance does not exist")
-		}
-		switch operation {
-		case "enable":
-			if state.Hysteria2.Enabled {
-				return errors.New("Hysteria2 instance is already enabled")
-			}
-			state.Hysteria2.Enabled = true
-		case "disable":
-			if !state.Hysteria2.Enabled {
-				return errors.New("Hysteria2 instance is already disabled")
-			}
-			if !state.Reality.Enabled {
-				return errors.New("refusing to disable the last enabled instance")
-			}
-			state.Hysteria2.Enabled = false
-		case "modify":
-			if port == 0 {
-				break
-			}
-			if port < 1 || port > 65535 {
-				return fmt.Errorf("invalid Hysteria2 UDP port: %d", port)
-			}
-			if port == state.Hysteria2.ListenPort {
-				return errors.New("Hysteria2 listen port is unchanged")
-			}
-			state.Hysteria2.ListenPort = port
-		case "delete":
-			if !state.Reality.Enabled {
-				return errors.New("refusing to delete the last enabled instance")
-			}
-			state.Hysteria2 = model.Hysteria2State{}
-			secrets.Hysteria2Password = ""
-			secrets.Hysteria2ObfuscationPassword = ""
-		}
-	}
-	return nil
 }
 
 func clientFacingChanges(previous, updated model.State) []string {
@@ -582,19 +502,4 @@ func activateProfileMutation(artifacts map[string][]byte, clientSet artifact.Set
 		return err
 	}
 	return setServiceFileOwnership()
-}
-
-func verifyNewInstancePortAvailable(target string, port int) error {
-	if target == "reality" {
-		listener, err := net.Listen("tcp", fmt.Sprintf("[::]:%d", port))
-		if err != nil {
-			return fmt.Errorf("TCP port %d is unavailable: %w", port, err)
-		}
-		return listener.Close()
-	}
-	listener, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("::"), Port: port})
-	if err != nil {
-		return fmt.Errorf("UDP port %d is unavailable: %w", port, err)
-	}
-	return listener.Close()
 }

@@ -924,6 +924,23 @@ func TestInstanceStateChangesPreserveAtLeastOneEnabledInbound(t *testing.T) {
 	}
 }
 
+func TestInstanceAdapterRegistryOwnsDispatchAndRuntimeMetadata(t *testing.T) {
+	reality, err := resolveInstanceAdapter("reality")
+	if err != nil || reality.ID != model.InstanceAdapterXray || reality.Protocol != model.InstanceProtocolVLESSReality || reality.Network != model.InstanceNetworkTCP || reality.Service != xrayServiceUnitName {
+		t.Fatalf("unexpected REALITY adapter: %#v, %v", reality, err)
+	}
+	hy2, err := resolveInstanceAdapter("hysteria2")
+	if err != nil || hy2.ID != model.InstanceAdapterSingBox || hy2.Protocol != model.InstanceProtocolHysteria2 || hy2.Network != model.InstanceNetworkUDP || hy2.Service != serviceUnitName {
+		t.Fatalf("unexpected Hysteria2 adapter: %#v, %v", hy2, err)
+	}
+	if _, err := resolveInstanceAdapter("unknown"); err == nil {
+		t.Fatal("unknown adapter target was accepted")
+	}
+	if len(instanceAdapterDetails()) != 2 {
+		t.Fatalf("unexpected adapter registry: %#v", instanceAdapterDetails())
+	}
+}
+
 func TestInstanceDeleteClearsOnlySelectedSecret(t *testing.T) {
 	state := model.State{
 		Reality:   model.RealityState{Enabled: true, ID: "reality-main"},
