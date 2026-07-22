@@ -64,6 +64,7 @@ func commitManagedStateChangeWithServiceRestart(previous, updated model.State, s
 	updated.ConfigSHA256 = sha256Bytes(artifacts[serverConfigPath])
 	updated.RealityConfigSHA256 = sha256Bytes(artifacts[xrayServerConfigPath])
 	updated.Exports = exportStateForProfile(updated)
+	updated.SynchronizeLegacyInstances()
 	stateBytes, err := json.MarshalIndent(updated, "", "  ")
 	if err != nil {
 		return stateChangeCommit{}, err

@@ -27,8 +27,11 @@ var allProfileExportPaths = []string{
 }
 
 func runInstance(arguments []string) error {
+	if len(arguments) == 1 && strings.EqualFold(strings.TrimSpace(arguments[0]), "list") {
+		return listInstalledInstances()
+	}
 	if len(arguments) < 2 {
-		return errors.New("usage: vpskit instance <enable|disable|modify|delete> <reality|hysteria2> [--port <port>] [--reality-server-name <domain>] [--yes]")
+		return errors.New("usage: vpskit instance <list|enable|disable|modify|delete> [reality|hysteria2] [--port <port>] [--reality-server-name <domain>] [--yes]")
 	}
 	operation := strings.ToLower(strings.TrimSpace(arguments[0]))
 	target := strings.ToLower(strings.TrimSpace(arguments[1]))
@@ -71,6 +74,21 @@ func runInstance(arguments []string) error {
 		return errors.New("instance mutation requires root privileges")
 	}
 	return mutateInstalledInstance(operation, target, *port, strings.ToLower(strings.TrimSpace(*realityServerName)))
+}
+
+func listInstalledInstances() error {
+	state, err := readInstalledState()
+	if err != nil {
+		return err
+	}
+	return printJSON(commandResult{Command: "instance list", Status: "PASS", Detail: map[string]any{
+		"state_schema": state.SchemaVersion,
+		"instances":    state.Instances,
+		"adapters": []map[string]any{
+			{"id": model.InstanceAdapterXray, "protocols": []string{model.InstanceProtocolVLESSReality}, "service": xrayServiceUnitName},
+			{"id": model.InstanceAdapterSingBox, "protocols": []string{model.InstanceProtocolHysteria2}, "service": serviceUnitName},
+		},
+	}})
 }
 
 func mutateInstalledInstance(operation, target string, port int, realityServerName string) (returnErr error) {
@@ -157,6 +175,7 @@ func mutateInstalledInstance(operation, target string, port int, realityServerNa
 	updatedState.ConfigSHA256 = sha256Bytes(artifacts[serverConfigPath])
 	updatedState.RealityConfigSHA256 = sha256Bytes(artifacts[xrayServerConfigPath])
 	updatedState.Exports = exportStateForProfile(updatedState)
+	updatedState.SynchronizeLegacyInstances()
 	stateBytes, err := json.MarshalIndent(updatedState, "", "  ")
 	if err != nil {
 		return err

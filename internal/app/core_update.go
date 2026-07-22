@@ -135,6 +135,7 @@ func updateCore(bundleDir, requestedChannel, publicKeyBase64 string) (returnErr 
 	updatedState.SchemaVersion = model.SchemaVersion
 	updatedState.TransactionID = transactionID
 	updatedState.Core = coreStateFromAsset(asset, requestedChannel)
+	updatedState.SynchronizeLegacyInstances()
 	stateBytes, err := json.MarshalIndent(updatedState, "", "  ")
 	if err != nil {
 		return err

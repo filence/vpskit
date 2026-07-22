@@ -114,6 +114,29 @@ func TestStateSchemaFiveAddsLegacyCompatibleNodeMetadata(t *testing.T) {
 	if state.SchemaVersion != model.SchemaVersion || state.ConfigRevision != 9 || state.Node.ID != "node-main" || state.Node.DisplayName != "JP" || !state.Node.EnabledInSubscription || state.Rules.Profile != model.RulesProfileMinimal || state.Rules.Revision != 0 || len(state.Rules.UserRules) != 0 {
 		t.Fatalf("unexpected schema 5 migration: %#v", state)
 	}
+	if reality, found := state.InstanceByID("reality-main"); !found || reality.Adapter != model.InstanceAdapterXray || reality.Listen.Network != model.InstanceNetworkTCP {
+		t.Fatalf("schema migration did not create REALITY adapter inventory: %#v", state.Instances)
+	}
+	if hy2, found := state.InstanceByID("hy2-backup"); !found || hy2.Adapter != model.InstanceAdapterSingBox || hy2.Listen.Network != model.InstanceNetworkUDP {
+		t.Fatalf("schema migration did not create Hysteria2 adapter inventory: %#v", state.Instances)
+	}
+}
+
+func TestCurrentStateRebuildsMissingInstanceInventoryInMemory(t *testing.T) {
+	state, err := decodeInstalledState([]byte(`{
+  "schema_version": 10,
+  "config_revision": 3,
+  "node": {"node_id": "node-main", "display_name": "JP", "priority": 100, "enabled_in_subscription": true},
+  "rules": {"profile": "minimal", "revision": 0, "source_mode": "direct"},
+  "reality": {"enabled": true, "id": "reality-main", "listen_port": 443},
+  "hysteria2": {"enabled": true, "id": "hy2-backup", "listen_port": 443}
+}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Instances) != 2 {
+		t.Fatalf("current state did not rebuild missing inventory: %#v", state.Instances)
+	}
 }
 
 func TestNodeMetadataValidation(t *testing.T) {
@@ -140,7 +163,7 @@ func TestMigrationPlanIsReadOnlyAndExplicit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !plan.MigrationRequired || !plan.WriteRequired || plan.TargetSchema != model.SchemaVersion || len(plan.Steps) != 4 {
+	if !plan.MigrationRequired || !plan.WriteRequired || plan.TargetSchema != model.SchemaVersion || len(plan.Steps) != 5 {
 		t.Fatalf("unexpected migration plan: %#v", plan)
 	}
 	current, err := buildMigrationPlan(model.SchemaVersion)

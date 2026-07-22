@@ -311,6 +311,7 @@ func installRealityOnlyManagedFiles(options InstallOptions, vpskitAsset, singBox
 		ConfigRevision:      1,
 	}
 	state.Exports = exportStateForProfile(state)
+	state.SynchronizeLegacyInstances()
 	stateBytes, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return err

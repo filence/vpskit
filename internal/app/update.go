@@ -241,6 +241,7 @@ func updateSelf(bundleDir, publicKeyBase64 string) (returnErr error) {
 	updatedState.ConfigSHA256 = sha256Bytes(artifacts[serverConfigPath])
 	updatedState.RealityConfigSHA256 = sha256Bytes(artifacts[xrayServerConfigPath])
 	updatedState.Exports = exportStateForProfile(updatedState)
+	updatedState.SynchronizeLegacyInstances()
 	updatedStateBytes, err := json.MarshalIndent(updatedState, "", "  ")
 	if err != nil {
 		return err

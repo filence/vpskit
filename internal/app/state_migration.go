@@ -104,6 +104,12 @@ func migrateState(state model.State) (model.State, error) {
 			// state so they are versioned with the generated client config.
 			state.Rules.UserRules = nil
 			state.SchemaVersion = 9
+		case 9:
+			// Schema 10 adds a protocol-neutral instance inventory. It is a
+			// deterministic projection during the compatibility period, so the
+			// existing REALITY and Hysteria2 credential layouts remain intact.
+			state.SynchronizeLegacyInstances()
+			state.SchemaVersion = 10
 		default:
 			return model.State{}, fmt.Errorf("no migration from state schema %d", state.SchemaVersion)
 		}
@@ -131,6 +137,7 @@ func migrateState(state model.State) (model.State, error) {
 		return model.State{}, fmt.Errorf("invalid user rules: %w", err)
 	}
 	state.Rules.UserRules = userRules
+	state.SynchronizeLegacyInstances()
 	return state, nil
 }
 

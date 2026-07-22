@@ -2,28 +2,94 @@ package model
 
 import "time"
 
-const SchemaVersion = 9
+const SchemaVersion = 10
 
 type State struct {
-	SchemaVersion       int            `json:"schema_version"`
-	VPSKitVersion       string         `json:"vpskit_version"`
-	TransactionID       string         `json:"transaction_id"`
-	InstalledAt         time.Time      `json:"installed_at"`
-	Profile             string         `json:"profile"`
-	Node                NodeMetadata   `json:"node"`
-	Rules               RulesState     `json:"rules"`
-	ConnectHost         string         `json:"connect_host"`
-	Domain              string         `json:"domain"`
-	RealityServerName   string         `json:"reality_server_name"`
-	Core                CoreState      `json:"core"`
-	RealityCore         CoreState      `json:"reality_core"`
-	Reality             RealityState   `json:"reality"`
-	Hysteria2           Hysteria2State `json:"hysteria2"`
-	Firewall            FirewallState  `json:"firewall"`
-	ConfigSHA256        string         `json:"config_sha256"`
-	RealityConfigSHA256 string         `json:"reality_config_sha256"`
-	ConfigRevision      int            `json:"config_revision"`
-	Exports             []ExportState  `json:"exports"`
+	SchemaVersion       int               `json:"schema_version"`
+	VPSKitVersion       string            `json:"vpskit_version"`
+	TransactionID       string            `json:"transaction_id"`
+	InstalledAt         time.Time         `json:"installed_at"`
+	Profile             string            `json:"profile"`
+	Node                NodeMetadata      `json:"node"`
+	Rules               RulesState        `json:"rules"`
+	ConnectHost         string            `json:"connect_host"`
+	Domain              string            `json:"domain"`
+	RealityServerName   string            `json:"reality_server_name"`
+	Core                CoreState         `json:"core"`
+	RealityCore         CoreState         `json:"reality_core"`
+	Reality             RealityState      `json:"reality"`
+	Hysteria2           Hysteria2State    `json:"hysteria2"`
+	Instances           []ManagedInstance `json:"instances"`
+	Firewall            FirewallState     `json:"firewall"`
+	ConfigSHA256        string            `json:"config_sha256"`
+	RealityConfigSHA256 string            `json:"reality_config_sha256"`
+	ConfigRevision      int               `json:"config_revision"`
+	Exports             []ExportState     `json:"exports"`
+}
+
+const (
+	InstanceAdapterXray    = "xray"
+	InstanceAdapterSingBox = "sing-box"
+
+	InstanceProtocolVLESSReality = "vless-reality"
+	InstanceProtocolHysteria2    = "hysteria2"
+
+	InstanceNetworkTCP = "tcp"
+	InstanceNetworkUDP = "udp"
+)
+
+// ManagedInstance is the protocol-neutral ownership projection used by the
+// instance lifecycle. Protocol-specific credential and transport fields stay
+// in the legacy state structs while VPSKit migrates existing installations.
+// This keeps schema 10 backwards-compatible and gives later adapters a stable
+// identity, protocol, runtime owner and listener boundary.
+type ManagedInstance struct {
+	ID       string         `json:"id"`
+	Protocol string         `json:"protocol"`
+	Adapter  string         `json:"adapter"`
+	Enabled  bool           `json:"enabled"`
+	Listen   InstanceListen `json:"listen"`
+}
+
+type InstanceListen struct {
+	Network string `json:"network"`
+	Port    int    `json:"port"`
+}
+
+// SynchronizeLegacyInstances keeps the generic instance inventory as a
+// deterministic projection of the established REALITY and Hysteria2 state.
+// It is intentionally called before every state write so updates and profile
+// mutations cannot leave an old or partial inventory behind.
+func (state *State) SynchronizeLegacyInstances() {
+	instances := make([]ManagedInstance, 0, 2)
+	if state.Reality.ID != "" {
+		instances = append(instances, ManagedInstance{
+			ID:       state.Reality.ID,
+			Protocol: InstanceProtocolVLESSReality,
+			Adapter:  InstanceAdapterXray,
+			Enabled:  state.Reality.Enabled,
+			Listen:   InstanceListen{Network: InstanceNetworkTCP, Port: state.Reality.ListenPort},
+		})
+	}
+	if state.Hysteria2.ID != "" {
+		instances = append(instances, ManagedInstance{
+			ID:       state.Hysteria2.ID,
+			Protocol: InstanceProtocolHysteria2,
+			Adapter:  InstanceAdapterSingBox,
+			Enabled:  state.Hysteria2.Enabled,
+			Listen:   InstanceListen{Network: InstanceNetworkUDP, Port: state.Hysteria2.ListenPort},
+		})
+	}
+	state.Instances = instances
+}
+
+func (state State) InstanceByID(id string) (ManagedInstance, bool) {
+	for _, instance := range state.Instances {
+		if instance.ID == id {
+			return instance, true
+		}
+	}
+	return ManagedInstance{}, false
 }
 
 type NodeMetadata struct {

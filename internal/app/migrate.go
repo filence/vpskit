@@ -155,6 +155,8 @@ func buildMigrationPlan(source int) (migrationPlan, error) {
 			steps = append(steps, "schema 7 -> 8: record direct or managed rule source mode")
 		case 8:
 			steps = append(steps, "schema 8 -> 9: add owner whitelist and custom client rules")
+		case 9:
+			steps = append(steps, "schema 9 -> 10: add protocol-neutral instance inventory and adapter ownership")
 		}
 	}
 	return migrationPlan{
