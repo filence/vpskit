@@ -14,7 +14,7 @@ import (
 
 func runHysteria2(arguments []string) error {
 	if len(arguments) == 0 {
-		return errors.New("usage: vpskit hysteria2 <inspect|salamander|performance|udp-buffer>")
+		return errors.New("usage: vpskit hysteria2 <inspect|salamander|performance|recommend|udp-buffer>")
 	}
 	switch arguments[0] {
 	case "inspect":
@@ -33,10 +33,12 @@ func runHysteria2(arguments []string) error {
 		return runHysteria2Salamander(arguments[1:])
 	case "performance":
 		return runHysteria2Performance(arguments[1:])
+	case "recommend":
+		return runHysteria2Recommend(arguments[1:])
 	case "udp-buffer":
 		return runHysteria2UDPBuffer(arguments[1:])
 	default:
-		return errors.New("usage: vpskit hysteria2 <inspect|salamander|performance|udp-buffer>")
+		return errors.New("usage: vpskit hysteria2 <inspect|salamander|performance|recommend|udp-buffer>")
 	}
 }
 
@@ -52,6 +54,96 @@ func runHysteria2Performance(arguments []string) error {
 		return err
 	}
 	return printJSON(commandResult{Command: "hysteria2 performance inspect", Status: "PASS", Detail: collectHysteria2PerformanceInspect(state)})
+}
+
+// runHysteria2Recommend turns explicitly supplied test conditions into a
+// conservative test plan. It deliberately never writes sing-box bandwidth or
+// congestion fields: those settings must be justified by repeatable client
+// measurements and the pinned core's feature support.
+func runHysteria2Recommend(arguments []string) error {
+	flags := flag.NewFlagSet("hysteria2 recommend", flag.ContinueOnError)
+	serverMbps := flags.Float64("server-mbps", 0, "VPS provider bandwidth cap in Mbps")
+	clientMbps := flags.Float64("client-mbps", 0, "available client-network bandwidth in Mbps")
+	observedMbps := flags.Float64("observed-mbps", 0, "optional measured Hysteria2 throughput in Mbps")
+	rttMS := flags.Float64("rtt-ms", 0, "optional measured RTT in milliseconds")
+	lossPercent := flags.Float64("loss-percent", -1, "optional measured packet loss percent")
+	if err := flags.Parse(arguments); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return errors.New("usage: vpskit hysteria2 recommend --server-mbps <number> --client-mbps <number> [--observed-mbps <number> --rtt-ms <number> --loss-percent <number>]")
+	}
+	if *serverMbps <= 0 || *clientMbps <= 0 || *observedMbps < 0 || *rttMS < 0 || *lossPercent < -1 || *lossPercent > 100 {
+		return errors.New("server-mbps and client-mbps must be positive; observed-mbps and rtt-ms must not be negative; loss-percent must be from 0 to 100 when supplied")
+	}
+	if !platform.IsRoot() {
+		return errors.New("hysteria2 recommendation requires root privileges to read the installed core version")
+	}
+	state, err := readInstalledState()
+	if err != nil {
+		return err
+	}
+	return printJSON(commandResult{Command: "hysteria2 recommend", Status: "PASS", Detail: collectHysteria2Recommendation(state, hysteria2RecommendationInput{
+		ServerMbps: *serverMbps, ClientMbps: *clientMbps, ObservedMbps: *observedMbps, RTTMS: *rttMS, LossPercent: *lossPercent,
+	})})
+}
+
+type hysteria2RecommendationInput struct {
+	ServerMbps   float64
+	ClientMbps   float64
+	ObservedMbps float64
+	RTTMS        float64
+	LossPercent  float64
+}
+
+func collectHysteria2Recommendation(state model.State, input hysteria2RecommendationInput) map[string]any {
+	bottleneckMbps := input.ServerMbps
+	if input.ClientMbps < bottleneckMbps {
+		bottleneckMbps = input.ClientMbps
+	}
+	// This is a measurement ceiling, not a server configuration value. Leaving
+	// headroom avoids treating a variable consumer link as a guaranteed cap.
+	testCeilingMbps := roundHysteria2Mbps(bottleneckMbps * 0.85)
+	measurementComplete := input.ObservedMbps > 0 && input.RTTMS > 0 && input.LossPercent >= 0
+	assessment := "MEASUREMENT_REQUIRED"
+	nextStep := "在同一网络、同一节点下至少重复三次客户端测速；补齐 observed-mbps、rtt-ms 和 loss-percent 后再比较。"
+	if measurementComplete {
+		if input.ObservedMbps >= testCeilingMbps*0.9 && input.LossPercent <= 1 {
+			assessment = "NO_SERVER_TUNING_RECOMMENDED"
+			nextStep = "实测已接近保守测试上限，保持现有 Hysteria2 设置；不要仅为追求数字写入带宽或拥塞字段。"
+		} else {
+			assessment = "INVESTIGATE_CLIENT_PATH"
+			nextStep = "实测低于保守测试上限，先分别复测客户端网络、UDP 可用性、CPU 占用和丢包；不要直接把带宽限制或 BBR profile 写入服务端。"
+		}
+	}
+	coreVersion := strings.TrimSpace(state.Core.Version)
+	return map[string]any{
+		"read_only":       true,
+		"service_restart": false,
+		"config_revision": state.ConfigRevision,
+		"input": map[string]any{
+			"server_mbps": input.ServerMbps, "client_mbps": input.ClientMbps,
+			"observed_mbps": input.ObservedMbps, "rtt_ms": input.RTTMS, "loss_percent": input.LossPercent,
+		},
+		"test_plan": map[string]any{
+			"bottleneck_mbps": bottleneckMbps, "conservative_test_ceiling_mbps": testCeilingMbps,
+			"method": "min(server_mbps, client_mbps) * 0.85; this is a repeatable test target, not a sing-box bandwidth setting",
+		},
+		"assessment": assessment,
+		"next_step":  nextStep,
+		"server_config": map[string]any{
+			"up_down_mbps": "KEEP_UNSET", "ignore_client_bandwidth": "KEEP_UNSET",
+			"reason": "current evidence does not justify overriding Hysteria2 client bandwidth negotiation",
+		},
+		"feature_gate": map[string]any{
+			"sing_box_version": coreVersion,
+			"bbr_profile":      map[string]any{"status": hysteria2CapabilityStatus(hysteria2VersionAtLeast(coreVersion, "1.14.0")), "minimum": "1.14.0", "action": "DO_NOT_CONFIGURE_ON_CURRENT_LOCKED_CORE"},
+		},
+	}
+}
+
+func roundHysteria2Mbps(value float64) float64 {
+	return float64(int(value*10+0.5)) / 10
 }
 
 func runHysteria2Salamander(arguments []string) error {

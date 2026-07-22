@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.13-lab.1 - 2026-07-22
+
+- 新增只读 `vpskit hysteria2 recommend --server-mbps <值> --client-mbps <值> [--observed-mbps <值> --rtt-ms <值> --loss-percent <值>]`。它把明确提供的 VPS 与客户端带宽换算为保守、可复测的测试上限；不写入 sing-box `up_mbps/down_mbps`、`ignore_client_bandwidth` 或 `bbr_profile`，也不重启服务或发布订阅。
+- 当前 Debian 13 使用 `500 Mbps` VPS 上限与 `300 Mbps` 客户端上限完成签名包部署回读，输出 `255 Mbps` 保守测试上限；状态和订阅摘要保持不变，Xray/sing-box 均保持 active。
+- 官方 sing-box Hysteria2 文档确认带宽字段会影响客户端协商，`bbr_profile` 需服务端 `1.14.0`；当前锁定的 `1.13.14` 因此明确显示为 `BLOCKED`，不会提前生成不受支持字段。
+
 ## v0.2.9-lab.1 - 2026-07-22
 
 - 新增 `vpskit hysteria2 udp-buffer <status|plan|apply|rollback>`，首个受管档位为 `conservative-2mib`；同时管理四项 `net.core.rmem/wmem default/max`，并以 sing-box 实际 UDP socket `rb/tb` 回读作为成功条件。

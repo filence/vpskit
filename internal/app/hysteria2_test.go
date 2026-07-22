@@ -3,6 +3,8 @@ package app
 import (
 	"strings"
 	"testing"
+
+	"vpskit.local/vpskit/internal/model"
 )
 
 func TestHysteria2VersionAtLeast(t *testing.T) {
@@ -45,5 +47,32 @@ func TestParseHysteria2ProcessUsage(t *testing.T) {
 		if _, err := parseHysteria2ProcessUsage(output); err == nil {
 			t.Fatalf("expected parse error for %q", output)
 		}
+	}
+}
+
+func TestHysteria2RecommendationUsesInputsWithoutProposingWrites(t *testing.T) {
+	state := model.State{Core: model.CoreState{Version: "1.13.14"}, ConfigRevision: 15}
+	detail := collectHysteria2Recommendation(state, hysteria2RecommendationInput{ServerMbps: 500, ClientMbps: 300, ObservedMbps: 280, RTTMS: 50, LossPercent: 0.2})
+	if detail["read_only"] != true || detail["service_restart"] != false || detail["assessment"] != "NO_SERVER_TUNING_RECOMMENDED" {
+		t.Fatalf("unexpected recommendation safety result: %#v", detail)
+	}
+	plan := detail["test_plan"].(map[string]any)
+	if plan["bottleneck_mbps"] != 300.0 || plan["conservative_test_ceiling_mbps"] != 255.0 {
+		t.Fatalf("unexpected test plan: %#v", plan)
+	}
+	config := detail["server_config"].(map[string]any)
+	if config["up_down_mbps"] != "KEEP_UNSET" || config["ignore_client_bandwidth"] != "KEEP_UNSET" {
+		t.Fatalf("recommendation unexpectedly changes server configuration: %#v", config)
+	}
+	gate := detail["feature_gate"].(map[string]any)["bbr_profile"].(map[string]any)
+	if gate["status"] != "BLOCKED" {
+		t.Fatalf("expected BBR profile gate on 1.13.14: %#v", gate)
+	}
+}
+
+func TestHysteria2RecommendationRequiresCompleteMeasurementForTuningAssessment(t *testing.T) {
+	detail := collectHysteria2Recommendation(model.State{Core: model.CoreState{Version: "1.13.14"}}, hysteria2RecommendationInput{ServerMbps: 500, ClientMbps: 200})
+	if detail["assessment"] != "MEASUREMENT_REQUIRED" {
+		t.Fatalf("unexpected incomplete assessment: %#v", detail)
 	}
 }

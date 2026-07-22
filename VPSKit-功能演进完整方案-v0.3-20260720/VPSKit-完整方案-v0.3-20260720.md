@@ -1,18 +1,18 @@
-# VPSKit 功能演进完整方案 v0.3-R22
+# VPSKit 功能演进完整方案 v0.3-R23
 
 > 标题：VPSKit 功能演进完整方案
 >
-> 生成时间：2026-07-22 12:45
+> 生成时间：2026-07-22 13:05
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R22
+> 版本：v0.3-R23
 >
 > 用途：用户筛选后的 VPSKit 后续功能实施依据
 
 - 原编制日期：2026-07-20
 - 精简修订日期：2026-07-21
-- 当前产品基线：VPSKit `v0.2.10-lab.1`；方案 A r0008、方案 B r0014、Salamander r0015、schema 9 白名单/自定义规则 r0012、`doctor --fix`、扩展 `system inspect`、Fail2ban SSH 白名单、规则刷新失败保护、Hysteria2 能力矩阵、性能基线、受管 UDP buffer 与系统更新候选检查已完成对应实机验收；schema 10 通用实例兼容层已完成当前 VPS 部署验收
+- 当前产品基线：VPSKit `v0.2.13-lab.1`；方案 A r0008、方案 B r0014、Salamander r0015、schema 9 白名单/自定义规则 r0012、`doctor --fix`、扩展 `system inspect`、Fail2ban SSH 白名单、规则刷新失败保护、Hysteria2 能力矩阵、性能基线、受管 UDP buffer、Adapter Registry 渐进接入、只读带宽建议与系统更新候选检查已完成对应实机验收
 - 证据原则：仅保留功能进入实施路线；暂停功能不安排版本号
 
 本文件由同目录 00–12 分卷按顺序机械合并。出现歧义时，以分卷、`FILE-MANIFEST.md` 和当前源码为准。
@@ -27,7 +27,7 @@
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R22
+> 版本：v0.3-R23
 >
 > 用途：记录用户筛选后的后续功能范围与实施优先级
 
@@ -86,7 +86,7 @@
 4. Hysteria2 混淆、拥塞控制/带宽建议、端口跳跃与 UDP 调优；
 5. Fail2ban、系统更新/重启需求、时间同步、DNS/IPv6 健康检查。
 
-截至 2026-07-22 的实施状态：方案 A r0008 与方案 B r0014 均已通过 Clash Verge Rev 的订阅更新、加载、切换与实际连接验收；受管规则缓存与 schema 9 白名单/自定义规则生命周期已在 Debian 13 amd64 通过。`doctor --fix`、扩展后的 `system inspect`、Fail2ban 的“应用 → 删除 → 重新应用”、SSH 白名单添加/删除、规则刷新失败时保留活动缓存/订阅、Hysteria2 只读能力矩阵、只读 `system updates` 及 Hysteria2 性能基线已通过实机验收。`v0.2.7-lab.1` 已将默认关闭的 Salamander 事务开关发布为 r0015，并通过 Clash Verge Rev 的更新、切换和实际使用验收。`v0.2.9-lab.1` 已将本机实测的 UDP 调优收口为受管 `conservative-2mib`：四项 `rmem/wmem default/max`、实际 socket `rb/tb` 验证与回滚均已在 Debian 13 通过，且未改变订阅或节点状态。`v0.2.10-lab.1` 已在当前 VPS 完成 schema 9→10：旧字段投影为 `xray/vless-reality/TCP` 与 `sing-box/hysteria2/UDP`，`instance list`、订阅远端回读及两项代理服务均通过，客户端修订保持 r0015。剩余高优先级为真实误杀域名白名单命中，以及端口跳跃是否值得单独投入完整 redirect/云安全组/回滚成本的决策。
+截至 2026-07-22 的实施状态：方案 A r0008 与方案 B r0014 均已通过 Clash Verge Rev 的订阅更新、加载、切换与实际连接验收；受管规则缓存与 schema 9 白名单/自定义规则生命周期已在 Debian 13 amd64 通过。`doctor --fix`、扩展后的 `system inspect`、Fail2ban 的“应用 → 删除 → 重新应用”、SSH 白名单添加/删除、规则刷新失败时保留活动缓存/订阅、Hysteria2 只读能力矩阵、只读 `system updates` 及 Hysteria2 性能基线已通过实机验收。`v0.2.7-lab.1` 已将默认关闭的 Salamander 事务开关发布为 r0015，并通过 Clash Verge Rev 的更新、切换和实际使用验收。`v0.2.9-lab.1` 已将本机实测的 UDP 调优收口为受管 `conservative-2mib`：四项 `rmem/wmem default/max`、实际 socket `rb/tb` 验证与回滚均已在 Debian 13 通过，且未改变订阅或节点状态。`v0.2.10-lab.1` 已在当前 VPS 完成 schema 9→10，`v0.2.11/12` 已将实例变更、运行时读取、导出及生命周期逐步接入 Adapter Registry。`v0.2.13-lab.1` 已把 `500 Mbps` VPS 与 `300 Mbps` 客户端输入转为只读的 `255 Mbps` 保守测试上限，未改变状态、订阅或服务；`bbr_profile` 因锁定 sing-box `1.13.14` 仍被阻止。剩余高优先级为真实误杀域名白名单命中，以及端口跳跃是否值得单独投入完整 redirect/云安全组/回滚成本的决策。
 
 ## 6. 不变的安全原则
 
@@ -1107,7 +1107,7 @@ WARP 与 AI 精确出站不在本轮保留范围，不安排版本号、不创�
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R16
+> 版本：v0.3-R23
 >
 > 用途：定义保留的 Hysteria2 强化、诊断、安全和系统健康能力
 
@@ -1156,6 +1156,10 @@ Debian 13 amd64 已完成签名包升级、只读 `plan`、启用、受管配置
 `v0.2.8-lab.1` 已提供只读 `vpskit hysteria2 performance inspect`，回读 sing-box 进程 CPU/RSS、Hysteria2 UDP 监听、`rmem_max/wmem_max` 与系统拥塞控制。客户端到 VPS 的 RTT、吞吐、丢包和客户端 CPU 显式标为 `NOT_MEASURED`，不会用服务器进程数据冒充链路性能。
 
 当前不发布 `bbr_profile` 字段。后续应以同一客户端、相同测试目标和可重复时段记录 direct/Reality/Hy2 的 RTT、吞吐、丢包、CPU 和 RSS 对比，并根据实测提出带宽候选值；不得依据一次延迟测试自动改参数，且须保留恢复默认。
+
+`v0.2.13-lab.1` 已实现只读的 `vpskit hysteria2 recommend`。它要求明确传入 `--server-mbps` 与 `--client-mbps`，可选补充一次可比较的 `--observed-mbps`、`--rtt-ms`、`--loss-percent`；输出 `min(server, client) × 0.85` 的**保守测试上限**，不是 sing-box 配置值。当前 VPS 用 `500/300` 得到 `255 Mbps`；命令始终报告 `read_only=true`、`service_restart=false`，明确保持 `up_mbps/down_mbps` 与 `ignore_client_bandwidth` 未设置。实测不足或缺少 RTT/丢包时只要求补充同条件三次测试，不会“自动调参”。
+
+官方当前 Hysteria2 入站文档说明，`up_mbps/down_mbps` 与 `ignore_client_bandwidth` 会改变客户端带宽协商；`bbr_profile` 自 sing-box `1.14.0` 才出现。因此当前锁定 `1.13.14` 固定显示 `BLOCKED`，不接受以网络调参网站的 TCP 计算结果直接写入 Hysteria2 UDP 服务端。
 
 ### 4.3 端口跳跃
 
@@ -1219,7 +1223,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R22
+> 版本：v0.3-R23
 >
 > 用途：将用户筛选后的功能拆成低风险、可验收的版本切片
 
@@ -1229,7 +1233,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 
 `v0.2.1-lab.7` 已完成结构化 Mihomo、节点元数据、方案 A/B 的服务端渲染、方案 A Windows 11 Clash Verge Rev r0007 验收、`doctor --fix`、DNS/IPv4/IPv6 扩展 `system inspect`、Fail2ban SSH jail 完整生命周期以及只读系统更新候选检查。
 
-`v0.2.2-lab.2` 已完成 ACL4SSR/anti-AD 受管缓存和方案 A r0008 实机验收；`v0.2.3-lab.1` 已完成 schema 9 的精确白名单与自定义规则生命周期，并通过 Debian 13 的添加、删除、r0012 发布回读和代理服务回归。方案 B（不含 anti-AD）的 r0014 已通过 Clash Verge Rev 更新、切换和实际使用验收；`v0.2.4-lab.2` 已完成 Fail2ban SSH 白名单添加/删除、jail active 回读和代理服务回归；`v0.2.5-lab.1` 已完成规则源失败时的原子缓存保护实机验收；`v0.2.6-lab.1` 已完成 Hysteria2 能力矩阵与 UDP buffer 只读实机验收；`v0.2.7-lab.1` 已完成 Salamander 默认关闭开关、r0015 自动订阅发布和 Windows 11 Clash Verge Rev 实机验收；`v0.2.8-lab.1` 已完成 Hysteria2 只读性能基线实机验收；`v0.2.9-lab.1` 已完成受管 UDP buffer 的 `apply → rollback → apply` 实机闭环。
+`v0.2.2-lab.2` 已完成 ACL4SSR/anti-AD 受管缓存和方案 A r0008 实机验收；`v0.2.3-lab.1` 已完成 schema 9 的精确白名单与自定义规则生命周期，并通过 Debian 13 的添加、删除、r0012 发布回读和代理服务回归。方案 B（不含 anti-AD）的 r0014 已通过 Clash Verge Rev 更新、切换和实际使用验收；`v0.2.4-lab.2` 已完成 Fail2ban SSH 白名单添加/删除、jail active 回读和代理服务回归；`v0.2.5-lab.1` 已完成规则源失败时的原子缓存保护实机验收；`v0.2.6-lab.1` 已完成 Hysteria2 能力矩阵与 UDP buffer 只读实机验收；`v0.2.7-lab.1` 已完成 Salamander 默认关闭开关、r0015 自动订阅发布和 Windows 11 Clash Verge Rev 实机验收；`v0.2.8-lab.1` 已完成 Hysteria2 只读性能基线实机验收；`v0.2.9-lab.1` 已完成受管 UDP buffer 的 `apply → rollback → apply` 实机闭环；`v0.2.10/11/12` 已完成 schema 10 与 Adapter Registry 的三段渐进接入；`v0.2.13-lab.1` 已完成只读带宽建议部署回读，未产生客户端配置变更。
 
 ## 2. 下一个版本：架构、渲染与规则交付
 
@@ -1240,7 +1244,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 
 ## 3. Hysteria2 版本：现有性能主节点强化
 
-- 仅只读的拥塞控制与带宽建议；
+- 仅只读的拥塞控制与带宽建议（`v0.2.13` 已完成；配置写入仍不开放）；
 - RTT/吞吐/丢包/CPU/RSS 基准；
 - 端口跳跃及专用 redirect；
 
@@ -1707,7 +1711,7 @@ refresh_policy: build-time
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R22
+> 版本：v0.3-R23
 >
 > 用途：记录已完成基线、用户筛选结果和暂停范围
 
@@ -1784,6 +1788,13 @@ refresh_policy: build-time
 - 新增只读 `vpskit instance list`，便于回读实例到 systemd 服务的归属；
 - 本地 `go test ./...`、签名包 `bundle verify` 已通过；当前 Debian 13 VPS 已完成 CLI 升级、schema 9→10 迁移、`instance list` 与订阅远端回读，Xray/sing-box 均保持 active，客户端修订保持 r0015；
 - 自动发布使订阅状态摘要变化，但迁移不改变协议参数、监听、凭据或客户端修订，因此不需要额外客户端手工验收。
+
+## 3.8 R23 实施事实：Adapter Registry 渐进接入与只读带宽建议
+
+- `v0.2.11-lab.1` 将实例变更分派至 Adapter Registry，`v0.2.12-lab.1` 再将运行时状态、导出和生命周期读取接入该边界；两次部署均不改变协议参数、监听、凭据或客户端订阅内容。
+- `v0.2.13-lab.1` 新增 `hysteria2 recommend`，使用明确的服务端与客户端带宽输入计算保守测试上限，输出仅用于比较测量，不产生 sing-box 配置写入、服务重启或订阅发布。
+- 当前 Debian 13 的 `500/300 Mbps` 输入得到 `255 Mbps`；状态与订阅摘要不变，Xray/sing-box 均保持 active。当前锁定 sing-box `1.13.14` 的 `bbr_profile` 仍为 `BLOCKED`。
+- 本轮未要求客户端手工验收：没有节点、规则、订阅或客户端修订变化。端口跳跃仍需独立 redirect、云安全组确认、回滚实现和目标客户端实测，尚未进入实施。
 
 ## 4. 规则决策
 
