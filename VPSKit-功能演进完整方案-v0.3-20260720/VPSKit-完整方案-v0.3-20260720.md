@@ -1,12 +1,12 @@
-# VPSKit 功能演进完整方案 v0.3-R27
+# VPSKit 功能演进完整方案 v0.3-R28
 
 > 标题：VPSKit 功能演进完整方案
 >
-> 生成时间：2026-07-22 14:32
+> 生成时间：2026-07-22 14:36
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R27
+> 版本：v0.3-R28
 >
 > 用途：用户筛选后的 VPSKit 后续功能实施依据
 
@@ -27,7 +27,7 @@
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R27
+> 版本：v0.3-R28
 >
 > 用途：记录用户筛选后的后续功能范围与实施优先级
 
@@ -86,7 +86,7 @@
 4. Hysteria2 混淆、拥塞控制/带宽建议、端口跳跃与 UDP 调优；
 5. Fail2ban、系统更新/重启需求、时间同步、DNS/IPv6 健康检查。
 
-截至 2026-07-22 的实施状态：方案 A r0008 与方案 B r0014 均已通过 Clash Verge Rev 的订阅更新、加载、切换与实际连接验收；受管规则缓存与 schema 9 白名单/自定义规则生命周期已在 Debian 13 amd64 通过。`v0.2.10-14` 已将 schema 10 与 Adapter Registry 生命周期逐步收口；`v0.2.13` 已完成只读带宽建议。`v0.2.17-21` 已完成端口跳跃的受管 nftables redirect、客户端导出、订阅回读、关闭/移除/重新启用、重启恢复和 Windows 实际连接验收。剩余高优先级仅为真实 anti-AD 误杀域名的白名单命中验收。
+截至 2026-07-22 的实施状态：方案 A r0008 与方案 B r0014 均已通过 Clash Verge Rev 的订阅更新、加载、切换与实际连接验收；受管规则缓存与 schema 9 白名单/自定义规则生命周期已在 Debian 13 amd64 通过。`v0.2.10-14` 已将 schema 10 与 Adapter Registry 生命周期逐步收口；`v0.2.13` 已完成只读带宽建议。`v0.2.17-21` 已完成端口跳跃的受管 nftables redirect、客户端导出、订阅回读、关闭/移除/重新启用、重启恢复和 Windows 实际连接验收。真实 anti-AD 误杀域名白名单改为长期使用观察项：出现真实问题时再执行，不以模拟域名补做或阻塞当前路线。
 
 ## 6. 不变的安全原则
 
@@ -958,7 +958,7 @@ Shadowrocket 缺少与开源项目同等级、可由 CI 固定的官方解析器
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R15
+> 版本：v0.3-R28
 >
 > 用途：定义保留的 Mihomo 分流、去广告、DNS、更新和回退能力
 
@@ -1057,7 +1057,7 @@ anti-AD 可处理第三方广告、追踪、统计和部分启动广告域名；
 - 方案 B 显示 19 个 Provider，不含 anti-AD，并已完成 r0014 客户端更新、切换与实际使用验收；
 - ACL4SSR 与 anti-AD 可在 24 小时周期外手动刷新；
 - Google/Gemini/AI/GitHub/Telegram 命中代理，国内域名/IP 命中直连，未知流量命中 `MATCH,PROXY`；
-- 真实误杀域名白名单命中仍需在 Clash Verge 当前 Mihomo 版本验证；上游失败的服务端缓存/订阅保护已在 Debian 13 完成模拟验收。
+- 真实误杀域名白名单命中改为长期使用观察项：仅在用户遇到真实域名或 App 异常时，以最小精确规则在 Clash Verge 当前 Mihomo 版本验证；不以模拟域名代替。上游失败的服务端缓存/订阅保护已在 Debian 13 完成模拟验收。
 
 不在本次精简范围：Loon/Shadowrocket Renderer、v2rayN 独立路由产物、MITM、HTTPS 解密和脚本去广告。
 
@@ -1225,7 +1225,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R27
+> 版本：v0.3-R28
 >
 > 用途：将用户筛选后的功能拆成低风险、可验收的版本切片
 
@@ -1241,7 +1241,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 
 目标：不增加协议和 VPS 数量，建立后续维护所需接口，并交付方案 A/B。
 
-- 完成真实误杀域名白名单命中验收；
+- 真实误杀域名白名单命中转为长期使用观察项，不排开发版本；
 - schema 10 已完成第一阶段通用实例兼容层、`instance list` 及当前 VPS 的迁移/回读；后续 Adapter 读取渲染/变更分派仍待完成，不能据此宣称已经支持第三协议。
 
 ## 3. Hysteria2 版本：现有性能主节点强化
@@ -1278,7 +1278,7 @@ UDP buffer 检查与可回滚调优已经完成首个 2 MiB 保守档；其他 V
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R27
+> 版本：v0.3-R28
 >
 > 用途：限定当前保留功能的测试证据和发布条件
 
@@ -1302,7 +1302,7 @@ UDP buffer 检查与可回滚调优已经完成首个 2 MiB 保守档；其他 V
 - 方案 A 有 20 个 Provider，含 anti-AD；方案 B 有 19 个 Provider，不含 anti-AD；
 - fake-ip DNS、Sniffer、代理下载 Provider 和 24 小时更新在目标 Mihomo 验证；
 - Google/Gemini/AI/GitHub/Telegram 代理，国内域名/IP 直连，未知流量 `MATCH,PROXY`；
-- 方案 B 切换与上游失败保留活动缓存/订阅均已实测；真实 anti-AD 命中后的白名单修复仍待实测；
+- 方案 B 切换与上游失败保留活动缓存/订阅均已实测；真实 anti-AD 命中后的白名单修复改为长期使用观察项，不作为当前发布阻塞门；
 - 不测试或宣称 YouTube 内嵌广告、MITM 或 HTTPS 解密效果。
 
 ## 4. 运维与系统健康
@@ -1713,7 +1713,7 @@ refresh_policy: build-time
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R27
+> 版本：v0.3-R28
 >
 > 用途：记录已完成基线、用户筛选结果和暂停范围
 
@@ -1745,7 +1745,7 @@ refresh_policy: build-time
 - `doctor --fix`、`system inspect`、Fail2ban SSH jail 已在 Debian 13 amd64 实机通过；
 - Fail2ban 使用现有 `sshd` jail 的 VPSKit 覆盖文件，完整验证应用、删除和重新应用；
 - `v0.2.3-lab.1` 已完成 schema 8→9、精确域名白名单与自定义规则的添加/删除、最终空状态和 r0012 全目标回读；测试只使用 `.invalid` 保留域名，不影响真实流量。
-- 方案 B r0014 已通过 Windows 11 Clash Verge Rev 更新、切换和实际使用验收；真实误杀域名白名单命中、Hysteria2 性能基准、端口跳跃和 UDP 调优仍未完成。系统更新候选检查与 Fail2ban SSH 白名单均已完成；规则来源受管缓存已完成，但上游候选的许可证登记和格式 smoke test 仍待补充。
+- 方案 B r0014 已通过 Windows 11 Clash Verge Rev 更新、切换和实际使用验收；Hysteria2 性能基准、UDP 调优和端口跳跃已完成对应实机验收。真实误杀域名白名单命中改为长期使用观察项；系统更新候选检查与 Fail2ban SSH 白名单均已完成；规则来源受管缓存已完成，但上游候选的许可证登记和格式 smoke test 仍待补充。
 
 ## 3.2 R14 实施事实
 

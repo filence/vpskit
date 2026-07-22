@@ -1,7 +1,7 @@
 # VPSKit 功能演进完整方案包
 
 - 方案版本：v0.3
-- 审查修订：R27（Hysteria2 端口跳跃受管组件、重启恢复与 Windows 验收）
+- 审查修订：R28（端口跳跃验收收口；anti-AD 误杀转长期观察）
 - 原编制日期：2026-07-20
 - 本次修订日期：2026-07-22
 - 对应项目：[filence/vpskit](https://github.com/filence/vpskit)
