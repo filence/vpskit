@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- `v0.2.8-lab.1`：新增只读 `vpskit hysteria2 performance inspect`，输出 Hysteria2 服务/监听、进程 CPU/RSS、UDP buffer 与系统拥塞控制；客户端路径 RTT、吞吐和丢包明确为 `NOT_MEASURED`，防止以服务端数据替代线路实测。
+- Debian 13 amd64 已完成签名包升级、只读性能检查、状态/订阅摘要不变及 Xray/sing-box 回归。
 - `v0.2.7-lab.1`：新增 `vpskit hysteria2 salamander plan|enable --yes|disable --yes`。启用时生成独立混淆密码，事务更新 sing-box 入站、Mihomo、sing-box 客户端 JSON 与分享链接；配置校验、服务健康失败会回滚，输出不回显密码。
 - Debian 13 amd64 已完成签名包升级、启用、订阅 r0015 发布、受管配置/UDP/443/服务/doctor 回读；Windows 11 Clash Verge Rev v2.5.2 / Mihomo v1.19.29 已完成自动订阅更新、Hysteria2 节点切换和实际使用验收。
 - `v0.2.6-lab.1`：新增只读 `vpskit hysteria2 inspect`，报告 Hysteria2 监听、sing-box 锁定版本、`rmem_max/wmem_max` 与当前能力矩阵。它不会修改服务端、订阅、规则或客户端配置。

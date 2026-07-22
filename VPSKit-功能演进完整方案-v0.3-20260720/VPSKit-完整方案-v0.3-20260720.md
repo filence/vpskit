@@ -1,18 +1,18 @@
-# VPSKit 功能演进完整方案 v0.3-R17
+# VPSKit 功能演进完整方案 v0.3-R18
 
 > 标题：VPSKit 功能演进完整方案
 >
-> 生成时间：2026-07-22 09:56
+> 生成时间：2026-07-22 10:01
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R17
+> 版本：v0.3-R18
 >
 > 用途：用户筛选后的 VPSKit 后续功能实施依据
 
 - 原编制日期：2026-07-20
 - 精简修订日期：2026-07-21
-- 当前产品基线：VPSKit `v0.2.7-lab.1`；方案 A r0008、方案 B r0014、Salamander r0015、schema 9 白名单/自定义规则 r0012、`doctor --fix`、扩展 `system inspect`、Fail2ban SSH 白名单、规则刷新失败保护、Hysteria2 能力矩阵与系统更新候选检查已完成对应实机验收
+- 当前产品基线：VPSKit `v0.2.8-lab.1`；方案 A r0008、方案 B r0014、Salamander r0015、schema 9 白名单/自定义规则 r0012、`doctor --fix`、扩展 `system inspect`、Fail2ban SSH 白名单、规则刷新失败保护、Hysteria2 能力矩阵、性能基线与系统更新候选检查已完成对应实机验收
 - 证据原则：仅保留功能进入实施路线；暂停功能不安排版本号
 
 本文件由同目录 00–12 分卷按顺序机械合并。出现歧义时，以分卷、`FILE-MANIFEST.md` 和当前源码为准。
@@ -86,7 +86,7 @@
 4. Hysteria2 混淆、拥塞控制/带宽建议、端口跳跃与 UDP 调优；
 5. Fail2ban、系统更新/重启需求、时间同步、DNS/IPv6 健康检查。
 
-截至 2026-07-22 的实施状态：方案 A r0008 与方案 B r0014 均已通过 Clash Verge Rev 的订阅更新、加载、切换与实际连接验收；受管规则缓存与 schema 9 白名单/自定义规则生命周期已在 Debian 13 amd64 通过。`doctor --fix`、扩展后的 `system inspect`、Fail2ban 的“应用 → 删除 → 重新应用”、SSH 白名单添加/删除、规则刷新失败时保留活动缓存/订阅、Hysteria2 只读能力矩阵及只读 `system updates` 已通过实机验收。`v0.2.7-lab.1` 已将默认关闭的 Salamander 事务开关发布为 r0015，并通过 Clash Verge Rev 的更新、切换和实际使用验收。剩余高优先级为真实误杀域名白名单命中、通用实例/Adapter 解耦，以及只读性能基准和 UDP 调优设计。
+截至 2026-07-22 的实施状态：方案 A r0008 与方案 B r0014 均已通过 Clash Verge Rev 的订阅更新、加载、切换与实际连接验收；受管规则缓存与 schema 9 白名单/自定义规则生命周期已在 Debian 13 amd64 通过。`doctor --fix`、扩展后的 `system inspect`、Fail2ban 的“应用 → 删除 → 重新应用”、SSH 白名单添加/删除、规则刷新失败时保留活动缓存/订阅、Hysteria2 只读能力矩阵、只读 `system updates` 及 Hysteria2 性能基线已通过实机验收。`v0.2.7-lab.1` 已将默认关闭的 Salamander 事务开关发布为 r0015，并通过 Clash Verge Rev 的更新、切换和实际使用验收。剩余高优先级为真实误杀域名白名单命中、通用实例/Adapter 解耦，以及 UDP 调优设计。
 
 ## 6. 不变的安全原则
 
@@ -1143,7 +1143,9 @@ Debian 13 amd64 已完成签名包升级、只读 `plan`、启用、受管配置
 
 ### 4.2 拥塞控制与带宽建议
 
-当前只提供读取与建议，不发布 `bbr_profile` 字段。后续应记录 direct/Reality/Hy2 的 RTT、吞吐、丢包、CPU 和 RSS 对比，并根据实测提出带宽候选值；不得依据一次延迟测试自动改参数，且须保留恢复默认。
+`v0.2.8-lab.1` 已提供只读 `vpskit hysteria2 performance inspect`，回读 sing-box 进程 CPU/RSS、Hysteria2 UDP 监听、`rmem_max/wmem_max` 与系统拥塞控制。客户端到 VPS 的 RTT、吞吐、丢包和客户端 CPU 显式标为 `NOT_MEASURED`，不会用服务器进程数据冒充链路性能。
+
+当前不发布 `bbr_profile` 字段。后续应以同一客户端、相同测试目标和可重复时段记录 direct/Reality/Hy2 的 RTT、吞吐、丢包、CPU 和 RSS 对比，并根据实测提出带宽候选值；不得依据一次延迟测试自动改参数，且须保留恢复默认。
 
 ### 4.3 端口跳跃
 
@@ -1206,7 +1208,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 
 `v0.2.1-lab.7` 已完成结构化 Mihomo、节点元数据、方案 A/B 的服务端渲染、方案 A Windows 11 Clash Verge Rev r0007 验收、`doctor --fix`、DNS/IPv4/IPv6 扩展 `system inspect`、Fail2ban SSH jail 完整生命周期以及只读系统更新候选检查。
 
-`v0.2.2-lab.2` 已完成 ACL4SSR/anti-AD 受管缓存和方案 A r0008 实机验收；`v0.2.3-lab.1` 已完成 schema 9 的精确白名单与自定义规则生命周期，并通过 Debian 13 的添加、删除、r0012 发布回读和代理服务回归。方案 B（不含 anti-AD）的 r0014 已通过 Clash Verge Rev 更新、切换和实际使用验收；`v0.2.4-lab.2` 已完成 Fail2ban SSH 白名单添加/删除、jail active 回读和代理服务回归；`v0.2.5-lab.1` 已完成规则源失败时的原子缓存保护实机验收；`v0.2.6-lab.1` 已完成 Hysteria2 能力矩阵与 UDP buffer 只读实机验收；`v0.2.7-lab.1` 已完成 Salamander 默认关闭开关、r0015 自动订阅发布和 Windows 11 Clash Verge Rev 实机验收。
+`v0.2.2-lab.2` 已完成 ACL4SSR/anti-AD 受管缓存和方案 A r0008 实机验收；`v0.2.3-lab.1` 已完成 schema 9 的精确白名单与自定义规则生命周期，并通过 Debian 13 的添加、删除、r0012 发布回读和代理服务回归。方案 B（不含 anti-AD）的 r0014 已通过 Clash Verge Rev 更新、切换和实际使用验收；`v0.2.4-lab.2` 已完成 Fail2ban SSH 白名单添加/删除、jail active 回读和代理服务回归；`v0.2.5-lab.1` 已完成规则源失败时的原子缓存保护实机验收；`v0.2.6-lab.1` 已完成 Hysteria2 能力矩阵与 UDP buffer 只读实机验收；`v0.2.7-lab.1` 已完成 Salamander 默认关闭开关、r0015 自动订阅发布和 Windows 11 Clash Verge Rev 实机验收；`v0.2.8-lab.1` 已完成 Hysteria2 只读性能基线实机验收。
 
 ## 2. 下一个版本：架构、渲染与规则交付
 
@@ -1744,6 +1746,12 @@ refresh_policy: build-time
 - Debian 13 amd64 已完成签名包校验、只读预演、启用、r0015 自动发布、受管配置/UDP/服务/doctor 回读；
 - 用户已确认 Windows 11 Clash Verge Rev/Mihomo 的既有订阅更新、Hysteria2 节点切换与实际使用均通过；
 - Gecko、`bbr_profile` 与端口跳跃仍未开放，保留既有版本与网络前置条件。
+
+## 3.6 R18 实施事实
+
+- `v0.2.8-lab.1` 新增 Hysteria2 只读性能基线，区分服务器进程资源与必须从客户端路径获取的 RTT、吞吐和丢包；
+- Debian 13 已完成签名包校验、回读与服务回归，状态和订阅摘要均保持不变；
+- 该切片不改 UDP buffer 或任何内核参数，下一项才评估具有恢复原值能力的调优实现。
 
 ## 4. 规则决策
 
