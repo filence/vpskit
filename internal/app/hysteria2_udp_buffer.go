@@ -235,7 +235,7 @@ func rollbackHysteria2UDPBuffer(state model.State) error {
 	if output, err := runCommand("systemctl", "restart", serviceUnitName); err != nil {
 		return fmt.Errorf("restart %s after UDP-buffer rollback: %w: %s", serviceUnitName, err, strings.TrimSpace(output))
 	}
-	if err := waitForManagedServiceProfile(false, 0, true, state.Hysteria2.ListenPort, 15*time.Second); err != nil {
+	if err := waitForManagedServiceState(state, 15*time.Second); err != nil {
 		return err
 	}
 	if err := os.Remove(hysteria2UDPBufferStatePath); err != nil && !errors.Is(err, os.ErrNotExist) {

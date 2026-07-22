@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.14-lab.1 - 2026-07-22
+
+- 将状态驱动的服务等待完全改为 Adapter Registry：变更、恢复、核心更新、证书和 UDP-buffer 回滚不再从固定 REALITY/Hysteria2 字段拼接健康检查参数，而是从 `instances[]` 的 Adapter、协议、网络和监听信息统一回读。
+- Debian 13 amd64 已完成签名包原位升级、`instance list` 与 `doctor` 回读；两项代理服务 active，状态与订阅摘要不变，未产生客户端配置变更。
+
 ## v0.2.13-lab.1 - 2026-07-22
 
 - 新增只读 `vpskit hysteria2 recommend --server-mbps <值> --client-mbps <值> [--observed-mbps <值> --rtt-ms <值> --loss-percent <值>]`。它把明确提供的 VPS 与客户端带宽换算为保守、可复测的测试上限；不写入 sing-box `up_mbps/down_mbps`、`ignore_client_bandwidth` 或 `bbr_profile`，也不重启服务或发布订阅。
