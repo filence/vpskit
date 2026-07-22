@@ -1,18 +1,18 @@
-# VPSKit 功能演进完整方案 v0.3-R20
+# VPSKit 功能演进完整方案 v0.3-R22
 
 > 标题：VPSKit 功能演进完整方案
 >
-> 生成时间：2026-07-22 12:39
+> 生成时间：2026-07-22 12:45
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R20
+> 版本：v0.3-R22
 >
 > 用途：用户筛选后的 VPSKit 后续功能实施依据
 
 - 原编制日期：2026-07-20
 - 精简修订日期：2026-07-21
-- 当前产品基线：VPSKit `v0.2.9-lab.1`；方案 A r0008、方案 B r0014、Salamander r0015、schema 9 白名单/自定义规则 r0012、`doctor --fix`、扩展 `system inspect`、Fail2ban SSH 白名单、规则刷新失败保护、Hysteria2 能力矩阵、性能基线、受管 UDP buffer 与系统更新候选检查已完成对应实机验收；schema 10 通用实例兼容层已完成源码/单元测试，待 VPS 部署验收
+- 当前产品基线：VPSKit `v0.2.10-lab.1`；方案 A r0008、方案 B r0014、Salamander r0015、schema 9 白名单/自定义规则 r0012、`doctor --fix`、扩展 `system inspect`、Fail2ban SSH 白名单、规则刷新失败保护、Hysteria2 能力矩阵、性能基线、受管 UDP buffer 与系统更新候选检查已完成对应实机验收；schema 10 通用实例兼容层已完成当前 VPS 部署验收
 - 证据原则：仅保留功能进入实施路线；暂停功能不安排版本号
 
 本文件由同目录 00–12 分卷按顺序机械合并。出现歧义时，以分卷、`FILE-MANIFEST.md` 和当前源码为准。
@@ -27,7 +27,7 @@
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R20
+> 版本：v0.3-R22
 >
 > 用途：记录用户筛选后的后续功能范围与实施优先级
 
@@ -86,7 +86,7 @@
 4. Hysteria2 混淆、拥塞控制/带宽建议、端口跳跃与 UDP 调优；
 5. Fail2ban、系统更新/重启需求、时间同步、DNS/IPv6 健康检查。
 
-截至 2026-07-22 的实施状态：方案 A r0008 与方案 B r0014 均已通过 Clash Verge Rev 的订阅更新、加载、切换与实际连接验收；受管规则缓存与 schema 9 白名单/自定义规则生命周期已在 Debian 13 amd64 通过。`doctor --fix`、扩展后的 `system inspect`、Fail2ban 的“应用 → 删除 → 重新应用”、SSH 白名单添加/删除、规则刷新失败时保留活动缓存/订阅、Hysteria2 只读能力矩阵、只读 `system updates` 及 Hysteria2 性能基线已通过实机验收。`v0.2.7-lab.1` 已将默认关闭的 Salamander 事务开关发布为 r0015，并通过 Clash Verge Rev 的更新、切换和实际使用验收。`v0.2.9-lab.1` 已将本机实测的 UDP 调优收口为受管 `conservative-2mib`：四项 `rmem/wmem default/max`、实际 socket `rb/tb` 验证与回滚均已在 Debian 13 通过，且未改变订阅或节点状态。schema 10 的第一阶段通用实例兼容层已完成源码和单元测试：旧字段投影为 `xray/vless-reality/TCP` 与 `sing-box/hysteria2/UDP`，但尚未部署到当前 VPS。剩余高优先级为真实误杀域名白名单命中，以及端口跳跃是否值得单独投入完整 redirect/云安全组/回滚成本的决策。
+截至 2026-07-22 的实施状态：方案 A r0008 与方案 B r0014 均已通过 Clash Verge Rev 的订阅更新、加载、切换与实际连接验收；受管规则缓存与 schema 9 白名单/自定义规则生命周期已在 Debian 13 amd64 通过。`doctor --fix`、扩展后的 `system inspect`、Fail2ban 的“应用 → 删除 → 重新应用”、SSH 白名单添加/删除、规则刷新失败时保留活动缓存/订阅、Hysteria2 只读能力矩阵、只读 `system updates` 及 Hysteria2 性能基线已通过实机验收。`v0.2.7-lab.1` 已将默认关闭的 Salamander 事务开关发布为 r0015，并通过 Clash Verge Rev 的更新、切换和实际使用验收。`v0.2.9-lab.1` 已将本机实测的 UDP 调优收口为受管 `conservative-2mib`：四项 `rmem/wmem default/max`、实际 socket `rb/tb` 验证与回滚均已在 Debian 13 通过，且未改变订阅或节点状态。`v0.2.10-lab.1` 已在当前 VPS 完成 schema 9→10：旧字段投影为 `xray/vless-reality/TCP` 与 `sing-box/hysteria2/UDP`，`instance list`、订阅远端回读及两项代理服务均通过，客户端修订保持 r0015。剩余高优先级为真实误杀域名白名单命中，以及端口跳跃是否值得单独投入完整 redirect/云安全组/回滚成本的决策。
 
 ## 6. 不变的安全原则
 
@@ -107,7 +107,7 @@
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R20
+> 版本：v0.3-R22
 >
 > 用途：记录当前源码事实、证据等级、架构缺口和不可跨越的产品边界
 
@@ -147,7 +147,7 @@ GitHub 主分支对应 CI 已成功完成 Go/生成配置/Shell/Secrets、amd64/
 
 ## 3. 当前源码事实
 
-> 本节 3.1～3.4 原本记录公开 v0.1.0 的审核起点，不能当作当前开发分支实现状态。2026-07-22 的当前实现已具备 schema 10、节点元数据、结构化 Mihomo/规则交付、Workers Publisher、schema 9 用户规则与 schema 10 实例兼容投影；其中 schema 10 仅完成源码/单元测试，尚未在当前 VPS 实机部署。后续实施事实和验收门禁以 00、02、08、09、12 分卷为准。
+> 本节 3.1～3.4 原本记录公开 v0.1.0 的审核起点，不能当作当前开发分支实现状态。2026-07-22 的当前实现已具备 schema 10、节点元数据、结构化 Mihomo/规则交付、Workers Publisher、schema 9 用户规则与 schema 10 实例兼容投影；schema 10 已在当前 Debian 13 VPS 完成迁移、实例清单与订阅远端回读。后续实施事实和验收门禁以 00、02、08、09、12 分卷为准。
 
 ### 3.1 状态模型
 
@@ -311,11 +311,11 @@ VPSKit 应继续定位为：
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R20
+> 版本：v0.3-R22
 >
 > 用途：定义渐进式扩展边界、状态演进、Renderer/Publisher 契约和迁移规则
 
-> 实施更新（2026-07-22）：schema 10 已落地第一阶段兼容层。现有 REALITY/Hysteria2 协议字段仍为兼容期内的事实源，但每次状态写入都会生成稳定的 `instances[]` 投影；`vpskit instance list` 可只读显示 Adapter、协议、启用状态和监听。后续阶段才把渲染和生命周期逐步读取该通用边界，不能把本阶段误写为已经支持任意第三协议。
+> 实施更新（2026-07-22）：schema 10 已在当前 Debian 13 VPS 落地第一阶段兼容层。现有 REALITY/Hysteria2 协议字段仍为兼容期内的事实源，但每次状态写入都会生成稳定的 `instances[]` 投影；`vpskit instance list` 已回读 Adapter、协议、启用状态和监听，订阅远端回读及两项代理服务保持通过。后续阶段才把渲染和生命周期逐步读取该通用边界，不能把本阶段误写为已经支持任意第三协议。
 
 ## 1. 架构目标
 
@@ -1219,7 +1219,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R20
+> 版本：v0.3-R22
 >
 > 用途：将用户筛选后的功能拆成低风险、可验收的版本切片
 
@@ -1236,7 +1236,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 目标：不增加协议和 VPS 数量，建立后续维护所需接口，并交付方案 A/B。
 
 - 完成真实误杀域名白名单命中验收；
-- schema 10 已完成第一阶段通用实例兼容层和 `instance list` 的源码/测试验证；待下一次受控 VPS 升级后执行 `migrate plan` 与 `migrate apply --yes` 实机回读。后续 Adapter 读取渲染/变更分派仍待完成，不能据此宣称已经支持第三协议。
+- schema 10 已完成第一阶段通用实例兼容层、`instance list` 及当前 VPS 的迁移/回读；后续 Adapter 读取渲染/变更分派仍待完成，不能据此宣称已经支持第三协议。
 
 ## 3. Hysteria2 版本：现有性能主节点强化
 
@@ -1272,7 +1272,7 @@ UDP buffer 检查与可回滚调优已经完成首个 2 MiB 保守档；其他 V
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R20
+> 版本：v0.3-R22
 >
 > 用途：限定当前保留功能的测试证据和发布条件
 
@@ -1707,7 +1707,7 @@ refresh_policy: build-time
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R20
+> 版本：v0.3-R22
 >
 > 用途：记录已完成基线、用户筛选结果和暂停范围
 
@@ -1776,13 +1776,14 @@ refresh_policy: build-time
 - Debian 13 已完成签名包校验、回读与服务回归，状态和订阅摘要均保持不变；
 - 该切片不改 UDP buffer 或任何内核参数，下一项才评估具有恢复原值能力的调优实现。
 
-## 3.7 R20 实施事实：schema 10 通用实例兼容层（未部署）
+## 3.7 R21 实施事实：v0.2.10-lab.1 schema 10 通用实例兼容层
 
 - 状态 schema 从 9 升至 10，新增 `instances[]` 统一清单；现有 Reality/Hysteria2 的协议专属结构、凭据引用、端口和客户端渲染仍保留，避免一次性重写运行配置；
 - 清单稳定投影为 `reality-main → xray / vless-reality / tcp`、`hy2-backup → sing-box / hysteria2 / udp`，仅包含 ID、协议、Adapter、启用状态与监听信息，不记录任何秘密；
 - 安装、实例变更、通用状态事务、自更新和核心更新会在写入状态前同步该投影，`migrate plan` 明确显示 schema 9→10；
 - 新增只读 `vpskit instance list`，便于回读实例到 systemd 服务的归属；
-- 本地 `go test ./...` 已通过。本节是源码/构建证据，不表示当前 VPS 已升级或客户端已验收；实机部署前后仍需检查状态、订阅摘要、端口与 Xray/sing-box 服务。
+- 本地 `go test ./...`、签名包 `bundle verify` 已通过；当前 Debian 13 VPS 已完成 CLI 升级、schema 9→10 迁移、`instance list` 与订阅远端回读，Xray/sing-box 均保持 active，客户端修订保持 r0015；
+- 自动发布使订阅状态摘要变化，但迁移不改变协议参数、监听、凭据或客户端修订，因此不需要额外客户端手工验收。
 
 ## 4. 规则决策
 

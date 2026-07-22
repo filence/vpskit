@@ -8,10 +8,12 @@
 
 本项目在正式版本出现前使用实验版本号；实验版本不构成稳定兼容承诺。
 
-## Unreleased
+## v0.2.10-lab.1 - 2026-07-22
 
 - schema 10 新增兼容旧状态的 `instances[]` 统一实例清单。现有 REALITY 与 Hysteria2 仍分别保留其协议专属字段，但每次状态写入都会确定性投影为 `xray/vless-reality/TCP` 与 `sing-box/hysteria2/UDP` 的 Adapter 所有权记录；新增只读 `vpskit instance list`。
-- `migrate plan` 现在会明确显示 schema 9 → 10 的实例清单与 Adapter 所有权迁移。该实现已通过本地单元测试和固定版本构建，尚未在生产 VPS 应用，因此不宣称客户端或服务端实机验收。
+- Debian 13 amd64 已完成签名包升级和 schema 9→10 迁移；`instance list` 回读两条实例、Xray/sing-box 保持 active、客户端修订保持 r0015，订阅状态远端回读通过。迁移过程会刷新订阅发布状态，但不改变节点协议参数、端口、凭据或客户端修订，因此本次不要求重新导入或手动客户端验收。
+
+## Unreleased
 - `v0.2.8-lab.1`：新增只读 `vpskit hysteria2 performance inspect`，输出 Hysteria2 服务/监听、进程 CPU/RSS、UDP buffer 与系统拥塞控制；客户端路径 RTT、吞吐和丢包明确为 `NOT_MEASURED`，防止以服务端数据替代线路实测。
 - Debian 13 amd64 已完成签名包升级、只读性能检查、状态/订阅摘要不变及 Xray/sing-box 回归。
 - `v0.2.7-lab.1`：新增 `vpskit hysteria2 salamander plan|enable --yes|disable --yes`。启用时生成独立混淆密码，事务更新 sing-box 入站、Mihomo、sing-box 客户端 JSON 与分享链接；配置校验、服务健康失败会回滚，输出不回显密码。
