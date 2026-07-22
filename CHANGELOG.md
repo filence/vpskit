@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.9-lab.1 - 2026-07-22
+
+- 新增 `vpskit hysteria2 udp-buffer <status|plan|apply|rollback>`，首个受管档位为 `conservative-2mib`；同时管理四项 `net.core.rmem/wmem default/max`，并以 sing-box 实际 UDP socket `rb/tb` 回读作为成功条件。
+- Debian 13 amd64 已完成签名包升级和“实验配置恢复基线 → apply → rollback → apply”闭环；最终 Xray/sing-box active、`rb/tb=2097152`、状态与订阅摘要不变、orphan scan 无新增项。
+- 既有非 VPSKit sysctl 文件、被手动修改的受管文件均拒绝覆盖或删除；卸载时仅恢复本模块记录的原 sysctl 值并移除哈希匹配的 drop-in。
+
 本项目在正式版本出现前使用实验版本号；实验版本不构成稳定兼容承诺。
 
 ## Unreleased

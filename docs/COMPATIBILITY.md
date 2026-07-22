@@ -6,6 +6,7 @@
 | --- | --- | --- | --- |
 | Debian 13 | amd64 | v0.1.0公开版本实机与GUI已验证 | 双核心 balanced clean install、TCP/UDP同数字端口、证书受管副本、实例启停、备份/恢复、自更新、卸载/重装、重启持久化、orphan scan、Reality扫描器、schema 5迁移、目标切换恢复、安全客户端ZIP、固定Bootstrap、中文菜单、SCP下载和公网GUI客户端均通过 |
 | Debian 13 | amd64 | v0.1.1 实现分支实机升级已验证 | schema 5→6、节点元数据、结构化 Renderer、Artifact/static Publisher、迁移预演、运维命令、升级回滚、服务配置重载、双协议回环和 Win11 客户端复核均通过 |
+| Debian 13 | amd64 | v0.2.9 UDP buffer 受管调优已验证 | `conservative-2mib` 的 apply/rollback/apply、四项 sysctl、实际 UDP socket `rb/tb`、Xray/sing-box 健康、状态/订阅不变与 orphan scan 均通过；不外推为其他 VPS 的默认值 |
 | Debian 12 | amd64 | 目标支持 | CI 容器 CLI 冒烟已配置，systemd VM 尚未运行 |
 | Ubuntu 24.04 | amd64 | 目标支持 | CI 容器 CLI 冒烟已配置，systemd VM 尚未运行 |
 | Debian 12/13 | arm64 | 目标支持 | 交叉编译已配置，云实机尚未运行 |
