@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.2.0 - 2026-07-22
+
+- 正式收口 v0.1.1 运维/Renderer 基础与 v0.2 系列自动订阅、受管 ACL4SSR/anti-AD、规则例外、Fail2ban SSH 白名单、Hysteria2 可选增强、UDP buffer、Adapter 生命周期和端口跳跃。
+- 单 VPS Cloudflare Workers/KV 自动订阅支持 Mihomo、v2rayN、manifest、ETag/条件 GET、读 Token 轮换/吊销、远端回读与静态导出兜底；VPS 仅保存节点级发布凭据。
+- Hysteria2 端口跳跃以默认关闭的独立 nftables/systemd redirect 组件实现；`20000-20010/UDP → 443/UDP` 的启用、订阅更新、Windows 11 Clash Verge Rev 使用和重启持久化已完成验收。
+- 已验证范围、回滚边界和未完成的真实 anti-AD 误杀观察见 `docs/V0.2.0_ACCEPTANCE.md` 与 `docs/COMPATIBILITY.md`。
+
 ## v0.2.21-lab.1 - 2026-07-22
 
 - 新增 `vpskit hysteria2 port-hop enable --range <start-end> [--hop-interval <秒>] --yes` 与 `disable --yes`。启用前必须确认 VPSKit 自有 redirect systemd unit 已 active、nftables 配置精确匹配范围和 Hysteria2 后端端口、运行中的表可读；随后才以事务方式递增客户端修订、渲染 Mihomo、sing-box JSON 与分享链接并发布订阅。

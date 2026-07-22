@@ -1,6 +1,6 @@
 # 客户端配置导出与更新
 
-本文说明VPSKit首发版本的安全导出、电脑下载、客户端导入、REALITY目标变更和回滚流程。
+本文说明 VPSKit v0.2.0 的安全导出、电脑下载、客户端导入、自动订阅、规则更新、REALITY 目标变更与回滚流程。
 
 ## 1. 生成安全配置包
 
@@ -87,6 +87,8 @@ sudo vpskit export --format qr
 - 修改REALITY TCP端口；
 - 修改REALITY目标和 `serverName`；
 - 修改Hysteria2 UDP端口。
+- 启用或关闭 Hysteria2 Salamander；
+- 启用或关闭已经准备完成的 Hysteria2 端口跳跃。
 
 核心版本更新、服务重启、同域名证书续期不会改变客户端连接参数，因此不递增客户端配置修订号。
 
@@ -148,18 +150,10 @@ sudo vpskit restore BK-准确备份ID --yes
 
 恢复完成后重新导出旧修订对应的客户端配置。
 
-## 6. 首发订阅边界
+## 6. 订阅与规则边界
 
-首个正式版本默认不提供持久在线订阅服务，原因是REALITY已经占用TCP/443，新增HTTPS订阅通常需要独立端口、访问令牌、证书、限流、日志脱敏和令牌轮换。
+v0.2.0 使用可选的 Cloudflare Workers/KV 后端提供订阅；VPS 不持有 Cloudflare 账户级管理 Token。后端使用 HTTPS、独立的高强度读 Token、`Cache-Control: no-store`、ETag/条件 GET、Token 轮换与吊销，不提供目录列表，也不依赖公开订阅转换服务。
 
-后续订阅模块必须满足：
+已发布的 ACL4SSR 和 anti-AD 规则会随 Mihomo 主订阅引用更新。规则源刷新采用完整下载、限额与哈希校验后原子激活：任何源失败时，客户端继续使用当前完整修订。
 
-- HTTPS；
-- 高强度随机Token；
-- 可吊销和轮换；
-- `Cache-Control: no-store`；
-- 无目录列表；
-- 访问日志不记录完整Token；
-- 不依赖公开第三方订阅转换服务。
-
-在该模块进入已验证状态前，以SSH/SFTP配置包和终端二维码作为稳定交付路径。
+anti-AD 可能误拦截少数域名。遇到问题时先确认客户端日志，再使用精确域名白名单；这项长期误杀观察不影响 v0.2.0 已完成的部署、订阅、更新和连接验收。

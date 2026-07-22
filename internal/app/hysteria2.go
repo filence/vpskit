@@ -272,7 +272,7 @@ func runHysteria2Salamander(arguments []string) error {
 		return errors.New("Hysteria2 must be enabled before managing Salamander")
 	}
 	if !hysteria2VersionAtLeast(state.Core.Version, "1.13.0") {
-		return fmt.Errorf("Salamander requires sing-box 1.13.0 or newer; current locked version is %q", state.Core.Version)
+		return fmt.Errorf("salamander requires sing-box 1.13.0 or newer; current locked version is %q", state.Core.Version)
 	}
 	if operation == "plan" {
 		return printJSON(commandResult{Command: "hysteria2 salamander plan", Status: "PASS", Detail: map[string]any{

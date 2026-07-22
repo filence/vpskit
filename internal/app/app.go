@@ -1219,23 +1219,6 @@ func waitForManagedServiceState(state model.State, timeout time.Duration) error 
 	return lastErr
 }
 
-func waitForManagedServiceProfile(realityEnabled bool, tcpPort int, hysteria2Enabled bool, udpPort int, timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
-	var lastErr error
-	for time.Now().Before(deadline) {
-		if err := healthCheckProfile(realityEnabled, tcpPort, hysteria2Enabled, udpPort); err == nil {
-			return nil
-		} else {
-			lastErr = err
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	if lastErr == nil {
-		lastErr = errors.New("service health check timed out")
-	}
-	return lastErr
-}
-
 func rollbackInitialInstall(userCreated, systemMutated bool) error {
 	var rollbackErrors []string
 	if systemMutated {

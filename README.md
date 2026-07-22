@@ -4,45 +4,17 @@ VPSKit 是一个面向个人 VPS 的低资源、可回滚代理节点部署与�
 
 公开仓库：[filence/vpskit](https://github.com/filence/vpskit)
 
-> 当前正式版本：[`v0.1.0`](https://github.com/filence/vpskit/releases/tag/v0.1.0)。发布资产已经通过checksums、Ed25519签名清单、SPDX SBOM、Linux权限和GitHub attestation复核；公开版本已经完成普通用户从零部署、客户端ZIP下载及REALITY/Hysteria2实际连接验收。
+> 当前正式版本：[`v0.2.0`](https://github.com/filence/vpskit/releases/tag/v0.2.0)。发布资产包含 checksums、Ed25519 签名清单、SPDX SBOM、显式 Linux 权限归档与 GitHub attestation；安装器只接受该固定 Release，不执行 `main` 分支脚本。
 
-第一阶段已于2026-07-20完成收尾，结论和证据边界见[`v0.1.0 第一阶段实机验收报告`](docs/PHASE1_ACCEPTANCE.md)。
+`v0.2.0` 将已完成实机验收的 v0.1.1 运维基础与 v0.2 系列功能统一收口：Cloudflare Workers/KV 自动订阅、ACL4SSR 分流与 anti-AD、受控规则例外、Fail2ban SSH 白名单、Hysteria2 实验增强、UDP buffer 与端口跳跃，以及通用实例 Adapter 生命周期。完整证据见 [`v0.2.0 实机验收报告`](docs/V0.2.0_ACCEPTANCE.md)，版本变更见 [`v0.2.0 Release Notes`](docs/releases/v0.2.0.md)。
 
-`v0.1.1` Renderer 与运维基础已在实现分支完成，包含 schema 6 节点元数据、结构化 Mihomo、统一 Artifact/Publisher、迁移预演、清理、系统检查和脱敏故障包，并已通过 Debian 13 amd64 升级/回滚及 Win11 Clash Verge/v2rayN 验收。当前公开稳定安装入口仍保持 `v0.1.0`，直到后续统一发布流程完成；证据见[`v0.1.1 实施验收报告`](docs/V0.1.1_ACCEPTANCE.md)。
+## v0.2.0 核心能力
 
-`v0.2.0-lab.1` 的单 VPS 自动订阅 MVP 已完成 Cloudflare 预发布和正式后端的实机部署。它包含 Workers/KV 发布端、Mihomo 完整配置订阅、v2rayN 节点订阅、Token 轮换/吊销、远端回读和回滚；Windows 11 上的 Clash Verge Rev 与 v2rayN 已完成订阅导入和更新实测。详见 [`v0.2.0 自动订阅实机验收报告`](docs/V0.2.0_ACCEPTANCE.md)；公开 GitHub Release 仍须另行完成发布门禁。后端部署说明见 [Cloudflare Worker README](deploy/cloudflare/README.md)。
-
-`v0.2.2-lab.2` 已在同一 Debian 13 amd64 VPS 完成 ACL4SSR + anti-AD 方案 A 的受管规则发布。VPSKit 会下载、限额检查并哈希 20 个规则源，按 ruleset revision 缓存后与主订阅一起发布到 Workers/KV；Clash Verge Rev 已完成 r0008 更新、切换和实际连接验收。Worker 更新保留既有 KV、读取 Token 和节点发布 Secret；发布器已将多工件请求等待时间提高到 90 秒，以覆盖规则工件写入与回读。
-
-`v0.2.3-lab.1` 已完成 schema 8→9 的原位迁移和规则例外生命周期。它支持精确域名白名单及域名、域名后缀、IP CIDR 的自定义 `DIRECT / PROXY / REJECT` 规则；规则始终位于 anti-AD 前面，变更会创建备份、递增客户端修订并自动发布。VPS 已完成添加、发布、删除和 r0012 回读闭环；真实误杀域名的 Clash Verge 命中验证仍按需进行。
-
-`v0.2.4-lab.2` 已完成 Fail2ban SSH 白名单。它仅更新 VPSKit 自己的 `sshd` 覆盖文件，接受规范化的单一 IP 或 CIDR，最多保存 32 条；每次变更先校验 Fail2ban 配置、重启服务、等待 SSH jail 控制 socket 就绪并回读，失败则自动恢复原文件和服务。Debian 13 已完成“添加保留测试地址 → jail active → 删除 → 空白名单”的实机闭环；代理服务和订阅配置未改动。
-
-`v0.2.5-lab.1` 将受管规则刷新改为临时目录下载、完整校验后原子激活。上游任一规则源不可达、返回错误或超出限额时，当前缓存、订阅修订和客户端配置保持不变，临时目录自动清除。Debian 13 已使用仅对该命令生效的无效代理模拟上游失败，确认状态、订阅、当前规则清单和 Xray/sing-box 服务均未改变。
-
-`v0.2.6-lab.1` 新增只读 `vpskit hysteria2 inspect`。它报告当前 sing-box、UDP 监听和系统 UDP 缓冲，并按锁定的服务端与 Windows Mihomo 能力矩阵标记功能：Salamander 为实验性、Gecko 与 BBR profile 因 sing-box 需至少 1.14 而阻止、端口跳跃因需独立 NAT/云安全组/回滚组件而阻止。Debian 13 实机验证该命令不修改状态或订阅，Xray/sing-box 保持 active。
-
-`v0.2.7-lab.1` 已将 Salamander 作为默认关闭、可回滚的 Hysteria2 实验开关交付。启用会生成独立混淆密码、事务重渲染服务器与客户端配置、配置校验和服务健康检查，并自动发布订阅修订 r0015；Debian 13 服务端回读与 Windows 11 Clash Verge Rev/Mihomo 的订阅更新、节点切换和实际使用均已通过。Gecko、`bbr_profile` 与端口跳跃仍保持阻止状态。
-
-`v0.2.8-lab.1` 新增只读 `vpskit hysteria2 performance inspect`。它回读 Hysteria2 监听、sing-box 进程 CPU/RSS、UDP buffer 和内核拥塞控制，并明确标记 RTT、吞吐和丢包必须由客户端或受控远端测试获得；Debian 13 已确认执行前后状态和订阅均不变。
-
-`v0.2.9-lab.1` 增加可回滚的 `vpskit hysteria2 udp-buffer <status|plan|apply|rollback>`。当前仅提供适合 1 GiB VPS 的 `conservative-2mib` 档：同时管理 `rmem/wmem` 的 default 与 max，应用后仅重启 sing-box，且必须读取实际 UDP socket 的 `rb/tb` 缓冲值达到 2 MiB 才算成功。它不修改节点、规则或订阅；无法证明 VPSKit 所有权的既有 sysctl 文件会被拒绝覆盖。Debian 13 amd64 已完成受管 `apply → rollback → apply`，最终 Xray/sing-box active、socket 回读通过、状态与订阅摘要不变、orphan scan 无新增项；该档位仍不是其他 VPS 的无条件默认值。
-
-`v0.2.10-lab.1` 已在同一 Debian 13 amd64 VPS 完成 schema 9→10 原位迁移。旧的 REALITY/Hysteria2 状态保持不变，并投影为统一的 `instances[]` 清单，标注 Adapter、协议、启用状态和 TCP/UDP 监听；`sudo vpskit instance list` 可只读回看该归属。迁移后两项代理服务及订阅远端回读均通过，客户端修订仍为 r0015，因此无需重新导入或手动测试客户端。
-
-`v0.2.11-lab.1` 与 `v0.2.12-lab.1` 已将实例变更分派、运行时读取、导出和生命周期检查逐步接入 Adapter Registry；它们不改变协议参数、凭据、端口或订阅内容，当前 Debian 13 的服务与订阅回读均通过，无需客户端重新导入。
-
-`v0.2.13-lab.1` 新增只读 `vpskit hysteria2 recommend`。为避免把一次不稳定测速直接变成服务器参数，它只根据明确输入的 VPS/客户端带宽生成保守测试上限和排查方向；当前 `500 Mbps` 服务器、`300 Mbps` 客户端输入得到 `255 Mbps` 测试上限，未写入 Hysteria2 带宽或 BBR 字段、未重启服务、未改变订阅。当前锁定 sing-box `1.13.14` 尚不支持服务端 `bbr_profile`，命令会明确标记为 `BLOCKED`。
-
-`v0.2.14-lab.1` 完成状态驱动服务等待的 Adapter Registry 收口：后续实例变更、恢复和 UDP-buffer 回滚会从通用实例清单检查受管服务与 TCP/UDP 监听，而不再拼接固定协议参数。Debian 13 已完成升级与服务/状态/订阅回读；这只是内部生命周期改造，不要求重新导入或客户端测试。
-
-`v0.2.15-lab.1` 交付 Hysteria2 端口跳跃的只读前置计划：`vpskit hysteria2 port-hop plan --range 20000-20010 --hop-interval 30` 会显示端口占用、当前后端、云安全组动作和实现缺口。当前不开放端口、不写防火墙、不中断服务；真正启用仍需要受管 redirect/回滚、客户端导出以及 Windows 手工验收。
-
-`v0.2.17-lab.1` 至 `v0.2.21-lab.1` 将端口跳跃作为默认关闭的独立组件交付：`prepare` 只写 VPSKit 自有 nftables/systemd 文件，`activate` 才启用 `20000-20010/UDP → 443/UDP` redirect，`enable` 在确认 redirect 活跃且配置精确匹配后才发布客户端范围和 `30s` 跳跃间隔。Debian 13 已完成 nftables 语法预检、启用、订阅回读、重启恢复、关闭→移除规则→重新启用生命周期；Windows 11 Clash Verge Rev/Mihomo 已完成订阅更新、切换和实际使用验收。该组件不接管通用防火墙，也不会给 sing-box 授予 `CAP_NET_ADMIN`。
-
-lab32 已在同一实验 VPS 完成 schema 5 迁移、无效 REALITY 目标零写入、目标切换并恢复、修订号递增、安全 ZIP、双协议回环及本地固定版本解析；修订3配置随后在 Clash Verge 与 Hiddify 中完成 REALITY、Hysteria2 四项 GUI 重新导入验收。
-
-lab33 继续完成固定版本Bootstrap、Linux归档权限、原位自更新与中文菜单实机回归；随后在同一VPS创建本机可校验恢复快照，执行受管卸载与最终Bootstrap从零重装。签名/摘要校验、schema 5初始修订、安全客户端ZIP、doctor、证书、orphan scan、双协议回环和重启持久化均通过；新修订配置已再次通过Clash Verge与Hiddify的REALITY、Hysteria2四项人工验收。验收后已删除远程恢复/安装临时材料和本机恢复副本，仅保留本机accepted客户端配置。
+- **固定、安全的部署与升级**：签名安装包、事务备份/回滚、`doctor --fix`、系统检查、清理与脱敏诊断包；
+- **自动订阅**：Cloudflare Workers/KV 发布 Mihomo 完整配置、v2rayN 节点订阅和 manifest，支持 ETag、Token 轮换/吊销、远端回读及静态配置兜底；
+- **分流与去广告**：受管 ACL4SSR、anti-AD 规则缓存、原子刷新失败保护，以及可审计的精确白名单和自定义 `DIRECT / PROXY / REJECT` 规则；
+- **Hysteria2 增强**：只读能力/性能检查、保守 UDP buffer 档、默认关闭的 Salamander，以及独立 nftables/systemd 组件实现的可回滚端口跳跃；
+- **边界清晰**：不默认修改 SSH、内核、BBR、通用防火墙或云安全组；不提供 Web 面板、多租户或流量计费。
 
 ## 已验证范围
 
@@ -55,14 +27,14 @@ lab33 继续完成固定版本Bootstrap、Linux归档权限、原位自更新与
 
 其他平台的证据等级见 [兼容性说明](docs/COMPATIBILITY.md)。
 
-## v0.1.0 一键安装
+## v0.2.0 一键安装
 
 在Debian 13 amd64 VPS的Bash中执行：
 
 ```bash
 curl --fail --location --proto '=https' --tlsv1.2 \
   --output install.sh \
-  'https://github.com/filence/vpskit/releases/download/v0.1.0/install.sh'
+  'https://github.com/filence/vpskit/releases/download/v0.2.0/install.sh'
 sudo bash install.sh
 ```
 
@@ -107,6 +79,10 @@ sudo vpskit rules custom list
 sudo vpskit rules custom check
 sudo vpskit security fail2ban status
 sudo vpskit security fail2ban plan
+sudo vpskit hysteria2 inspect
+sudo vpskit hysteria2 performance inspect
+sudo vpskit hysteria2 udp-buffer status
+sudo vpskit hysteria2 port-hop status
 sudo vpskit support bundle
 ```
 
@@ -188,7 +164,7 @@ sudo vpskit subscription publish
 sudo vpskit subscription status
 ```
 
-Cloudflare 账户级管理 Token 不得复制到 VPS；VPS 只接收受 `node_id` 约束的发布 Secret 与订阅读取 Token。此组命令要求 v0.2.0 或更高二进制，不应在公开 `v0.1.0` 二进制上执行。
+Cloudflare 账户级管理 Token 不得复制到 VPS；VPS 只接收受 `node_id` 约束的发布 Secret 与订阅读取 Token。此组命令要求 v0.2.0 或更高二进制。
 
 ## 安全边界
 
