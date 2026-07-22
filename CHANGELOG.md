@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- `v0.2.6-lab.1`：新增只读 `vpskit hysteria2 inspect`，报告 Hysteria2 监听、sing-box 锁定版本、`rmem_max/wmem_max` 与当前能力矩阵。它不会修改服务端、订阅、规则或客户端配置。
+- 以 sing-box `1.13.14` / Windows Mihomo `1.19.29` 实机基线确认：Salamander 可作为独立实验切片；Gecko、`bbr_profile` 需 sing-box `>=1.14.0`；端口跳跃需受管 NAT redirect、云安全组准备、冲突检查与回滚，当前明确阻止。
 - `v0.2.5-lab.1`：受管规则刷新改为临时目录下载和完整清单写入后原子激活。任一上游下载失败、状态码异常或体积超限时，临时目录自动清除，活动规则修订、订阅状态和客户端配置不变。
 - Debian 13 已以仅该子进程生效的无效 HTTP(S) 代理模拟上游不可达：刷新按预期失败，活动规则 manifest、状态和订阅状态哈希保持不变，候选修订目录不存在，Xray/sing-box 均保持 active。
 - `v0.2.4-lab.2`：新增 `vpskit security fail2ban whitelist list|add|remove --cidr <IP-or-CIDR> --yes`。白名单仅作用于 VPSKit 所有的 Debian `sshd` jail 覆盖文件；IP/CIDR 会规范化、去重并限制为最多 32 条，手工改动或所有权不匹配时拒绝覆盖。
