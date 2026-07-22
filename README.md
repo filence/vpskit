@@ -54,6 +54,128 @@ sudo bash install.sh
 
 Bootstrap 不会默认修改 SSH、内核、BBR、系统防火墙或云安全组。不要执行来自 `main` 分支的脚本，也不推荐 `curl | bash`；上面的两步命令会先保存固定版本安装器，再由用户明确运行。完整前置条件、在线/离线安装和客户端交付见[安装与首次使用](docs/INSTALL.md)。
 
+## 可选：启用系统原生 BBR + FQ
+
+该项是安装完成后的可选系统网络优化，不属于 VPSKit 当前受管功能。VPSKit 继续保持默认不修改内核、BBR、通用 `sysctl` 和系统网络拥塞控制配置。
+
+适用边界：
+
+- Debian 12/13、Ubuntu 24.04 等现代发行版通常已经包含原生 BBR；
+- 这里只使用当前系统内核已有的原生 BBR，不安装第三方内核、BBRv3、自定义内核，也不修改 GRUB 或删除现有内核；
+- 不会修改 VPSKit 的 REALITY / Hysteria2 节点凭据，不会改变节点地址、端口、UUID、REALITY key 或订阅 URL；
+- 如果节点配置本身没有变化，正常情况下不需要重新安装 VPSKit，也不需要重新导入客户端配置或更新订阅；
+- BBR 主要作用于 TCP，因此主要影响 REALITY / TCP 等 TCP 流量；Hysteria2 基于 UDP/QUIC，不直接使用 TCP BBR；
+- 不应把它宣传为“必然降低延迟”或“必然提高速度”，实际收益取决于线路、拥塞和带宽环境。
+
+推荐理解为：
+
+```text
+VPSKit 安装
+    ↓
+节点正常工作
+    ↓
+可选手动开启 BBR + FQ
+```
+
+先做只读检查：
+
+```bash
+uname -r
+sysctl net.ipv4.tcp_congestion_control
+sysctl net.core.default_qdisc
+modinfo tcp_bbr 2>/dev/null || true
+modinfo sch_fq 2>/dev/null || true
+ip route show default
+tc qdisc show
+```
+
+启用前先记录原始值，并保存实际输出；不要假定原值一定是某个固定算法或固定 qdisc：
+
+```bash
+sysctl net.ipv4.tcp_congestion_control
+sysctl net.core.default_qdisc
+```
+
+如果此时已经显示正在使用：
+
+```text
+bbr
+fq
+```
+
+则通常无需重复配置。不要只依赖 `lsmod`、`sysctl net.core.default_qdisc` 或单个接口现状作为唯一判断依据。
+
+其中 `net.core.default_qdisc=fq` 表示系统为后续创建的网络设备队列设置默认 qdisc。它不保证所有当前网卡的 root qdisc 都直接显示为 `fq`，也不保证多队列设备不会显示 `mq`，或虚拟接口不会显示其他 qdisc / `noqueue`。`tc qdisc show` 应作为补充观察，而不是“当前所有网卡都已使用 FQ”的单一证明。
+
+如需启用，先准备模块并确认 `bbr` 已进入可用拥塞控制列表：
+
+```bash
+sudo modprobe tcp_bbr
+sudo modprobe sch_fq
+sysctl net.ipv4.tcp_available_congestion_control
+```
+
+只有在加载模块后仍然看不到 `bbr` 时，才应停止并确认当前内核或模块环境是否满足原生 BBR 条件；不要继续写入 BBR 的 `sysctl` 配置。
+
+确认 `bbr` 可用后，再写入独立配置文件：
+
+```bash
+sudo tee /etc/sysctl.d/99-vpskit-bbr.conf >/dev/null <<'EOF'
+net.core.default_qdisc=fq
+net.ipv4.tcp_congestion_control=bbr
+EOF
+
+sudo sysctl --system
+```
+
+然后验证：
+
+```bash
+sysctl net.ipv4.tcp_congestion_control
+sysctl net.core.default_qdisc
+sysctl net.ipv4.tcp_available_congestion_control
+```
+
+预期主要结果：
+
+```text
+net.ipv4.tcp_congestion_control = bbr
+net.core.default_qdisc = fq
+```
+
+回退方式：
+
+```bash
+sudo rm -f /etc/sysctl.d/99-vpskit-bbr.conf
+sudo sysctl --system
+sysctl net.ipv4.tcp_congestion_control
+sysctl net.core.default_qdisc
+```
+
+如果当前值已经恢复到启用 BBR + FQ 前记录的原始值，则回退完成，无需继续操作。
+
+如果重新加载系统中剩余的持久化 `sysctl` 配置后，当前值仍未恢复，而你又明确需要立即恢复到启用前记录的运行时状态，可以执行：
+
+```bash
+sudo sysctl -w net.ipv4.tcp_congestion_control=<原始拥塞控制算法>
+sudo sysctl -w net.core.default_qdisc=<原始qdisc>
+```
+
+文档中的 `<原始拥塞控制算法>` 和 `<原始qdisc>` 必须替换为你启用前记录的真实值，不要写死成 `cubic`、`fq_codel` 或其他猜测值。
+
+最后的 `sysctl -w` 只修改当前运行中的内核参数，不创建持久化配置。因此，当前运行时可以恢复为之前记录的值；系统重启后的最终值仍由内核 / 发行版默认值、`/etc/sysctl.conf`、`/etc/sysctl.d/*.conf`、`/usr/lib/sysctl.d/*.conf` 以及系统中其他仍存在的持久化 `sysctl` 配置共同决定。
+
+如果你没有记录原始值，不要猜测；删除 `99-vpskit-bbr.conf` 并执行 `sudo sysctl --system` 后，如需彻底重新建立系统启动状态，可以重启 VPS，但不要擅自指定 `cubic`、`fq_codel` 或其他假定恢复值。
+
+安全与操作边界：
+
+- 不执行来源不明的远程脚本；
+- 不自动修改额外 TCP buffer、`tcp_rmem`、`tcp_wmem` 等激进参数；
+- 对生产 VPS 操作前，建议保留服务商控制台或救援入口；
+- 原生 BBR + FQ 本身不需要更换内核，正常情况下也不需要重启系统。
+
+更完整的安装后操作说明见[安装与首次使用](docs/INSTALL.md)。
+
 ## 当前管理命令
 
 ```bash
