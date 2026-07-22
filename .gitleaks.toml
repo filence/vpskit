@@ -11,3 +11,17 @@ paths = [
   '''(^|[\\/])前期环境须知\.md$''',
   '''(^|[\\/])source-references[\\/]repos[\\/]''',
 ]
+
+[[allowlists]]
+description = "Historical synthetic REALITY test fixture; it is not a production credential"
+condition = "AND"
+commits = [
+  '''5ee882d2d2560c6aa314c68e9bca27c7ce3b719a''',
+]
+paths = [
+  '''^internal/render/render_test\.go$''',
+]
+regexTarget = "line"
+regexes = [
+  '''RealityPrivateKey:[[:space:]]+"[A-Za-z0-9_-]{43}"''',
+]

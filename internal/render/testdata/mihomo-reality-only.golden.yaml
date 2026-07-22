@@ -18,7 +18,7 @@ proxies:
     servername: www.example.com
     client-fingerprint: chrome
     reality-opts:
-      public-key: esdj56PLQGb8O3gFsAw-LanV7ZVgIiEFod2siUTCqiY
+      public-key: AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI
       short-id: aabbccddeeff0011
 proxy-groups:
   - name: Proxy
