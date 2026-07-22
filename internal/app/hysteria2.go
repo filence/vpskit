@@ -44,12 +44,18 @@ func runHysteria2(arguments []string) error {
 	}
 }
 
-// runHysteria2PortHop currently exposes only a read-only plan. sing-box owns
-// one UDP listener, so a safe hopping implementation needs a separately owned
-// redirect component and an explicitly prepared cloud security group.
+// runHysteria2PortHop keeps the packet redirect and the client-export change
+// as separate explicit operations: a client receives a hopping range only
+// after the dedicated redirect has been activated and verified.
 func runHysteria2PortHop(arguments []string) error {
-	if len(arguments) == 0 || arguments[0] != "plan" {
-		return errors.New("usage: vpskit hysteria2 port-hop plan --range <start-end> [--hop-interval <seconds>]")
+	if len(arguments) == 0 {
+		return errors.New("usage: vpskit hysteria2 port-hop <plan|prepare|activate|enable|disable|deactivate|status>")
+	}
+	if arguments[0] == "prepare" || arguments[0] == "status" || arguments[0] == "activate" || arguments[0] == "enable" || arguments[0] == "disable" || arguments[0] == "deactivate" {
+		return runHysteria2PortHopComponent(arguments)
+	}
+	if arguments[0] != "plan" {
+		return errors.New("usage: vpskit hysteria2 port-hop <plan|prepare|activate|enable|disable|deactivate|status>")
 	}
 	flags := flag.NewFlagSet("hysteria2 port-hop plan", flag.ContinueOnError)
 	portRange := flags.String("range", "", "UDP port range, for example 20000-20010")

@@ -89,6 +89,29 @@ func TestParseHysteria2PortRange(t *testing.T) {
 	}
 }
 
+func TestRenderHysteria2PortHopNftUsesParseableRuleLayout(t *testing.T) {
+	got := renderHysteria2PortHopNft(20000, 20010, 443)
+	want := "table inet vpskit_hysteria2_port_hop {\n" +
+		"  chain prerouting {\n" +
+		"    type nat hook prerouting priority dstnat; policy accept;\n" +
+		"    udp dport 20000-20010 redirect to :443 comment \"VPSKit managed Hysteria2 port hop\"\n" +
+		"  }\n" +
+		"}\n"
+	if got != want {
+		t.Fatalf("unexpected nft ruleset:\n%s", got)
+	}
+}
+
+func TestHysteria2PortHopExportStateHasRequiredClientFields(t *testing.T) {
+	state := model.State{Hysteria2: model.Hysteria2State{PortHopping: model.Hysteria2PortHoppingState{Enabled: true, RangeStart: 20000, RangeEnd: 20010, HopInterval: 30}}}
+	if got := hysteria2PortRangeString(state.Hysteria2.PortHopping); got != "20000-20010" {
+		t.Fatalf("unexpected client range %q", got)
+	}
+	if state.Hysteria2.PortHopping.HopInterval < 5 || state.Hysteria2.PortHopping.HopInterval > 3600 {
+		t.Fatalf("test fixture must use the accepted hop-interval range")
+	}
+}
+
 func TestHysteria2PortHopPlanRemainsBlockedWithoutImplementation(t *testing.T) {
 	detail := collectHysteria2PortHopPlan(model.State{Hysteria2: model.Hysteria2State{ListenPort: 443}, Firewall: model.FirewallState{Provider: "manual/noop"}}, 20000, 20010, 30)
 	if detail["read_only"] != true || detail["apply_available"] != false || detail["status"] != "BLOCKED" {
