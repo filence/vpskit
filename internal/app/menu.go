@@ -22,7 +22,7 @@ func runMenuWithIO(input io.Reader, output io.Writer, version, publicKeyBase64 s
 	reader := bufio.NewReader(input)
 	for {
 		printManagementMenu(output, version)
-		choice, err := readMenuValue(reader, output, "请选择操作 [0-16]：")
+		choice, err := readMenuValue(reader, output, "请选择操作 [0-17]：")
 		if errors.Is(err, io.EOF) {
 			fmt.Fprintln(output, "输入已结束，退出管理菜单。")
 			return nil
@@ -81,6 +81,8 @@ VPSKit 中文管理菜单 (%s)
  14. 预览安全清理计划
  15. 导出脱敏诊断包
  16. 预览状态迁移计划
+
+ 17. 查看Hysteria2 UDP缓冲状态
   0. 退出
 `, version)
 }
@@ -173,6 +175,8 @@ func menuArguments(reader *bufio.Reader, output io.Writer, choice string) ([]str
 		return []string{"support", "bundle"}, false, nil
 	case "16":
 		return []string{"migrate", "plan"}, false, nil
+	case "17":
+		return []string{"hysteria2", "udp-buffer", "status"}, false, nil
 	default:
 		return nil, false, nil
 	}

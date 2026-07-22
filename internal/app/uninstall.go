@@ -46,6 +46,9 @@ func runUninstall(arguments []string) error {
 		return err
 	}
 	defer lock.Close()
+	if err := removeManagedHysteria2UDPBufferForUninstall(); err != nil {
+		return err
+	}
 	certificateReferences, err := externalCertificateReferences("/etc/systemd/system")
 	if err != nil {
 		return err

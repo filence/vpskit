@@ -1233,6 +1233,23 @@ UDP errors/drops
 
 1C 环境下不要同时运行大规模测速、系统更新、压缩备份和核心升级。
 
+### 3.3 Hysteria2 UDP buffer 调参门槛
+
+UDP buffer 不是按某一台机器的测速结果全局套用的优化项。对每台新 VPS，必须先保留默认系统值并取得可比较的客户端基线，再同时检查：
+
+```text
+客户端侧：测速节点、线程模式、吞吐、延迟、抖动、丢包
+VPS 侧：Udp RcvbufErrors/SndbufErrors、sing-box RSS、实际 UDP socket rb/tb
+```
+
+只有确认 VPS 侧 `RcvbufErrors` 持续增长，或 sing-box UDP socket 实际 `rb/tb` 明显受默认值限制时，才允许使用受管调参。首个档位为 `conservative-2mib`：四项 `net.core.rmem/wmem default/max` 同时设为 `2097152`，重启 sing-box 后必须通过 `ss -u -a -m -n` 回读到实际 `rb/tb` 达标。
+
+- 不能只改 `rmem_max/wmem_max` 后就宣称生效；新 socket 仍可能继承很小的 default；
+- TCP BDP 计算器只能帮助理解 TCP 缓冲窗口，不能直接推导 QUIC/Hysteria2 的 UDP 参数；
+- 通用 TCP “一键调参”页不能替代 VPS 的 UDP 错误计数、实际 socket 与 1C1G 内存余量检查；
+- 未看到服务器缓冲证据时不写 sysctl；移动网络丢包、客户端 CPU、线路路由和测速节点负载应优先排除；
+- 每次应用都必须保存原四项值，提供 `plan`、`apply --yes`、`status` 和 `rollback --yes`，且不修改节点、订阅或客户端配置。
+
 ## 4. 磁盘预算
 
 ### 4.1 目标分配
@@ -1631,6 +1648,8 @@ lab31 验收记录（2026-07-20）：固定版本 sing-box、Mihomo、Xray 自�
 lab32 验收记录（2026-07-20）：schema 5迁移、无效目标零写入、REALITY目标切换并恢复、原凭据不变、修订号1→3、安全ZIP清单、双协议VPS回环和Windows固定版本解析通过；修订3随后在Clash Verge与Hiddify中完成REALITY、Hysteria2四项重新导入验收。
 
 lab33 最终验收记录（2026-07-20）：先创建受管备份与root-only恢复快照，并在Windows端完成传输SHA-256和归档读回验证；随后在同一Debian 13 amd64 VPS执行受管卸载与固定Bootstrap从零重装。schema 5、balanced、初始修订1、证书、systemd服务、orphan scan、安全ZIP、REALITY与Hysteria2回环均通过；VPS重启后服务、doctor和双协议回环再次通过；新配置最终在Clash Verge与Hiddify完成REALITY、Hysteria2四项公网GUI验收。用户确认后删除远程11项恢复/安装临时材料和本机恢复目录，删除后节点健康，accepted客户端配置保留。
+
+v0.2.9-lab.1 验收记录（2026-07-22）：针对已观测到 UDP 接收缓冲溢出的 Debian 13 amd64 VPS，新增 `hysteria2 udp-buffer <status|plan|apply|rollback>`。签名包校验后，将实验性 2 MiB sysctl 先恢复至原始四项 `212992` 基线，再完成正式 `apply → rollback → apply` 闭环。最终四项运行值与 sing-box UDP socket 的 `rb/tb` 均为 `2097152`，Xray/sing-box 为 active，`state.json` 与订阅摘要未改变，orphan scan 未报告新状态目录。该结论只证明 2 MiB 受管实现和回滚路径可用，不将其外推为所有 VPS 的默认调参值。
 
 ## 7. Phase 5：更新、恢复和卸载
 

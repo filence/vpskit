@@ -47,6 +47,9 @@ const (
 	backupRoot                      = "/var/lib/vpskit/backups"
 	transactionRoot                 = "/var/lib/vpskit/transactions"
 	rulesCacheRoot                  = "/var/lib/vpskit/rules"
+	hysteria2UDPBufferStateRoot     = "/var/lib/vpskit/hysteria2"
+	hysteria2UDPBufferStatePath     = "/var/lib/vpskit/hysteria2/udp-buffer.json"
+	hysteria2UDPBufferSysctlPath    = "/etc/sysctl.d/70-vpskit-hysteria2-udp-buffer.conf"
 	legoStateRoot                   = "/var/lib/vpskit/lego"
 	logRoot                         = "/var/log/vpskit"
 	auditLogPath                    = "/var/log/vpskit/audit.jsonl"
@@ -172,7 +175,7 @@ func Run(arguments []string, version, publicKeyBase64 string) error {
 }
 
 func usageError() error {
-	return errors.New("usage: vpskit <version|bundle verify|reality scan|cert status|cert renew|update self|update core|backup|restore <backup-id> --yes|rollback <transaction-id> --yes|recover|orphan scan|uninstall --yes|preflight|install balanced|instance <enable|disable|modify|delete>|node <show|modify>|rules <show|plan|apply>|hysteria2 <inspect|salamander|performance>|migrate <check|plan|apply>|cleanup <plan|apply>|system <inspect|updates>|security fail2ban <status|plan|apply|remove>|support bundle|subscription <plan|configure|publish|status|rotate-read-token|revoke-read-token|rollback|remove>|menu|status|doctor|export>")
+	return errors.New("usage: vpskit <version|bundle verify|reality scan|cert status|cert renew|update self|update core|backup|restore <backup-id> --yes|rollback <transaction-id> --yes|recover|orphan scan|uninstall --yes|preflight|install balanced|instance <enable|disable|modify|delete>|node <show|modify>|rules <show|plan|apply>|hysteria2 <inspect|salamander|performance|udp-buffer>|migrate <check|plan|apply>|cleanup <plan|apply>|system <inspect|updates>|security fail2ban <status|plan|apply|remove>|support bundle|subscription <plan|configure|publish|status|rotate-read-token|revoke-read-token|rollback|remove>|menu|status|doctor|export>")
 }
 
 func runBundle(arguments []string, publicKeyBase64 string) error {

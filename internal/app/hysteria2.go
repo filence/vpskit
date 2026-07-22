@@ -14,7 +14,7 @@ import (
 
 func runHysteria2(arguments []string) error {
 	if len(arguments) == 0 {
-		return errors.New("usage: vpskit hysteria2 <inspect|salamander|performance>")
+		return errors.New("usage: vpskit hysteria2 <inspect|salamander|performance|udp-buffer>")
 	}
 	switch arguments[0] {
 	case "inspect":
@@ -33,8 +33,10 @@ func runHysteria2(arguments []string) error {
 		return runHysteria2Salamander(arguments[1:])
 	case "performance":
 		return runHysteria2Performance(arguments[1:])
+	case "udp-buffer":
+		return runHysteria2UDPBuffer(arguments[1:])
 	default:
-		return errors.New("usage: vpskit hysteria2 <inspect|salamander|performance>")
+		return errors.New("usage: vpskit hysteria2 <inspect|salamander|performance|udp-buffer>")
 	}
 }
 
