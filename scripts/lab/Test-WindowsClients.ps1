@@ -45,6 +45,17 @@ function Wait-LocalPort {
     throw "Local SOCKS port $Port did not become ready"
 }
 
+function Get-FreeTcpPort {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+    try {
+        $listener.Start()
+        return ([System.Net.IPEndPoint]$listener.LocalEndpoint).Port
+    }
+    finally {
+        $listener.Stop()
+    }
+}
+
 function Test-VPSKitProfile {
     param(
         [string]$Name,
@@ -101,7 +112,8 @@ function New-EndpointOverrideConfig {
         [string]$DestinationName,
         [string]$OutboundType,
         [string]$EndpointIP,
-        [int]$EndpointPort
+        [int]$EndpointPort,
+        [int]$LocalPort
     )
 
     $sourcePath = Join-Path $DeploymentDirectory $SourceName
@@ -118,6 +130,7 @@ function New-EndpointOverrideConfig {
         }
         $matchingOutbounds[0].server_port = $EndpointPort
     }
+    $configuration.inbounds[0].listen_port = $LocalPort
     $configuration.log.level = 'debug'
     $json = $configuration | ConvertTo-Json -Depth 100
     [System.IO.File]::WriteAllText($destinationPath, $json, [System.Text.UTF8Encoding]::new($false))
@@ -142,21 +155,28 @@ if (-not [string]::IsNullOrWhiteSpace($EndpointOverride)) {
 
 $SingBoxPath = $resolvedSingBox
 $DeploymentDirectory = $resolvedDeployment
+$realityLocalPort = Get-FreeTcpPort
+$hysteria2LocalPort = Get-FreeTcpPort
+while ($hysteria2LocalPort -eq $realityLocalPort) {
+    $hysteria2LocalPort = Get-FreeTcpPort
+}
 New-EndpointOverrideConfig `
     -SourceName 'sing-box-reality.json' `
     -DestinationName 'sing-box-reality.endpoint-ip.test.json' `
     -OutboundType 'vless' `
     -EndpointIP $endpointIP `
-    -EndpointPort $RealityEndpointPort
+    -EndpointPort $RealityEndpointPort `
+    -LocalPort $realityLocalPort
 New-EndpointOverrideConfig `
     -SourceName 'sing-box-hysteria2.json' `
     -DestinationName 'sing-box-hysteria2.endpoint-ip.test.json' `
     -OutboundType 'hysteria2' `
-    -EndpointIP $endpointIP
+    -EndpointIP $endpointIP `
+    -LocalPort $hysteria2LocalPort
 
 if ($ProfileMode -in @('All', 'Reality')) {
-    Test-VPSKitProfile -Name 'reality' -ConfigName 'sing-box-reality.endpoint-ip.test.json' -Port 2080 -ExpectedIP $expectedIP
+    Test-VPSKitProfile -Name 'reality' -ConfigName 'sing-box-reality.endpoint-ip.test.json' -Port $realityLocalPort -ExpectedIP $expectedIP
 }
 if ($ProfileMode -in @('All', 'Hysteria2')) {
-    Test-VPSKitProfile -Name 'hysteria2' -ConfigName 'sing-box-hysteria2.endpoint-ip.test.json' -Port 2081 -ExpectedIP $expectedIP
+    Test-VPSKitProfile -Name 'hysteria2' -ConfigName 'sing-box-hysteria2.endpoint-ip.test.json' -Port $hysteria2LocalPort -ExpectedIP $expectedIP
 }

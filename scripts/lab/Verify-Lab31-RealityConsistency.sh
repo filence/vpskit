@@ -14,6 +14,7 @@ done
 
 python3 - "$state" "$secrets" "$server" "$singbox_export" "$mihomo_export" "$xray" <<'PY'
 import json
+import re
 import subprocess
 import sys
 
@@ -53,8 +54,8 @@ assert state_public == derived_public
 assert state_public == outbound["tls"]["reality"]["public_key"]
 assert state_short_id == reality["shortIds"][0]
 assert state_short_id == outbound["tls"]["reality"]["short_id"]
-assert f'public-key: "{state_public}"' in mihomo
-assert f'short-id: "{state_short_id}"' in mihomo
+assert re.search(r"^\s*public-key:\s*['\"]?" + re.escape(state_public) + r"['\"]?\s*$", mihomo, re.MULTILINE)
+assert re.search(r"^\s*short-id:\s*['\"]?" + re.escape(state_short_id) + r"['\"]?\s*$", mihomo, re.MULTILINE)
 
 print("REALITY_KEY_CONSISTENCY=PASS")
 print("REALITY_SHORT_ID_CONSISTENCY=PASS")

@@ -74,3 +74,19 @@ func TestMenuRealityChangeBuildsExpectedCommand(t *testing.T) {
 		t.Fatalf("command = %#v, want %#v", captured, want)
 	}
 }
+
+func TestMenuNodeNameChangeBuildsExpectedCommand(t *testing.T) {
+	var output bytes.Buffer
+	var captured []string
+	err := runMenuWithIO(strings.NewReader("12\nPersonal-JP-01\nAPPLY\n0\n"), &output, "v-test", "key", func(arguments []string, _, _ string) error {
+		captured = append([]string(nil), arguments...)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"node", "modify", "--display-name", "Personal-JP-01"}
+	if !reflect.DeepEqual(captured, want) {
+		t.Fatalf("command = %#v, want %#v", captured, want)
+	}
+}

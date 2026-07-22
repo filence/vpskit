@@ -143,6 +143,13 @@ func updateSelf(bundleDir, publicKeyBase64 string) (returnErr error) {
 		{path: xrayServiceUnitPath, name: "vpskit-xray.service", mode: 0o644},
 		{path: certificateRenewServiceUnitPath, name: "vpskit-certificate-renew.service", mode: 0o644},
 		{path: certificateRenewTimerUnitPath, name: "vpskit-certificate-renew.timer", mode: 0o644},
+		{path: serverConfigPath, name: "generated-sing-box.json", mode: 0o640},
+		{path: xrayServerConfigPath, name: "generated-xray.json", mode: 0o640},
+		{path: secretPath, name: "instances.json", mode: 0o600},
+		{path: filepath.Join(exportRoot, "mihomo.yaml"), name: "mihomo.yaml", mode: 0o600},
+		{path: filepath.Join(exportRoot, "sing-box-reality.json"), name: "sing-box-reality.json", mode: 0o600},
+		{path: filepath.Join(exportRoot, "sing-box-hysteria2.json"), name: "sing-box-hysteria2.json", mode: 0o600},
+		{path: filepath.Join(exportRoot, "share-links.txt"), name: "share-links.txt", mode: 0o600},
 		{path: statePath, name: "state.json", mode: 0o600},
 		{path: ownershipPath, name: "ownership.json", mode: 0o600},
 	}
@@ -182,13 +189,6 @@ func updateSelf(bundleDir, publicKeyBase64 string) (returnErr error) {
 			return err
 		}
 	}
-	if output, err := runCommand(filepath.Join(stagingDirectory, "sing-box"), "check", "-c", serverConfigPath); err != nil {
-		return fmt.Errorf("new sing-box configuration check failed: %w: %s", err, sanitizeText(output, ""))
-	}
-	if output, err := runCommand(filepath.Join(stagingDirectory, "xray"), "run", "-test", "-config", xrayServerConfigPath); err != nil {
-		return fmt.Errorf("new Xray configuration check failed: %w: %s", err, sanitizeText(output, ""))
-	}
-
 	ownership, err := readOwnershipDocument()
 	if err != nil {
 		return err
@@ -229,9 +229,35 @@ func updateSelf(bundleDir, publicKeyBase64 string) (returnErr error) {
 		SourceRef:    xrayAsset.SourceRef,
 		SourceCommit: xrayAsset.SourceCommit,
 	}
+	secrets, err := readInstalledSecrets()
+	if err != nil {
+		return err
+	}
+	secrets.SchemaVersion = model.SchemaVersion
+	artifacts, clientSet, err := renderProfileArtifacts(updatedState, secrets)
+	if err != nil {
+		return err
+	}
+	updatedState.ConfigSHA256 = sha256Bytes(artifacts[serverConfigPath])
+	updatedState.RealityConfigSHA256 = sha256Bytes(artifacts[xrayServerConfigPath])
+	updatedState.Exports = exportStateForProfile(updatedState)
+	updatedState.SynchronizeLegacyInstances()
 	updatedStateBytes, err := json.MarshalIndent(updatedState, "", "  ")
 	if err != nil {
 		return err
+	}
+	secretBytes, err := json.MarshalIndent(secrets, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := stageProfileMutation(stagingDirectory, artifacts, updatedStateBytes, secretBytes); err != nil {
+		return err
+	}
+	if output, err := runCommand(filepath.Join(stagingDirectory, "sing-box"), "check", "-c", filepath.Join(stagingDirectory, "sing-box.json")); err != nil {
+		return fmt.Errorf("new sing-box configuration check failed: %w: %s", err, sanitizeText(output, ""))
+	}
+	if output, err := runCommand(filepath.Join(stagingDirectory, "xray"), "run", "-test", "-config", filepath.Join(stagingDirectory, "xray.json")); err != nil {
+		return fmt.Errorf("new Xray configuration check failed: %w: %s", err, sanitizeText(output, ""))
 	}
 	ownershipBytes, err := json.MarshalIndent(ownership, "", "  ")
 	if err != nil {
@@ -306,7 +332,7 @@ func updateSelf(bundleDir, publicKeyBase64 string) (returnErr error) {
 			return err
 		}
 	}
-	if err := fsutil.WriteFileAtomic(statePath, append(updatedStateBytes, '\n'), 0o600); err != nil {
+	if err := activateProfileMutation(artifacts, clientSet, updatedStateBytes, secretBytes); err != nil {
 		return err
 	}
 	if err := fsutil.WriteFileAtomic(ownershipPath, append(ownershipBytes, '\n'), 0o600); err != nil {
@@ -361,6 +387,7 @@ func updateSelf(bundleDir, publicKeyBase64 string) (returnErr error) {
 		"new_state_schema":              model.SchemaVersion,
 		"config_sha256":                 updatedState.ConfigSHA256,
 		"renewal_timer_active":          hasCertificateLifecycle,
+		"exports_regenerated":           true,
 	}
 	if err := writeTransactionRecord(transactionDirectory, record); err != nil {
 		return err
@@ -375,12 +402,14 @@ func updateSelf(bundleDir, publicKeyBase64 string) (returnErr error) {
 		"status":         "COMMITTED",
 	})
 	return printJSON(commandResult{Command: "update self", Status: "PASS", Detail: map[string]any{
-		"result":               "UPDATED",
-		"transaction_id":       transactionID,
-		"previous_version":     state.VPSKitVersion,
-		"new_version":          manifest.ReleaseID,
-		"previous_backup_id":   previousBackupID,
-		"renewal_timer_active": hasCertificateLifecycle,
+		"result":                 "UPDATED",
+		"transaction_id":         transactionID,
+		"previous_version":       state.VPSKitVersion,
+		"new_version":            manifest.ReleaseID,
+		"previous_backup_id":     previousBackupID,
+		"renewal_timer_active":   hasCertificateLifecycle,
+		"exports_regenerated":    true,
+		"client_update_required": false,
 	}})
 }
 

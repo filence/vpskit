@@ -22,7 +22,7 @@ func runMenuWithIO(input io.Reader, output io.Writer, version, publicKeyBase64 s
 	reader := bufio.NewReader(input)
 	for {
 		printManagementMenu(output, version)
-		choice, err := readMenuValue(reader, output, "请选择操作 [0-10]：")
+		choice, err := readMenuValue(reader, output, "请选择操作 [0-17]：")
 		if errors.Is(err, io.EOF) {
 			fmt.Fprintln(output, "输入已结束，退出管理菜单。")
 			return nil
@@ -75,6 +75,14 @@ VPSKit 中文管理菜单 (%s)
   8. 查看证书状态
   9. 立即续期证书
  10. 恢复中断的变更
+ 11. 查看节点元数据
+ 12. 修改节点显示名
+ 13. 查看系统与网络摘要
+ 14. 预览安全清理计划
+ 15. 导出脱敏诊断包
+ 16. 预览状态迁移计划
+
+ 17. 查看Hysteria2 UDP缓冲状态
   0. 退出
 `, version)
 }
@@ -140,6 +148,35 @@ func menuArguments(reader *bufio.Reader, output io.Writer, choice string) ([]str
 			return nil, true, nil
 		}
 		return []string{"recover"}, false, nil
+	case "11":
+		return []string{"node", "show"}, false, nil
+	case "12":
+		name, err := readMenuValue(reader, output, "新的节点显示名（不含协议后缀）：")
+		if err != nil {
+			return nil, false, err
+		}
+		if name == "" {
+			return nil, true, nil
+		}
+		fmt.Fprintln(output, "修改后会重新生成客户端产物并增加配置修订号。")
+		confirmation, err := readMenuValue(reader, output, "输入 APPLY 确认修改：")
+		if err != nil {
+			return nil, false, err
+		}
+		if confirmation != "APPLY" {
+			return nil, true, nil
+		}
+		return []string{"node", "modify", "--display-name", name}, false, nil
+	case "13":
+		return []string{"system", "inspect"}, false, nil
+	case "14":
+		return []string{"cleanup", "plan"}, false, nil
+	case "15":
+		return []string{"support", "bundle"}, false, nil
+	case "16":
+		return []string{"migrate", "plan"}, false, nil
+	case "17":
+		return []string{"hysteria2", "udp-buffer", "status"}, false, nil
 	default:
 		return nil, false, nil
 	}

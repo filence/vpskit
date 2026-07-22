@@ -132,7 +132,7 @@ func findIncompleteMutations() ([]incompleteTransaction, error) {
 			PreviousCoreSHA string `json:"previous_core_sha256"`
 			NewCoreSHA      string `json:"new_core_sha256"`
 		}
-		if json.Unmarshal(bytes, &record) != nil || record.Status != "IN_PROGRESS" || (record.Command != "update core" && !strings.HasPrefix(record.Command, "instance ")) {
+		if json.Unmarshal(bytes, &record) != nil || record.Status != "IN_PROGRESS" || (record.Command != "update core" && record.Command != "migrate apply" && record.Command != "node modify" && !strings.HasPrefix(record.Command, "instance ")) {
 			continue
 		}
 		values = append(values, incompleteTransaction{ID: record.TransactionID, Path: path, Command: record.Command, PreviousBackupID: record.PreviousBackup, PreviousCoreSHA: record.PreviousCoreSHA, NewCoreSHA: record.NewCoreSHA})
@@ -189,7 +189,7 @@ func recoverCoreFromTransactionBackup(target incompleteTransaction) error {
 
 func shouldAutoRecover(command string) bool {
 	switch command {
-	case "update", "cert", "backup", "install", "instance", "uninstall":
+	case "update", "cert", "backup", "install", "instance", "node", "migrate", "cleanup", "uninstall":
 		return true
 	default:
 		return false

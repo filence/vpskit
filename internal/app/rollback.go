@@ -44,11 +44,11 @@ func runRollback(arguments []string) error {
 	if record.PreviousBackupID == "" || (record.Status != "COMMITTED" && !(record.Status == "IN_PROGRESS" && record.Command == "update core")) {
 		return errors.New("transaction has no committed rollback backup")
 	}
-	if record.Command != "update self" && record.Command != "update core" && !strings.HasPrefix(record.Command, "instance ") {
+	if !rollbackCompatibleCommand(record.Command) {
 		return fmt.Errorf("transaction command is not rollback-compatible: %s", record.Command)
 	}
-	if strings.HasPrefix(record.Command, "instance ") {
-		if err := verifyInstanceRollbackVersion(record.PreviousBackupID); err != nil {
+	if rollbackRequiresSameVersion(record.Command) {
+		if err := verifyStateRollbackVersion(record.PreviousBackupID); err != nil {
 			return err
 		}
 	}
@@ -58,7 +58,15 @@ func runRollback(arguments []string) error {
 	return nil
 }
 
-func verifyInstanceRollbackVersion(backupID string) error {
+func rollbackCompatibleCommand(command string) bool {
+	return command == "update self" || command == "update core" || command == "migrate apply" || command == "node modify" || strings.HasPrefix(command, "instance ")
+}
+
+func rollbackRequiresSameVersion(command string) bool {
+	return command == "migrate apply" || command == "node modify" || strings.HasPrefix(command, "instance ")
+}
+
+func verifyStateRollbackVersion(backupID string) error {
 	currentState, err := readInstalledState()
 	if err != nil {
 		return err
@@ -69,11 +77,11 @@ func verifyInstanceRollbackVersion(backupID string) error {
 	}
 	backupStateBytes, err := os.ReadFile(filepath.Join(backupDirectory, "state.json"))
 	if err != nil {
-		return fmt.Errorf("read instance rollback backup state: %w", err)
+		return fmt.Errorf("read state rollback backup: %w", err)
 	}
 	backupState, err := decodeInstalledState(backupStateBytes)
 	if err != nil {
-		return fmt.Errorf("decode instance rollback backup state: %w", err)
+		return fmt.Errorf("decode state rollback backup: %w", err)
 	}
 	return validateInstanceRollbackVersions(currentState.VPSKitVersion, backupState.VPSKitVersion)
 }

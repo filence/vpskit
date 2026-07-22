@@ -62,6 +62,7 @@ EAB 不写入发布包、不进入备份，安装后仅保存在 VPS 的 `/var/l
 - 验收后已清除 VPS 重复恢复副本、旧 lab30 安装包和本机五批过期客户端配置；当前只保留一份受管回滚备份与四份最终客户端配置。
 - lab32 签名开发包已将远程安装迁移至 schema 5，并完成无效目标零写入、REALITY 目标切换后恢复亚马逊、修订号1→3、安全 ZIP、双协议回环和Windows固定版本解析；最终修订3配置已在 Clash Verge 与 Hiddify 中通过 REALITY、Hysteria2 四项重新导入验收。
 - lab33 已完成固定版本Bootstrap、显式Linux归档权限、原位自更新和中文管理菜单实机回归；随后在同一VPS创建并下载可校验恢复快照，执行受管卸载与最终Bootstrap从零重装。摘要/签名、schema 5初始修订、安全ZIP、doctor、证书、orphan scan、双协议回环及重启持久化通过，新配置已在Clash Verge与Hiddify完成REALITY、Hysteria2四项公网GUI验收。验收后已按用户确认删除远程11项恢复/安装临时材料与本机恢复目录，节点健康，accepted客户端配置保留。源码已提交到公开仓库并通过全部GitHub CI；`production-release` Environment、`v0.*` tag限制和新生产签名信任根已经建立。`v0.1.0`受保护草稿Release的checksums、Ed25519清单、版本锁、SBOM、Linux权限和三项GitHub attestation复核通过后，用户明确决定直接公开，并以公开在线安装完成最后的普通用户从零部署与客户端回归。
+- v0.2.9-lab.1 已把本次 Hysteria2 UDP buffer 实测收口为受管功能：仅在服务器 UDP 接收缓冲溢出证据成立时使用 `conservative-2mib`；命令同时调整四项 `rmem/wmem default/max`，并以实际 socket `rb/tb` 回读为成功条件。Debian 13 实机已完成 `apply → rollback → apply`；服务、状态、订阅和 orphan scan 均通过。该档位不是其他 VPS 的默认配置，其他机器必须先完成自身线路与服务端证据采集。
 
 ## 当前交付物
 

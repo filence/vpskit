@@ -15,7 +15,9 @@ param(
     [ValidateSet('All', 'Reality', 'Hysteria2')]
     [string]$ProfileMode = 'All',
 
-    [switch]$EnableRealityHybridKeyExchange
+    [switch]$EnableRealityHybridKeyExchange,
+
+    [switch]$DisableRealityHybridKeyExchange
 )
 
 Set-StrictMode -Version Latest
@@ -61,6 +63,16 @@ function New-TestConfiguration {
 
     $configuration = Get-Content -LiteralPath $SourcePath -Raw -Encoding UTF8
 
+    $namePattern = '(?m)^\s+-\s+name:\s*(?<name>[^\r\n]+?)\s*$'
+    $proxyNames = @([regex]::Matches($configuration, $namePattern) | ForEach-Object { $_.Groups['name'].Value.Trim('"', "'") })
+    $realityNames = @($proxyNames | Where-Object { $_ -like '*-Reality' })
+    $hysteria2Names = @($proxyNames | Where-Object { $_ -like '*-Hysteria2' })
+    if ($realityNames.Count -ne 1 -or $hysteria2Names.Count -ne 1) {
+        throw 'Expected one metadata-derived Reality name and one Hysteria2 name'
+    }
+    $realityName = $realityNames[0]
+    $hysteria2Name = $hysteria2Names[0]
+
     $portPattern = '(?m)^mixed-port:\s*\d+\s*$'
     if ([regex]::Matches($configuration, $portPattern).Count -ne 1) {
         throw 'Expected exactly one mixed-port setting in the Mihomo export'
@@ -101,8 +113,10 @@ function New-TestConfiguration {
     }
 
     if ($Profile -eq 'Hysteria2') {
-        $inlineSelectionPattern = '(?m)^(?<indent>\s*)proxies:\s*\[\s*JP-Reality\s*,\s*JP-Hysteria2\s*,\s*DIRECT\s*\]\s*$'
-        $blockSelectionPattern = '(?m)^(?<indent>\s*)-\s+JP-Reality\s*\r?\n\k<indent>-\s+JP-Hysteria2\s*$'
+        $escapedRealityName = [regex]::Escape($realityName)
+        $escapedHysteria2Name = [regex]::Escape($hysteria2Name)
+        $inlineSelectionPattern = "(?m)^(?<indent>\s*)proxies:\s*\[\s*$escapedRealityName\s*,\s*$escapedHysteria2Name\s*,\s*DIRECT\s*\]\s*$"
+        $blockSelectionPattern = "(?m)^(?<indent>\s*)-\s+$escapedRealityName\s*\r?\n\k<indent>-\s+$escapedHysteria2Name\s*$"
         $inlineMatches = [regex]::Matches($configuration, $inlineSelectionPattern)
         $blockMatches = [regex]::Matches($configuration, $blockSelectionPattern)
         if (($inlineMatches.Count + $blockMatches.Count) -ne 1) {
@@ -112,26 +126,27 @@ function New-TestConfiguration {
             $configuration = [regex]::Replace(
                 $configuration,
                 $inlineSelectionPattern,
-                { param($match) "$($match.Groups['indent'].Value)proxies: [JP-Hysteria2, JP-Reality, DIRECT]" }
+                { param($match) "$($match.Groups['indent'].Value)proxies: [$hysteria2Name, $realityName, DIRECT]" }
             )
         }
         else {
             $configuration = [regex]::Replace(
                 $configuration,
                 $blockSelectionPattern,
-                { param($match) "$($match.Groups['indent'].Value)- JP-Hysteria2`n$($match.Groups['indent'].Value)- JP-Reality" }
+                { param($match) "$($match.Groups['indent'].Value)- $hysteria2Name`n$($match.Groups['indent'].Value)- $realityName" }
             )
         }
     }
-    elseif ($EnableRealityHybridKeyExchange) {
+    elseif ($EnableRealityHybridKeyExchange -or $DisableRealityHybridKeyExchange) {
         $realityShortIdPattern = '(?m)^(?<indent>\s+)short-id:\s*[^\r\n]+\s*$'
         if ([regex]::Matches($configuration, $realityShortIdPattern).Count -ne 1) {
             throw 'Expected exactly one Reality short-id setting'
         }
+        $hybridValue = if ($EnableRealityHybridKeyExchange) { 'true' } else { 'false' }
         $configuration = [regex]::Replace(
             $configuration,
             $realityShortIdPattern,
-            { param($match) "$($match.Value.TrimEnd())`n$($match.Groups['indent'].Value)support-x25519mlkem768: true" }
+            { param($match) "$($match.Value.TrimEnd())`n$($match.Groups['indent'].Value)support-x25519mlkem768: $hybridValue" }
         )
     }
 
@@ -194,6 +209,9 @@ function Test-MihomoProfile {
 }
 
 $MihomoPath = (Resolve-Path -LiteralPath $MihomoPath).Path
+if ($EnableRealityHybridKeyExchange -and $DisableRealityHybridKeyExchange) {
+    throw 'EnableRealityHybridKeyExchange and DisableRealityHybridKeyExchange are mutually exclusive'
+}
 $DeploymentDirectory = (Resolve-Path -LiteralPath $DeploymentDirectory).Path
 $originalConfig = Join-Path $DeploymentDirectory 'mihomo.yaml'
 $environmentText = Get-Content -LiteralPath $EnvironmentDocument -Raw -Encoding UTF8

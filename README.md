@@ -4,13 +4,17 @@ VPSKit 是一个面向个人 VPS 的低资源、可回滚代理节点部署与�
 
 公开仓库：[filence/vpskit](https://github.com/filence/vpskit)
 
-> 当前正式版本：[`v0.1.0`](https://github.com/filence/vpskit/releases/tag/v0.1.0)。发布资产已经通过checksums、Ed25519签名清单、SPDX SBOM、Linux权限和GitHub attestation复核；公开版本已经完成普通用户从零部署、客户端ZIP下载及REALITY/Hysteria2实际连接验收。
+> 当前正式版本：[`v0.2.0`](https://github.com/filence/vpskit/releases/tag/v0.2.0)。发布资产包含 checksums、Ed25519 签名清单、SPDX SBOM、显式 Linux 权限归档与 GitHub attestation；安装器只接受该固定 Release，不执行 `main` 分支脚本。
 
-第一阶段已于2026-07-20完成收尾，结论和证据边界见[`v0.1.0 第一阶段实机验收报告`](docs/PHASE1_ACCEPTANCE.md)。
+`v0.2.0` 将已完成实机验收的 v0.1.1 运维基础与 v0.2 系列功能统一收口：Cloudflare Workers/KV 自动订阅、ACL4SSR 分流与 anti-AD、受控规则例外、Fail2ban SSH 白名单、Hysteria2 实验增强、UDP buffer 与端口跳跃，以及通用实例 Adapter 生命周期。完整证据见 [`v0.2.0 实机验收报告`](docs/V0.2.0_ACCEPTANCE.md)，版本变更见 [`v0.2.0 Release Notes`](docs/releases/v0.2.0.md)。
 
-lab32 已在同一实验 VPS 完成 schema 5 迁移、无效 REALITY 目标零写入、目标切换并恢复、修订号递增、安全 ZIP、双协议回环及本地固定版本解析；修订3配置随后在 Clash Verge 与 Hiddify 中完成 REALITY、Hysteria2 四项 GUI 重新导入验收。
+## v0.2.0 核心能力
 
-lab33 继续完成固定版本Bootstrap、Linux归档权限、原位自更新与中文菜单实机回归；随后在同一VPS创建本机可校验恢复快照，执行受管卸载与最终Bootstrap从零重装。签名/摘要校验、schema 5初始修订、安全客户端ZIP、doctor、证书、orphan scan、双协议回环和重启持久化均通过；新修订配置已再次通过Clash Verge与Hiddify的REALITY、Hysteria2四项人工验收。验收后已删除远程恢复/安装临时材料和本机恢复副本，仅保留本机accepted客户端配置。
+- **固定、安全的部署与升级**：签名安装包、事务备份/回滚、`doctor --fix`、系统检查、清理与脱敏诊断包；
+- **自动订阅**：Cloudflare Workers/KV 发布 Mihomo 完整配置、v2rayN 节点订阅和 manifest，支持 ETag、Token 轮换/吊销、远端回读及静态配置兜底；
+- **分流与去广告**：受管 ACL4SSR、anti-AD 规则缓存、原子刷新失败保护，以及可审计的精确白名单和自定义 `DIRECT / PROXY / REJECT` 规则；
+- **Hysteria2 增强**：只读能力/性能检查、保守 UDP buffer 档、默认关闭的 Salamander，以及独立 nftables/systemd 组件实现的可回滚端口跳跃；
+- **边界清晰**：不默认修改 SSH、内核、BBR、通用防火墙或云安全组；不提供 Web 面板、多租户或流量计费。
 
 ## 已验证范围
 
@@ -23,14 +27,14 @@ lab33 继续完成固定版本Bootstrap、Linux归档权限、原位自更新与
 
 其他平台的证据等级见 [兼容性说明](docs/COMPATIBILITY.md)。
 
-## v0.1.0 一键安装
+## v0.2.0 一键安装
 
 在Debian 13 amd64 VPS的Bash中执行：
 
 ```bash
 curl --fail --location --proto '=https' --tlsv1.2 \
   --output install.sh \
-  'https://github.com/filence/vpskit/releases/download/v0.1.0/install.sh'
+  'https://github.com/filence/vpskit/releases/download/v0.2.0/install.sh'
 sudo bash install.sh
 ```
 
@@ -56,12 +60,52 @@ Bootstrap 不会默认修改 SSH、内核、BBR、系统防火墙或云安全组
 sudo vpskit menu
 sudo vpskit status
 sudo vpskit doctor
+sudo vpskit doctor --fix
 sudo vpskit reality scan
 sudo vpskit backup
 sudo vpskit cert status
 sudo vpskit cert renew
 sudo vpskit update self --bundle-dir /绝对路径/签名发布包
 sudo vpskit update core --bundle-dir /绝对路径/签名发布包
+sudo vpskit node show
+sudo vpskit instance list
+sudo vpskit migrate check
+sudo vpskit cleanup plan
+sudo vpskit system inspect
+sudo vpskit system updates
+sudo vpskit rules show
+sudo vpskit rules whitelist list
+sudo vpskit rules custom list
+sudo vpskit rules custom check
+sudo vpskit security fail2ban status
+sudo vpskit security fail2ban plan
+sudo vpskit hysteria2 inspect
+sudo vpskit hysteria2 performance inspect
+sudo vpskit hysteria2 udp-buffer status
+sudo vpskit hysteria2 port-hop status
+sudo vpskit support bundle
+```
+
+出现 anti-AD 误杀时，先从 Clash Verge 日志确认被拒绝的域名，再仅添加精确白名单：
+
+```bash
+sudo vpskit rules whitelist add --domain captcha.example.com --yes
+sudo vpskit rules whitelist remove --domain captcha.example.com --yes
+```
+
+需要自行指定路由时，可添加受校验的域名、后缀或 IP 段规则；每次变更都会发布新的 Mihomo 订阅修订：
+
+```bash
+sudo vpskit rules custom add --type domain-suffix --value example.org --policy proxy --yes
+sudo vpskit rules custom remove --type domain-suffix --value example.org --policy proxy --yes
+```
+
+如需避免自己的固定管理出口被 SSH 防护误封，可仅添加明确可信的单个 IP 或 CIDR；不要把宽泛公网网段加入白名单：
+
+```bash
+sudo vpskit security fail2ban whitelist list
+sudo vpskit security fail2ban whitelist add --cidr 203.0.113.10 --yes
+sudo vpskit security fail2ban whitelist remove --cidr 203.0.113.10 --yes
 ```
 
 修改 REALITY 目标时，VPSKit会先执行TLS和端到端REALITY验证，再创建回滚备份、重新渲染服务端与客户端配置并递增配置修订号：
@@ -109,7 +153,18 @@ Reality-only部署不会包含Hysteria2客户端文件。使用SCP或SFTP下载�
 sudo vpskit export --format qr
 ```
 
-静态文件、分享链接和二维码不会自动更新。配置修订号变化后必须重新导出并导入。首个正式版本默认不开放常驻HTTP订阅端口，完整说明见[客户端配置导出与更新](docs/CLIENT_CONFIGS.md)。
+静态文件、分享链接和二维码不会自动更新。已配置 v0.2.0 Workers 订阅的节点则可通过 Mihomo 或 v2rayN 订阅 URL 更新；未配置订阅时，修订号变化后仍必须重新导出并导入。完整说明见[客户端配置导出与更新](docs/CLIENT_CONFIGS.md)。
+
+在 v0.2.0 中，受信任的本地管理端先部署 Cloudflare 后端，再在 VPS 安装节点级凭据并发布：
+
+```bash
+sudo vpskit subscription plan --credentials-file /root/vpskit-subscription.json
+sudo vpskit subscription configure --credentials-file /root/vpskit-subscription.json --yes
+sudo vpskit subscription publish
+sudo vpskit subscription status
+```
+
+Cloudflare 账户级管理 Token 不得复制到 VPS；VPS 只接收受 `node_id` 约束的发布 Secret 与订阅读取 Token。此组命令要求 v0.2.0 或更高二进制。
 
 ## 安全边界
 

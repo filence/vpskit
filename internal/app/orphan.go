@@ -102,9 +102,9 @@ type orphanScanScope struct {
 
 func orphanScanScopes() []orphanScanScope {
 	return []orphanScanScope{
-		{configRoot, pathSet(generatedRoot, exportRoot, versionsLockPath)},
-		{stateRoot, pathSet(statePath, ownershipPath, secretRoot, certificateRoot, backupRoot, transactionRoot, legoStateRoot, filepath.Join(stateRoot, "locks"))},
-		{secretRoot, pathSet(secretPath, cloudflareEnvPath, acmeEnvPath)},
+		{configRoot, pathSet(generatedRoot, exportRoot, versionsLockPath, subscriptionConfigPath)},
+		{stateRoot, pathSet(statePath, ownershipPath, publicationStatePath, secretRoot, certificateRoot, backupRoot, transactionRoot, legoStateRoot, hysteria2UDPBufferStateRoot, filepath.Join(stateRoot, "locks"))},
+		{secretRoot, pathSet(secretPath, cloudflareEnvPath, acmeEnvPath, subscriptionSecretPath)},
 		{certificateRoot, pathSet(managedCertificate, managedKey)},
 		{logRoot, pathSet(auditLogPath)},
 		{"/usr/local/lib/vpskit", pathSet(filepath.Dir(installedSingBox))},

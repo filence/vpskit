@@ -15,24 +15,29 @@ import (
 func ServerConfig(values model.RuntimeValues) ([]byte, error) {
 	inbounds := make([]any, 0, 1)
 	if values.Hysteria2Enabled {
-		inbounds = append(inbounds,
-			map[string]any{
-				"type":        "hysteria2",
-				"tag":         "hy2-backup",
-				"listen":      "::",
-				"listen_port": values.UDPPort,
-				"users": []any{map[string]any{
-					"name":     "default",
-					"password": values.Hysteria2Password,
-				}},
-				"tls": map[string]any{
-					"enabled":          true,
-					"server_name":      values.Domain,
-					"certificate_path": values.CertificatePath,
-					"key_path":         values.KeyPath,
-				},
+		inbound := map[string]any{
+			"type":        "hysteria2",
+			"tag":         "hy2-backup",
+			"listen":      "::",
+			"listen_port": values.UDPPort,
+			"users": []any{map[string]any{
+				"name":     "default",
+				"password": values.Hysteria2Password,
+			}},
+			"tls": map[string]any{
+				"enabled":          true,
+				"server_name":      values.Domain,
+				"certificate_path": values.CertificatePath,
+				"key_path":         values.KeyPath,
 			},
-		)
+		}
+		if values.Hysteria2Obfuscation != "" {
+			inbound["obfs"] = map[string]any{
+				"type":     values.Hysteria2Obfuscation,
+				"password": values.Hysteria2ObfuscationPassword,
+			}
+		}
+		inbounds = append(inbounds, inbound)
 	}
 	configuration := map[string]any{
 		"log": map[string]any{
@@ -113,7 +118,7 @@ func SingBoxRealityClient(values model.RuntimeValues, socksPort int) ([]byte, er
 }
 
 func SingBoxHysteria2Client(values model.RuntimeValues, socksPort int) ([]byte, error) {
-	configuration := clientBase(socksPort, map[string]any{
+	outbound := map[string]any{
 		"type":        "hysteria2",
 		"tag":         "proxy",
 		"server":      values.ConnectHost,
@@ -123,7 +128,19 @@ func SingBoxHysteria2Client(values model.RuntimeValues, socksPort int) ([]byte, 
 			"enabled":     true,
 			"server_name": values.Domain,
 		},
-	})
+	}
+	if values.Hysteria2Obfuscation != "" {
+		outbound["obfs"] = map[string]any{
+			"type":     values.Hysteria2Obfuscation,
+			"password": values.Hysteria2ObfuscationPassword,
+		}
+	}
+	if values.Hysteria2PortHoppingEnabled {
+		outbound["server_ports"] = []string{values.Hysteria2PortRange}
+		outbound["hop_interval"] = fmt.Sprintf("%ds", values.Hysteria2HopIntervalSeconds)
+		delete(outbound, "server_port")
+	}
+	configuration := clientBase(socksPort, outbound)
 	return marshalJSON(configuration)
 }
 
@@ -141,57 +158,8 @@ func clientBase(socksPort int, outbound map[string]any) map[string]any {
 	}
 }
 
-func Mihomo(values model.RuntimeValues) []byte {
-	quote := strconv.Quote
-	var output strings.Builder
-	output.WriteString("mixed-port: 7890\n")
-	output.WriteString("allow-lan: false\n")
-	output.WriteString("mode: rule\n")
-	output.WriteString("log-level: warning\n")
-	output.WriteString("proxies:\n")
-	proxies := make([]string, 0, 2)
-	if values.RealityEnabled {
-		proxies = append(proxies, "JP-Reality")
-		output.WriteString("  - name: JP-Reality\n")
-		output.WriteString("    type: vless\n")
-		output.WriteString("    server: " + quote(values.ConnectHost) + "\n")
-		output.WriteString(fmt.Sprintf("    port: %d\n", values.TCPPort))
-		output.WriteString("    uuid: " + quote(values.RealityUUID) + "\n")
-		output.WriteString("    network: tcp\n")
-		output.WriteString("    tls: true\n")
-		output.WriteString("    udp: true\n")
-		output.WriteString("    flow: xtls-rprx-vision\n")
-		output.WriteString("    servername: " + quote(values.RealityServerName) + "\n")
-		output.WriteString("    client-fingerprint: chrome\n")
-		output.WriteString("    reality-opts:\n")
-		output.WriteString("      public-key: " + quote(values.RealityPublicKey) + "\n")
-		output.WriteString("      short-id: " + quote(values.RealityShortID) + "\n")
-	}
-	if values.Hysteria2Enabled {
-		proxies = append(proxies, "JP-Hysteria2")
-		output.WriteString("  - name: JP-Hysteria2\n")
-		output.WriteString("    type: hysteria2\n")
-		output.WriteString("    server: " + quote(values.ConnectHost) + "\n")
-		output.WriteString(fmt.Sprintf("    port: %d\n", values.UDPPort))
-		output.WriteString("    password: " + quote(values.Hysteria2Password) + "\n")
-		output.WriteString("    sni: " + quote(values.Domain) + "\n")
-		output.WriteString("    skip-cert-verify: false\n")
-	}
-	output.WriteString("proxy-groups:\n")
-	output.WriteString("  - name: Proxy\n")
-	output.WriteString("    type: select\n")
-	proxies = append(proxies, "DIRECT")
-	output.WriteString("    proxies: [" + strings.Join(proxies, ", ") + "]\n")
-	output.WriteString("rules:\n")
-	output.WriteString("  - DOMAIN-SUFFIX,local,DIRECT\n")
-	output.WriteString("  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve\n")
-	output.WriteString("  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve\n")
-	output.WriteString("  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve\n")
-	output.WriteString("  - MATCH,Proxy\n")
-	return []byte(output.String())
-}
-
 func ShareLinks(values model.RuntimeValues) []byte {
+	realityName, hysteria2Name := protocolDisplayNames(values.Node)
 	links := make([]string, 0, 2)
 	if values.RealityEnabled {
 		realityQuery := url.Values{}
@@ -204,16 +172,24 @@ func ShareLinks(values model.RuntimeValues) []byte {
 		realityQuery.Set("sid", values.RealityShortID)
 		realityQuery.Set("type", "tcp")
 		links = append(links, fmt.Sprintf(
-			"vless://%s@%s?%s#JP-Reality",
-			url.PathEscape(values.RealityUUID), net.JoinHostPort(values.ConnectHost, strconv.Itoa(values.TCPPort)), realityQuery.Encode(),
+			"vless://%s@%s?%s#%s",
+			url.PathEscape(values.RealityUUID), net.JoinHostPort(values.ConnectHost, strconv.Itoa(values.TCPPort)), realityQuery.Encode(), url.PathEscape(realityName),
 		))
 	}
 	if values.Hysteria2Enabled {
 		hy2Query := url.Values{}
 		hy2Query.Set("sni", values.Domain)
+		if values.Hysteria2Obfuscation != "" {
+			hy2Query.Set("obfs", values.Hysteria2Obfuscation)
+			hy2Query.Set("obfs-password", values.Hysteria2ObfuscationPassword)
+		}
+		if values.Hysteria2PortHoppingEnabled {
+			hy2Query.Set("ports", values.Hysteria2PortRange)
+			hy2Query.Set("hop-interval", strconv.Itoa(values.Hysteria2HopIntervalSeconds))
+		}
 		links = append(links, fmt.Sprintf(
-			"hysteria2://%s@%s?%s#JP-Hysteria2",
-			url.PathEscape(values.Hysteria2Password), net.JoinHostPort(values.ConnectHost, strconv.Itoa(values.UDPPort)), hy2Query.Encode(),
+			"hysteria2://%s@%s?%s#%s",
+			url.PathEscape(values.Hysteria2Password), net.JoinHostPort(values.ConnectHost, strconv.Itoa(values.UDPPort)), hy2Query.Encode(), url.PathEscape(hysteria2Name),
 		))
 	}
 	return []byte(strings.Join(links, "\n") + "\n")

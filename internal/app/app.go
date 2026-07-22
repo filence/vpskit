@@ -46,6 +46,13 @@ const (
 	certificateRoot                 = "/var/lib/vpskit/certificates"
 	backupRoot                      = "/var/lib/vpskit/backups"
 	transactionRoot                 = "/var/lib/vpskit/transactions"
+	rulesCacheRoot                  = "/var/lib/vpskit/rules"
+	hysteria2UDPBufferStateRoot     = "/var/lib/vpskit/hysteria2"
+	hysteria2UDPBufferStatePath     = "/var/lib/vpskit/hysteria2/udp-buffer.json"
+	hysteria2UDPBufferSysctlPath    = "/etc/sysctl.d/70-vpskit-hysteria2-udp-buffer.conf"
+	hysteria2PortHopNftPath         = "/etc/vpskit/generated/hysteria2-port-hop.nft"
+	hysteria2PortHopUnitPath        = "/etc/systemd/system/vpskit-hysteria2-port-hop.service"
+	hysteria2PortHopUnitName        = "vpskit-hysteria2-port-hop.service"
 	legoStateRoot                   = "/var/lib/vpskit/lego"
 	logRoot                         = "/var/log/vpskit"
 	auditLogPath                    = "/var/log/vpskit/audit.jsonl"
@@ -67,8 +74,22 @@ const (
 	managedKey                      = "/var/lib/vpskit/certificates/hysteria2.key"
 )
 
+var (
+	subscriptionConfigPath    = "/etc/vpskit/subscription.json"
+	subscriptionSecretPath    = "/var/lib/vpskit/secrets/subscription.json"
+	publicationStatePath      = "/var/lib/vpskit/subscription-state.json"
+	subscriptionOwnershipPath = ownershipPath
+	subscriptionLockPath      = "/var/lib/vpskit/locks/vpskit.lock"
+)
+
 type InstallOptions struct {
 	BundleDir           string
+	NodeID              string
+	NodeName            string
+	Provider            string
+	Country             string
+	City                string
+	NodePriority        int
 	Domain              string
 	ConnectHost         string
 	RealityTarget       string
@@ -125,10 +146,30 @@ func Run(arguments []string, version, publicKeyBase64 string) error {
 		return runInstall(arguments[1:], version, publicKeyBase64)
 	case "instance":
 		return runInstance(arguments[1:])
+	case "node":
+		return runNode(arguments[1:])
+	case "migrate":
+		return runMigrate(arguments[1:])
+	case "cleanup":
+		return runCleanup(arguments[1:])
+	case "system":
+		return runSystem(arguments[1:])
+	case "security":
+		return runSecurity(arguments[1:])
+	case "rules":
+		return runRules(arguments[1:])
+	case "hysteria2":
+		return runHysteria2(arguments[1:])
+	case "support":
+		return runSupport(arguments[1:])
+	case "subscription":
+		return runSubscription(arguments[1:])
 	case "menu":
 		return runMenu(arguments[1:], version, publicKeyBase64)
-	case "status", "doctor":
-		return runStatus(arguments[0])
+	case "status":
+		return runStatus("status")
+	case "doctor":
+		return runDoctor(arguments[1:])
 	case "export":
 		return runExport(arguments[1:])
 	default:
@@ -137,7 +178,7 @@ func Run(arguments []string, version, publicKeyBase64 string) error {
 }
 
 func usageError() error {
-	return errors.New("usage: vpskit <version|bundle verify|reality scan|cert status|cert renew|update self|update core|backup|restore <backup-id> --yes|rollback <transaction-id> --yes|recover|orphan scan|uninstall --yes|preflight|install balanced|instance <enable|disable|modify|delete>|menu|status|doctor|export>")
+	return errors.New("usage: vpskit <version|bundle verify|reality scan|cert status|cert renew|update self|update core|backup|restore <backup-id> --yes|rollback <transaction-id> --yes|recover|orphan scan|uninstall --yes|preflight|install balanced|instance <list|enable|disable|modify|delete>|node <show|modify>|rules <show|plan|apply>|hysteria2 <inspect|salamander|performance|recommend|port-hop|udp-buffer>|migrate <check|plan|apply>|cleanup <plan|apply>|system <inspect|updates>|security fail2ban <status|plan|apply|remove>|support bundle|subscription <plan|configure|publish|status|rotate-read-token|revoke-read-token|rollback|remove>|menu|status|doctor|export>")
 }
 
 func runBundle(arguments []string, publicKeyBase64 string) error {
@@ -200,6 +241,12 @@ func runInstall(arguments []string, version, publicKeyBase64 string) error {
 		realityTarget := flags.String("reality-server-name", "", "Reality TLS target")
 		tcpPort := flags.Int("tcp-port", 443, "Reality TCP port")
 		udpPort := flags.Int("udp-port", 443, "Hysteria2 UDP port")
+		nodeID := flags.String("node-id", "node-main", "stable node identifier")
+		nodeName := flags.String("node-name", "VPSKit", "client display name prefix")
+		provider := flags.String("provider", "", "optional VPS provider label")
+		country := flags.String("country", "", "optional ISO country code")
+		city := flags.String("city", "", "optional city label")
+		nodePriority := flags.Int("node-priority", 100, "subscription node priority")
 		existingCertificate := flags.String("existing-certificate", "", "existing trusted certificate PEM to import")
 		existingKey := flags.String("existing-key", "", "private key PEM for --existing-certificate")
 		if err := flags.Parse(arguments[1:]); err != nil {
@@ -207,6 +254,12 @@ func runInstall(arguments []string, version, publicKeyBase64 string) error {
 		}
 		options := InstallOptions{
 			BundleDir:           *bundleDir,
+			NodeID:              strings.ToLower(strings.TrimSpace(*nodeID)),
+			NodeName:            strings.TrimSpace(*nodeName),
+			Provider:            strings.TrimSpace(*provider),
+			Country:             strings.ToUpper(strings.TrimSpace(*country)),
+			City:                strings.TrimSpace(*city),
+			NodePriority:        *nodePriority,
 			Domain:              strings.ToLower(strings.TrimSpace(*domain)),
 			ConnectHost:         strings.TrimSpace(*connectHost),
 			RealityTarget:       strings.ToLower(strings.TrimSpace(*realityTarget)),
@@ -224,11 +277,23 @@ func runInstall(arguments []string, version, publicKeyBase64 string) error {
 		connectHost := flags.String("connect-host", "", "client connection host")
 		realityTarget := flags.String("reality-server-name", "", "Reality TLS target")
 		tcpPort := flags.Int("tcp-port", 443, "Reality TCP port")
+		nodeID := flags.String("node-id", "node-main", "stable node identifier")
+		nodeName := flags.String("node-name", "VPSKit", "client display name prefix")
+		provider := flags.String("provider", "", "optional VPS provider label")
+		country := flags.String("country", "", "optional ISO country code")
+		city := flags.String("city", "", "optional city label")
+		nodePriority := flags.Int("node-priority", 100, "subscription node priority")
 		if err := flags.Parse(arguments[1:]); err != nil {
 			return err
 		}
 		options := InstallOptions{
 			BundleDir:       *bundleDir,
+			NodeID:          strings.ToLower(strings.TrimSpace(*nodeID)),
+			NodeName:        strings.TrimSpace(*nodeName),
+			Provider:        strings.TrimSpace(*provider),
+			Country:         strings.ToUpper(strings.TrimSpace(*country)),
+			City:            strings.TrimSpace(*city),
+			NodePriority:    *nodePriority,
 			ConnectHost:     strings.TrimSpace(*connectHost),
 			RealityTarget:   strings.ToLower(strings.TrimSpace(*realityTarget)),
 			TCPPort:         *tcpPort,
@@ -495,6 +560,9 @@ func validateInstallOptions(options InstallOptions) error {
 	if (options.ExistingCertificate == "") != (options.ExistingKey == "") {
 		return errors.New("--existing-certificate and --existing-key must be provided together")
 	}
+	if err := validateNodeMetadata(nodeMetadataFromOptions(options)); err != nil {
+		return err
+	}
 	for name, path := range map[string]string{"existing certificate": options.ExistingCertificate, "existing key": options.ExistingKey} {
 		if path == "" {
 			continue
@@ -588,6 +656,8 @@ func generateRuntimeValues(options InstallOptions, certificatePath, keyPath, sin
 		return model.RuntimeValues{}, fmt.Errorf("sing-box returned an invalid Reality key pair: %w", err)
 	}
 	return model.RuntimeValues{
+		Node:              nodeMetadataFromOptions(options),
+		ClientRevision:    1,
 		RealityEnabled:    true,
 		Hysteria2Enabled:  true,
 		ConnectHost:       options.ConnectHost,
@@ -742,24 +812,12 @@ func installManagedFiles(options InstallOptions, manifest release.Manifest, vpsk
 	if err := fsutil.WriteFileAtomic(xrayServerConfigPath, finalXrayConfig, 0o640); err != nil {
 		return err
 	}
-	realityClient, err := render.SingBoxRealityClient(finalValues, 2080)
+	clientSet, err := render.ClientArtifactSet(finalValues)
 	if err != nil {
 		return err
 	}
-	hy2Client, err := render.SingBoxHysteria2Client(finalValues, 2081)
-	if err != nil {
+	if err := publishStaticClientArtifacts(clientSet); err != nil {
 		return err
-	}
-	exportFiles := map[string][]byte{
-		filepath.Join(exportRoot, "sing-box-reality.json"):   realityClient,
-		filepath.Join(exportRoot, "sing-box-hysteria2.json"): hy2Client,
-		filepath.Join(exportRoot, "mihomo.yaml"):             render.Mihomo(finalValues),
-		filepath.Join(exportRoot, "share-links.txt"):         render.ShareLinks(finalValues),
-	}
-	for path, content := range exportFiles {
-		if err := fsutil.WriteFileAtomic(path, content, 0o600); err != nil {
-			return err
-		}
 	}
 	secrets := model.Secrets{
 		SchemaVersion:     model.SchemaVersion,
@@ -789,6 +847,7 @@ func installManagedFiles(options InstallOptions, manifest release.Manifest, vpsk
 		TransactionID:     transactionID,
 		InstalledAt:       time.Now().UTC(),
 		Profile:           "balanced",
+		Node:              nodeMetadataFromOptions(options),
 		ConnectHost:       finalValues.ConnectHost,
 		Domain:            finalValues.Domain,
 		RealityServerName: finalValues.RealityServerName,
@@ -825,6 +884,7 @@ func installManagedFiles(options InstallOptions, manifest release.Manifest, vpsk
 			{Format: "share-link", Path: filepath.Join(exportRoot, "share-links.txt")},
 		},
 	}
+	state.SynchronizeLegacyInstances()
 	stateBytes, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return err
@@ -1069,17 +1129,55 @@ func restartManagedServices(state model.State) error {
 	if output, err := runCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("systemd daemon-reload failed: %w: %s", err, output)
 	}
-	if err := reconcileManagedService(xrayServiceUnitName, state.Reality.Enabled); err != nil {
-		return err
-	}
-	if err := reconcileManagedService(serviceUnitName, state.Hysteria2.Enabled); err != nil {
-		return err
+	for _, adapter := range registeredInstanceAdapters {
+		instance, present := instanceForAdapter(state, adapter.Target)
+		if err := restartManagedService(adapter.Service, present && instance.Enabled); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
+func restartManagedService(name string, enabled bool) error {
+	for _, arguments := range managedServiceRestartSteps(name, enabled) {
+		output, err := runCommand("systemctl", arguments...)
+		if err == nil {
+			continue
+		}
+		if !enabled && (strings.Contains(output, "not loaded") || strings.Contains(output, "does not exist")) {
+			continue
+		}
+		return fmt.Errorf("apply service state for %s: %w: %s", name, err, output)
+	}
+	return nil
+}
+
+func managedServiceRestartSteps(name string, enabled bool) [][]string {
+	if enabled {
+		return [][]string{{"enable", name}, {"restart", name}}
+	}
+	return [][]string{{"disable", "--now", name}}
+}
+
 func healthCheckState(state model.State) error {
-	return healthCheckProfile(state.Reality.Enabled, state.Reality.ListenPort, state.Hysteria2.Enabled, state.Hysteria2.ListenPort)
+	for _, adapter := range registeredInstanceAdapters {
+		instance, present := instanceForAdapter(state, adapter.Target)
+		if !present || !instance.Enabled {
+			continue
+		}
+		if err := exec.Command("systemctl", "is-active", "--quiet", adapter.Service).Run(); err != nil {
+			return fmt.Errorf("%s service is not active", adapter.Target)
+		}
+		arguments := []string{"-ltnH"}
+		if adapter.Network == model.InstanceNetworkUDP {
+			arguments = []string{"-lunH"}
+		}
+		output, err := runCommand("ss", arguments...)
+		if err != nil || !listenerOutputHasPort(output, instance.Listen.Port) {
+			return fmt.Errorf("%s %s listener %d is missing", adapter.Target, adapter.Network, instance.Listen.Port)
+		}
+	}
+	return nil
 }
 
 func healthCheckProfile(realityEnabled bool, tcpPort int, hysteria2Enabled bool, udpPort int) error {
@@ -1105,14 +1203,10 @@ func healthCheckProfile(realityEnabled bool, tcpPort int, hysteria2Enabled bool,
 }
 
 func waitForManagedServiceState(state model.State, timeout time.Duration) error {
-	return waitForManagedServiceProfile(state.Reality.Enabled, state.Reality.ListenPort, state.Hysteria2.Enabled, state.Hysteria2.ListenPort, timeout)
-}
-
-func waitForManagedServiceProfile(realityEnabled bool, tcpPort int, hysteria2Enabled bool, udpPort int, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	var lastErr error
 	for time.Now().Before(deadline) {
-		if err := healthCheckProfile(realityEnabled, tcpPort, hysteria2Enabled, udpPort); err == nil {
+		if err := healthCheckState(state); err == nil {
 			return nil
 		} else {
 			lastErr = err
@@ -1190,6 +1284,7 @@ func runStatus(command string) error {
 		"transaction_id":               state.TransactionID,
 		"state_schema":                 state.SchemaVersion,
 		"profile":                      state.Profile,
+		"node":                         state.Node,
 		"config_revision":              state.ConfigRevision,
 		"core_channel":                 state.Core.Channel,
 		"service_state_matches":        serviceStateMatches,

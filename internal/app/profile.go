@@ -1,16 +1,17 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"vpskit.local/vpskit/internal/artifact"
 	"vpskit.local/vpskit/internal/fsutil"
 	"vpskit.local/vpskit/internal/model"
 	"vpskit.local/vpskit/internal/platform"
@@ -25,13 +26,16 @@ var allProfileExportPaths = []string{
 }
 
 func runInstance(arguments []string) error {
+	if len(arguments) == 1 && strings.EqualFold(strings.TrimSpace(arguments[0]), "list") {
+		return listInstalledInstances()
+	}
 	if len(arguments) < 2 {
-		return errors.New("usage: vpskit instance <enable|disable|modify|delete> <reality|hysteria2> [--port <port>] [--reality-server-name <domain>] [--yes]")
+		return errors.New("usage: vpskit instance <list|enable|disable|modify|delete> [reality|hysteria2] [--port <port>] [--reality-server-name <domain>] [--yes]")
 	}
 	operation := strings.ToLower(strings.TrimSpace(arguments[0]))
 	target := strings.ToLower(strings.TrimSpace(arguments[1]))
-	if target != "reality" && target != "hysteria2" {
-		return fmt.Errorf("unsupported instance %q; use reality or hysteria2", target)
+	if _, err := resolveInstanceAdapter(target); err != nil {
+		return err
 	}
 	flags := flag.NewFlagSet("instance "+operation, flag.ContinueOnError)
 	port := flags.Int("port", 0, "new listen port for instance modify")
@@ -71,6 +75,18 @@ func runInstance(arguments []string) error {
 	return mutateInstalledInstance(operation, target, *port, strings.ToLower(strings.TrimSpace(*realityServerName)))
 }
 
+func listInstalledInstances() error {
+	state, err := readInstalledState()
+	if err != nil {
+		return err
+	}
+	return printJSON(commandResult{Command: "instance list", Status: "PASS", Detail: map[string]any{
+		"state_schema": state.SchemaVersion,
+		"instances":    state.Instances,
+		"adapters":     instanceAdapterDetails(),
+	}})
+}
+
 func mutateInstalledInstance(operation, target string, port int, realityServerName string) (returnErr error) {
 	state, err := readInstalledState()
 	if err != nil {
@@ -102,7 +118,11 @@ func mutateInstalledInstance(operation, target string, port int, realityServerNa
 	}
 	if operation == "modify" {
 		if port != 0 {
-			if err := verifyNewInstancePortAvailable(target, port); err != nil {
+			adapter, err := resolveInstanceAdapter(target)
+			if err != nil {
+				return err
+			}
+			if err := verifyNewInstancePortAvailable(adapter, port); err != nil {
 				return err
 			}
 		}
@@ -145,15 +165,17 @@ func mutateInstalledInstance(operation, target string, port int, realityServerNa
 	}
 
 	updatedState.SchemaVersion = model.SchemaVersion
+	updatedSecrets.SchemaVersion = model.SchemaVersion
 	updatedState.TransactionID = transactionID
 	updatedState.Profile = profileFromInboundState(updatedState.Reality.Enabled, updatedState.Hysteria2.Enabled)
-	artifacts, err := renderProfileArtifacts(updatedState, updatedSecrets)
+	artifacts, clientSet, err := renderProfileArtifacts(updatedState, updatedSecrets)
 	if err != nil {
 		return err
 	}
 	updatedState.ConfigSHA256 = sha256Bytes(artifacts[serverConfigPath])
 	updatedState.RealityConfigSHA256 = sha256Bytes(artifacts[xrayServerConfigPath])
 	updatedState.Exports = exportStateForProfile(updatedState)
+	updatedState.SynchronizeLegacyInstances()
 	stateBytes, err := json.MarshalIndent(updatedState, "", "  ")
 	if err != nil {
 		return err
@@ -225,7 +247,7 @@ func mutateInstalledInstance(operation, target string, port int, realityServerNa
 	}()
 
 	mutated = true
-	if err := activateProfileMutation(artifacts, stateBytes, secretBytes); err != nil {
+	if err := activateProfileMutation(artifacts, clientSet, stateBytes, secretBytes); err != nil {
 		return err
 	}
 	if output, err := runCommand(installedSingBox, "check", "-c", serverConfigPath); err != nil {
@@ -259,6 +281,7 @@ func mutateInstalledInstance(operation, target string, port int, realityServerNa
 		return err
 	}
 	committed = true
+	subscriptionPublish := attemptAutoPublishSubscription(context.Background())
 	_ = appendAudit(map[string]any{
 		"time":           time.Now().UTC(),
 		"transaction_id": transactionID,
@@ -266,6 +289,7 @@ func mutateInstalledInstance(operation, target string, port int, realityServerNa
 		"instance":       target,
 		"status":         "COMMITTED",
 		"backup_id":      backupID,
+		"subscription":   subscriptionPublish.Status,
 	})
 	return printJSON(commandResult{Command: command, Status: "PASS", Detail: map[string]any{
 		"result":                 map[string]string{"enable": "ENABLED", "disable": "DISABLED", "modify": "MODIFIED", "delete": "DELETED"}[operation],
@@ -278,90 +302,21 @@ func mutateInstalledInstance(operation, target string, port int, realityServerNa
 		"changed_client_fields":  changedClientFields,
 		"exports_regenerated":    true,
 		"reality_server_name":    updatedState.RealityServerName,
+		"subscription_publish":   subscriptionPublish,
 	}})
-}
-
-func applyInstanceStateChange(state *model.State, secrets *model.Secrets, operation, target string, port int) error {
-	switch target {
-	case "reality":
-		if state.Reality.ID == "" {
-			return errors.New("reality instance does not exist")
-		}
-		switch operation {
-		case "enable":
-			if state.Reality.Enabled {
-				return errors.New("reality instance is already enabled")
-			}
-			state.Reality.Enabled = true
-		case "disable":
-			if !state.Reality.Enabled {
-				return errors.New("reality instance is already disabled")
-			}
-			if !state.Hysteria2.Enabled {
-				return errors.New("refusing to disable the last enabled instance")
-			}
-			state.Reality.Enabled = false
-		case "modify":
-			if port == 0 {
-				break
-			}
-			if port < 1 || port > 65535 {
-				return fmt.Errorf("invalid Reality TCP port: %d", port)
-			}
-			if port == state.Reality.ListenPort {
-				return errors.New("reality listen port is unchanged")
-			}
-			state.Reality.ListenPort = port
-		case "delete":
-			if !state.Hysteria2.Enabled {
-				return errors.New("refusing to delete the last enabled instance")
-			}
-			state.Reality = model.RealityState{}
-			secrets.RealityUUID = ""
-			secrets.RealityPrivateKey = ""
-		}
-	case "hysteria2":
-		if state.Hysteria2.ID == "" {
-			return errors.New("Hysteria2 instance does not exist")
-		}
-		switch operation {
-		case "enable":
-			if state.Hysteria2.Enabled {
-				return errors.New("Hysteria2 instance is already enabled")
-			}
-			state.Hysteria2.Enabled = true
-		case "disable":
-			if !state.Hysteria2.Enabled {
-				return errors.New("Hysteria2 instance is already disabled")
-			}
-			if !state.Reality.Enabled {
-				return errors.New("refusing to disable the last enabled instance")
-			}
-			state.Hysteria2.Enabled = false
-		case "modify":
-			if port == 0 {
-				break
-			}
-			if port < 1 || port > 65535 {
-				return fmt.Errorf("invalid Hysteria2 UDP port: %d", port)
-			}
-			if port == state.Hysteria2.ListenPort {
-				return errors.New("Hysteria2 listen port is unchanged")
-			}
-			state.Hysteria2.ListenPort = port
-		case "delete":
-			if !state.Reality.Enabled {
-				return errors.New("refusing to delete the last enabled instance")
-			}
-			state.Hysteria2 = model.Hysteria2State{}
-			secrets.Hysteria2Password = ""
-		}
-	}
-	return nil
 }
 
 func clientFacingChanges(previous, updated model.State) []string {
 	changes := make([]string, 0, 4)
+	if previous.Node.ID != updated.Node.ID {
+		changes = append(changes, "node.id")
+	}
+	if previous.Node.DisplayName != updated.Node.DisplayName {
+		changes = append(changes, "node.display_name")
+	}
+	if previous.Node.Provider != updated.Node.Provider || previous.Node.Country != updated.Node.Country || previous.Node.City != updated.Node.City || previous.Node.Priority != updated.Node.Priority || previous.Node.EnabledInSubscription != updated.Node.EnabledInSubscription || strings.Join(previous.Node.Tags, "\x00") != strings.Join(updated.Node.Tags, "\x00") {
+		changes = append(changes, "node.metadata")
+	}
 	if previous.Reality.Enabled != updated.Reality.Enabled || (previous.Reality.ID == "") != (updated.Reality.ID == "") {
 		changes = append(changes, "reality.availability")
 	}
@@ -377,7 +332,25 @@ func clientFacingChanges(previous, updated model.State) []string {
 	if previous.Hysteria2.ListenPort != updated.Hysteria2.ListenPort {
 		changes = append(changes, "hysteria2.port")
 	}
+	if previous.Hysteria2.Obfuscation != updated.Hysteria2.Obfuscation {
+		changes = append(changes, "hysteria2.obfuscation")
+	}
+	if previous.Rules.Profile != updated.Rules.Profile || previous.Rules.Revision != updated.Rules.Revision || previous.Rules.SourceMode != updated.Rules.SourceMode || !sameUserRules(previous.Rules.UserRules, updated.Rules.UserRules) {
+		changes = append(changes, "rules.profile")
+	}
 	return changes
+}
+
+func sameUserRules(left, right []model.UserRule) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func readInstalledSecrets() (model.Secrets, error) {
@@ -393,66 +366,95 @@ func readInstalledSecrets() (model.Secrets, error) {
 }
 
 func runtimeValuesFromState(state model.State, secrets model.Secrets) model.RuntimeValues {
+	reality, _ := instanceForAdapter(state, "reality")
+	hysteria2, _ := instanceForAdapter(state, "hysteria2")
 	return model.RuntimeValues{
-		RealityEnabled:    state.Reality.Enabled,
-		Hysteria2Enabled:  state.Hysteria2.Enabled,
-		ConnectHost:       state.ConnectHost,
-		Domain:            state.Domain,
-		RealityServerName: state.RealityServerName,
-		TCPPort:           state.Reality.ListenPort,
-		UDPPort:           state.Hysteria2.ListenPort,
-		RealityUUID:       secrets.RealityUUID,
-		RealityPrivateKey: secrets.RealityPrivateKey,
-		RealityPublicKey:  state.Reality.PublicKey,
-		RealityShortID:    state.Reality.ShortID,
-		Hysteria2Password: secrets.Hysteria2Password,
-		CertificatePath:   state.Hysteria2.CertificatePath,
-		KeyPath:           state.Hysteria2.KeyPath,
+		Node:                         state.Node,
+		ClientRevision:               state.ConfigRevision,
+		RulesProfile:                 state.Rules.Profile,
+		RulesetRevision:              state.Rules.Revision,
+		RulesSourceMode:              state.Rules.SourceMode,
+		UserRules:                    append([]model.UserRule(nil), state.Rules.UserRules...),
+		RealityEnabled:               reality.Enabled,
+		Hysteria2Enabled:             hysteria2.Enabled,
+		ConnectHost:                  state.ConnectHost,
+		Domain:                       state.Domain,
+		RealityServerName:            state.RealityServerName,
+		TCPPort:                      reality.Listen.Port,
+		UDPPort:                      hysteria2.Listen.Port,
+		RealityUUID:                  secrets.RealityUUID,
+		RealityPrivateKey:            secrets.RealityPrivateKey,
+		RealityPublicKey:             state.Reality.PublicKey,
+		RealityShortID:               state.Reality.ShortID,
+		Hysteria2Password:            secrets.Hysteria2Password,
+		Hysteria2Obfuscation:         state.Hysteria2.Obfuscation,
+		Hysteria2ObfuscationPassword: secrets.Hysteria2ObfuscationPassword,
+		Hysteria2PortHoppingEnabled:  state.Hysteria2.PortHopping.Enabled,
+		Hysteria2PortRange:           hysteria2PortRangeString(state.Hysteria2.PortHopping),
+		Hysteria2HopIntervalSeconds:  state.Hysteria2.PortHopping.HopInterval,
+		CertificatePath:              state.Hysteria2.CertificatePath,
+		KeyPath:                      state.Hysteria2.KeyPath,
 	}
 }
 
-func renderProfileArtifacts(state model.State, secrets model.Secrets) (map[string][]byte, error) {
+func runtimeValuesForRender(state model.State, secrets model.Secrets) (model.RuntimeValues, error) {
 	values := runtimeValuesFromState(state, secrets)
+	if state.Rules.SourceMode != model.RulesSourceManaged {
+		return values, nil
+	}
+	baseURL, err := managedRuleProviderBaseURL()
+	if err != nil {
+		return model.RuntimeValues{}, err
+	}
+	values.RuleProviderBaseURL = baseURL
+	return values, nil
+}
+
+func renderProfileArtifacts(state model.State, secrets model.Secrets) (map[string][]byte, artifact.Set, error) {
+	values, err := runtimeValuesForRender(state, secrets)
+	if err != nil {
+		return nil, artifact.Set{}, err
+	}
 	serverConfig, err := render.ServerConfig(values)
 	if err != nil {
-		return nil, err
+		return nil, artifact.Set{}, err
 	}
 	xrayConfig, err := render.XrayRealityServerConfig(values)
 	if err != nil {
-		return nil, err
+		return nil, artifact.Set{}, err
+	}
+	clientSet, err := render.ClientArtifactSet(values)
+	if err != nil {
+		return nil, artifact.Set{}, err
+	}
+	clientSet, err = appendManagedRuleCacheArtifacts(state, clientSet)
+	if err != nil {
+		return nil, artifact.Set{}, err
 	}
 	artifacts := map[string][]byte{
-		serverConfigPath:                             serverConfig,
-		xrayServerConfigPath:                         xrayConfig,
-		filepath.Join(exportRoot, "mihomo.yaml"):     render.Mihomo(values),
-		filepath.Join(exportRoot, "share-links.txt"): render.ShareLinks(values),
+		serverConfigPath:     serverConfig,
+		xrayServerConfigPath: xrayConfig,
 	}
-	if state.Reality.Enabled {
-		client, err := render.SingBoxRealityClient(values, 2080)
-		if err != nil {
-			return nil, err
+	for _, item := range clientSet.Artifacts {
+		if strings.HasPrefix(item.Target, "rule/") {
+			continue
 		}
-		artifacts[filepath.Join(exportRoot, "sing-box-reality.json")] = client
+		artifacts[filepath.Join(exportRoot, item.Name)] = item.Content
 	}
-	if state.Hysteria2.Enabled {
-		client, err := render.SingBoxHysteria2Client(values, 2081)
-		if err != nil {
-			return nil, err
-		}
-		artifacts[filepath.Join(exportRoot, "sing-box-hysteria2.json")] = client
-	}
-	return artifacts, nil
+	return artifacts, clientSet, nil
 }
 
 func exportStateForProfile(state model.State) []model.ExportState {
+	reality, _ := instanceForAdapter(state, "reality")
+	hysteria2, _ := instanceForAdapter(state, "hysteria2")
 	exports := []model.ExportState{
 		{Format: "mihomo", Path: filepath.Join(exportRoot, "mihomo.yaml")},
 		{Format: "share-link", Path: filepath.Join(exportRoot, "share-links.txt")},
 	}
-	if state.Reality.Enabled {
+	if reality.Enabled {
 		exports = append(exports, model.ExportState{Format: "sing-box-reality", Path: filepath.Join(exportRoot, "sing-box-reality.json")})
 	}
-	if state.Hysteria2.Enabled {
+	if hysteria2.Enabled {
 		exports = append(exports, model.ExportState{Format: "sing-box-hysteria2", Path: filepath.Join(exportRoot, "sing-box-hysteria2.json")})
 	}
 	return exports
@@ -476,8 +478,11 @@ func stageProfileMutation(stagingDirectory string, artifacts map[string][]byte, 
 	return fsutil.WriteFileAtomic(filepath.Join(stagingDirectory, "instances.json"), append(secretBytes, '\n'), 0o600)
 }
 
-func activateProfileMutation(artifacts map[string][]byte, stateBytes, secretBytes []byte) error {
+func activateProfileMutation(artifacts map[string][]byte, clientSet artifact.Set, stateBytes, secretBytes []byte) error {
 	for path, content := range artifacts {
+		if filepath.Dir(path) == exportRoot {
+			continue
+		}
 		mode := os.FileMode(0o600)
 		if path == serverConfigPath || path == xrayServerConfigPath {
 			mode = 0o640
@@ -485,6 +490,9 @@ func activateProfileMutation(artifacts map[string][]byte, stateBytes, secretByte
 		if err := fsutil.WriteFileAtomic(path, content, mode); err != nil {
 			return err
 		}
+	}
+	if err := publishStaticClientArtifacts(clientSet); err != nil {
+		return err
 	}
 	for _, path := range allProfileExportPaths {
 		if _, present := artifacts[path]; present {
@@ -501,19 +509,4 @@ func activateProfileMutation(artifacts map[string][]byte, stateBytes, secretByte
 		return err
 	}
 	return setServiceFileOwnership()
-}
-
-func verifyNewInstancePortAvailable(target string, port int) error {
-	if target == "reality" {
-		listener, err := net.Listen("tcp", fmt.Sprintf("[::]:%d", port))
-		if err != nil {
-			return fmt.Errorf("TCP port %d is unavailable: %w", port, err)
-		}
-		return listener.Close()
-	}
-	listener, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("::"), Port: port})
-	if err != nil {
-		return fmt.Errorf("UDP port %d is unavailable: %w", port, err)
-	}
-	return listener.Close()
 }

@@ -77,6 +77,39 @@ func migrateState(state model.State) (model.State, error) {
 			// mutations that regenerate client exports increment it.
 			state.ConfigRevision = 1
 			state.SchemaVersion = 5
+		case 5:
+			// Schema 6 adds stable node identity and client-facing labels without
+			// changing legacy export names. Existing installations keep the JP
+			// display prefix until the owner explicitly changes it.
+			state.Node = model.NodeMetadata{
+				ID:                    "node-main",
+				DisplayName:           "JP",
+				Priority:              100,
+				EnabledInSubscription: true,
+			}
+			state.SchemaVersion = 6
+		case 6:
+			// Schema 7 introduces opt-in client rule profiles. Existing exports
+			// remain minimal until the owner explicitly applies a profile.
+			state.Rules = model.RulesState{Profile: model.RulesProfileMinimal, Revision: 0}
+			state.SchemaVersion = 7
+		case 7:
+			// Schema 8 makes the rule source explicit. Existing installations
+			// retain their direct upstream behavior until the owner explicitly
+			// refreshes a verified, VPSKit-managed rule cache.
+			state.Rules.SourceMode = model.RulesSourceDirect
+			state.SchemaVersion = 8
+		case 8:
+			// Schema 9 keeps owner-defined whitelist and routing exceptions in
+			// state so they are versioned with the generated client config.
+			state.Rules.UserRules = nil
+			state.SchemaVersion = 9
+		case 9:
+			// Schema 10 adds a protocol-neutral instance inventory. It is a
+			// deterministic projection during the compatibility period, so the
+			// existing REALITY and Hysteria2 credential layouts remain intact.
+			state.SynchronizeLegacyInstances()
+			state.SchemaVersion = 10
 		default:
 			return model.State{}, fmt.Errorf("no migration from state schema %d", state.SchemaVersion)
 		}
@@ -84,6 +117,27 @@ func migrateState(state model.State) (model.State, error) {
 	if state.ConfigRevision < 1 {
 		state.ConfigRevision = 1
 	}
+	if err := validateNodeMetadata(state.Node); err != nil {
+		return model.State{}, fmt.Errorf("invalid schema %d node metadata: %w", state.SchemaVersion, err)
+	}
+	if _, err := normalizedRulesProfile(state.Rules.Profile); err != nil {
+		return model.State{}, fmt.Errorf("invalid schema %d rules profile: %w", state.SchemaVersion, err)
+	}
+	if state.Rules.Revision < 0 {
+		return model.State{}, errors.New("rules revision must not be negative")
+	}
+	if state.Rules.SourceMode == "" {
+		state.Rules.SourceMode = model.RulesSourceDirect
+	}
+	if state.Rules.SourceMode != model.RulesSourceDirect && state.Rules.SourceMode != model.RulesSourceManaged {
+		return model.State{}, fmt.Errorf("invalid rules source mode %q", state.Rules.SourceMode)
+	}
+	userRules, err := normalizeUserRules(state.Rules.UserRules)
+	if err != nil {
+		return model.State{}, fmt.Errorf("invalid user rules: %w", err)
+	}
+	state.Rules.UserRules = userRules
+	state.SynchronizeLegacyInstances()
 	return state, nil
 }
 

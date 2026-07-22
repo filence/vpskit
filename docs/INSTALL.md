@@ -1,10 +1,10 @@
 # 安装与首次使用
 
-本文描述首个正式版本 `v0.1.0` 的最终用户流程。该版本已经公开，下面的固定链接可直接下载；不要改用 `main` 分支脚本。
+本文描述正式版本 `v0.2.0` 的最终用户流程。下面的固定链接只指向该 Release；不要改用 `main` 分支脚本，也不要执行不固定版本的 `curl | bash`。
 
 ## 1. 前置条件
 
-首个正式Bootstrap只允许：
+公开 Bootstrap 已实机验证的环境为：
 
 - Debian 13 amd64；
 - root或可执行 `sudo` 的SSH账户；
@@ -32,7 +32,7 @@ sudo reboot
 
 如果当前已经是root账户，可以去掉命令前的 `sudo`。执行 `reboot` 后SSH连接会断开；等待VPS重新启动并重新连接，再继续下面的端口放行和VPSKit安装。
 
-这里的 `apt-get update` 只刷新软件包索引，`apt-get upgrade` 才会安装当前Debian 13的软件与安全更新。不要修改APT软件源把Debian 12直接升级到13，也不要在不了解依赖变化时改用 `full-upgrade`。首个正式Bootstrap只验证全新安装的Debian 13 amd64。
+这里的 `apt-get update` 只刷新软件包索引，`apt-get upgrade` 才会安装当前Debian 13的软件与安全更新。不要修改APT软件源把Debian 12直接升级到13，也不要在不了解依赖变化时改用 `full-upgrade`。Debian 12、Ubuntu 24.04 与 arm64 的证据等级仍应以兼容矩阵为准。
 
 VPSKit安装器不会静默执行系统升级，因为升级可能重启SSH等服务、更新内核并要求重启，或遇到软件包锁和配置交互。系统更新始终保留为安装前的人工步骤。依据可参考[Debian系统维护与APT说明](https://www.debian.org/doc/manuals/debian-handbook/index.en.html)和[Debian安全更新FAQ](https://www.debian.org/security/faq.en.html)。
 
@@ -99,7 +99,7 @@ API Token只在安装向导中隐藏输入，通过进程环境交给固定版�
 ```bash
 curl --fail --location --proto '=https' --tlsv1.2 \
   --output install.sh \
-  'https://github.com/filence/vpskit/releases/download/v0.1.0/install.sh'
+  'https://github.com/filence/vpskit/releases/download/v0.2.0/install.sh'
 sudo bash install.sh
 ```
 
@@ -127,14 +127,14 @@ sudo bash install.sh
 
 ```bash
 sudo bash install.sh \
-  --archive /绝对路径/v0.1.0-linux-amd64.tar.gz
+  --archive /绝对路径/v0.2.0-linux-amd64.tar.gz
 ```
 
 只验证平台、归档SHA-256和签名包，不修改系统：
 
 ```bash
 sudo bash install.sh \
-  --archive /绝对路径/v0.1.0-linux-amd64.tar.gz \
+  --archive /绝对路径/v0.2.0-linux-amd64.tar.gz \
   --verify-only
 ```
 
@@ -209,19 +209,45 @@ Get-ChildItem -LiteralPath . -Filter 'vpskit-client-*.zip'
 
 导入后分别测试REALITY与Hysteria2。确认客户端可用后，删除VPS上的临时ZIP和电脑上不再需要的副本。
 
-## 6. 配置更新
+## 6. 自动订阅、分流与配置更新
 
-静态YAML、JSON、分享链接和二维码不会自动刷新。修改端口、启停/删除实例或更换REALITY目标后，VPSKit会增加 `config_revision` 并重新生成导出；此时必须重新执行：
+未配置订阅时，静态YAML、JSON、分享链接和二维码不会自动刷新。修改端口、启停/删除实例或更换REALITY目标后，VPSKit会增加 `config_revision` 并重新生成导出；此时必须重新执行：
 
 ```bash
 sudo vpskit export --format bundle
 ```
 
-下载并重新导入新ZIP。更换REALITY目标前会自动扫描和端到端验证、创建回滚备份；客户端验证新修订前不要删除结果中返回的备份ID。详细流程见[客户端配置导出与更新](CLIENT_CONFIGS.md)。
+下载并重新导入新ZIP。更换REALITY目标前会自动扫描和端到端验证、创建回滚备份；客户端验证新修订前不要删除结果中返回的备份ID。
+
+### 6.1 Cloudflare 自动订阅
+
+完成 Cloudflare Workers/KV 后端配置后，VPS 只使用节点级发布凭据发布 Mihomo 和 v2rayN 订阅。客户端导入一次明确的订阅 URL，之后在客户端中执行“更新订阅”即可。首次部署说明见 [Cloudflare 订阅后端](../deploy/cloudflare/README.md)；客户端导入和更新说明见 [客户端配置导出与更新](CLIENT_CONFIGS.md)。
+
+```bash
+sudo vpskit subscription status
+sudo vpskit subscription publish
+sudo vpskit rules show
+```
+
+规则刷新失败不会替换当前规则缓存或客户端订阅。出现 anti-AD 误杀时，先在客户端日志中确认被拒绝的精确域名，再添加该精确域名白名单；不要添加宽泛后缀或 IP 网段。
+
+```bash
+sudo vpskit rules whitelist add --domain captcha.example.com --yes
+```
+
+### 6.2 Hysteria2 可选功能
+
+Salamander、UDP buffer 与端口跳跃均默认关闭。先运行只读检查和计划，再决定是否应用；端口跳跃还要求云安全组放行所选 UDP 范围。
+
+```bash
+sudo vpskit hysteria2 inspect
+sudo vpskit hysteria2 udp-buffer plan
+sudo vpskit hysteria2 port-hop plan --range 20000-20010 --hop-interval 30
+```
 
 ## 7. 当前边界
 
 - 不默认修改SSH、内核、BBR、本机防火墙或云安全组；
-- 不提供常驻Web面板、数据库或公开订阅服务；
+- 不提供常驻Web面板、数据库或公开订阅服务；Cloudflare Workers/KV 是可选的外部订阅后端；
 - Reality-only不生成Hysteria2文件；
 - Debian 12、Ubuntu和arm64仍属于目标支持，不属于首个Bootstrap的已验证安装范围。

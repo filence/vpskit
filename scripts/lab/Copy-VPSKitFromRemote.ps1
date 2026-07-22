@@ -10,7 +10,10 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$environmentDocument = Join-Path $projectRoot '前期环境须知.md'
+$environmentDocument = @(
+    (Join-Path $projectRoot '.前期环境须知.md'),
+    (Join-Path $projectRoot '前期环境须知.md')
+) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
 $askPassSource = Join-Path $projectRoot '.build\tools\ssh-askpass.cs'
 $askPassExecutable = Join-Path $projectRoot '.build\tools\ssh-askpass.exe'
 $knownHosts = Join-Path $projectRoot '.build\ssh_known_hosts'
