@@ -787,7 +787,7 @@ func TestParseAPTUpgradeCandidates(t *testing.T) {
 }
 
 func TestFail2banSSHDJailRendering(t *testing.T) {
-	contents := renderFail2banSSHDJail(2222)
+	contents := renderFail2banSSHDJail(2222, nil)
 	for _, expected := range []string{"[sshd]", "backend = systemd", "port = 2222", "maxretry = 5"} {
 		if !strings.Contains(contents, expected) {
 			t.Fatalf("Fail2ban jail does not contain %q: %s", expected, contents)

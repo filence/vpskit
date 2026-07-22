@@ -1,18 +1,18 @@
-# VPSKit 功能演进完整方案 v0.3-R12
+# VPSKit 功能演进完整方案 v0.3-R14
 
 > 标题：VPSKit 功能演进完整方案
 >
-> 生成时间：2026-07-22 08:55
+> 生成时间：2026-07-22 09:16
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R12
+> 版本：v0.3-R14
 >
 > 用途：用户筛选后的 VPSKit 后续功能实施依据
 
 - 原编制日期：2026-07-20
 - 精简修订日期：2026-07-21
-- 当前产品基线：VPSKit `v0.2.3-lab.1`；方案 A r0008、schema 9 白名单/自定义规则 r0012、`doctor --fix`、扩展 `system inspect`、Fail2ban 与系统更新候选检查已完成对应实机验收
+- 当前产品基线：VPSKit `v0.2.4-lab.2`；方案 A r0008、方案 B r0014、schema 9 白名单/自定义规则 r0012、`doctor --fix`、扩展 `system inspect`、Fail2ban SSH 白名单与系统更新候选检查已完成对应实机验收
 - 证据原则：仅保留功能进入实施路线；暂停功能不安排版本号
 
 本文件由同目录 00–12 分卷按顺序机械合并。出现歧义时，以分卷、`FILE-MANIFEST.md` 和当前源码为准。
@@ -86,7 +86,7 @@
 4. Hysteria2 混淆、拥塞控制/带宽建议、端口跳跃与 UDP 调优；
 5. Fail2ban、系统更新/重启需求、时间同步、DNS/IPv6 健康检查。
 
-截至 2026-07-22 的实施状态：方案 A 已通过 Clash Verge Rev 的订阅更新、加载与实际连接验收；受管规则缓存与 schema 9 白名单/自定义规则生命周期已在 Debian 13 amd64 通过。`doctor --fix`、扩展后的 `system inspect`、Fail2ban 的“应用 → 删除 → 重新应用”和只读 `system updates` 已通过实机验收。剩余高优先级为方案 B 的客户端回退/真实误杀白名单验收、通用实例/Adapter 解耦和 Hysteria2 强化。
+截至 2026-07-22 的实施状态：方案 A r0008 与方案 B r0014 均已通过 Clash Verge Rev 的订阅更新、加载、切换与实际连接验收；受管规则缓存与 schema 9 白名单/自定义规则生命周期已在 Debian 13 amd64 通过。`doctor --fix`、扩展后的 `system inspect`、Fail2ban 的“应用 → 删除 → 重新应用”、SSH 白名单添加/删除及只读 `system updates` 已通过实机验收。剩余高优先级为真实误杀域名白名单命中、上游失败保留旧缓存/订阅回滚、通用实例/Adapter 解耦和 Hysteria2 强化。
 
 ## 6. 不变的安全原则
 
@@ -948,7 +948,7 @@ Shadowrocket 缺少与开源项目同等级、可由 CI 固定的官方解析器
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R12
+> 版本：v0.3-R14
 >
 > 用途：定义保留的 Mihomo 分流、去广告、DNS、更新和回退能力
 
@@ -963,7 +963,7 @@ Shadowrocket 缺少与开源项目同等级、可由 CI 固定的官方解析器
 | Profile | 内容 | 适用场景 |
 | --- | --- | --- |
 | `acl4ssr-antiad`（方案 A，默认） | ACL4SSR + anti-AD + fake-ip DNS + Sniffer | 已完成 Clash Verge Rev r0008 受管规则更新、切换与实际连接验收。 |
-| `acl4ssr`（方案 B） | ACL4SSR + fake-ip DNS + Sniffer | 已生成并通过渲染测试；仍待 Windows 客户端人工回退验收。 |
+| `acl4ssr`（方案 B） | ACL4SSR + fake-ip DNS + Sniffer | 已完成 Clash Verge Rev r0014 受管规则更新、切换与实际使用验收。 |
 
 Profile 是订阅主配置的选择，不是单条节点链接的属性。切换 A/B 后客户端刷新主订阅；仅刷新 Rule Provider 不会切换 Profile 结构。
 
@@ -1044,10 +1044,10 @@ anti-AD 可处理第三方广告、追踪、统计和部分启动广告域名；
 
 - 方案 A 的 r0008 已显示并使用受管规则地址；服务器端已回读 20 个远程规则工件；
 - schema 8→9、白名单/自定义规则添加和删除、最终空规则状态以及 r0012 全目标回读已在 Debian 13 amd64 通过；
-- 方案 B 显示 20 个 Provider，不含 anti-AD；
+- 方案 B 显示 19 个 Provider，不含 anti-AD，并已完成 r0014 客户端更新、切换与实际使用验收；
 - ACL4SSR 与 anti-AD 可在 24 小时周期外手动刷新；
 - Google/Gemini/AI/GitHub/Telegram 命中代理，国内域名/IP 命中直连，未知流量命中 `MATCH,PROXY`；
-- 方案 B 客户端回退、真实误杀域名白名单命中和刻意上游失败回滚仍需在 Clash Verge 当前 Mihomo 版本验证。
+- 真实误杀域名白名单命中和刻意上游失败回滚仍需在 Clash Verge 当前 Mihomo 版本验证。
 
 不在本次精简范围：Loon/Shadowrocket Renderer、v2rayN 独立路由产物、MITM、HTTPS 解密和脚本去广告。
 
@@ -1097,7 +1097,7 @@ WARP 与 AI 精确出站不在本轮保留范围，不安排版本号、不创�
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R5
+> 版本：v0.3-R14
 >
 > 用途：定义保留的 Hysteria2 强化、诊断、安全和系统健康能力
 
@@ -1113,7 +1113,7 @@ WARP 与 AI 精确出站不在本轮保留范围，不安排版本号、不创�
 
 它是所有高级功能的前置检查，不自动修改系统。
 
-尚未实现：CPU/inode、Xray/sing-box RSS、UDP buffer、网络错误计数、Fail2ban 状态和系统更新候选；这些不能在当前版本中宣称已经输出。
+尚未实现：CPU/inode、Xray/sing-box RSS、UDP buffer 和网络错误计数；这些不能在当前版本中宣称已经输出。Fail2ban 状态和只读系统更新候选已经实现。
 
 ## 3. `doctor --fix`
 
@@ -1160,11 +1160,14 @@ vpskit security fail2ban status
 vpskit security fail2ban plan
 vpskit security fail2ban apply --yes
 vpskit security fail2ban remove --yes
+vpskit security fail2ban whitelist list
+vpskit security fail2ban whitelist add --cidr <IP-or-CIDR> --yes
+vpskit security fail2ban whitelist remove --cidr <IP-or-CIDR> --yes
 ```
 
 VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：使用 systemd journal、Debian 内置 `sshd` jail、当前有效 SSH 端口、`maxretry=5`、`findtime=10m`、`bantime=1h`。它不创建第二个 sshd jail，避免与 Debian 默认 jail 争用 nftables 资源；不修改 `sshd_config`、不管理 Reality/Hy2 日志，也不删除 Fail2ban 软件包。
 
-所有权记录保存覆盖文件摘要。配置文件被手工修改或记录缺失时，应用与删除均拒绝覆盖。实机已验证“应用 → 删除覆盖文件并保留软件包 → 重新应用”完整生命周期。
+所有权记录保存覆盖文件摘要和最多 32 条规范化白名单。配置文件被手工修改或记录缺失时，应用、删除与白名单变更均拒绝覆盖。白名单只接受单个 IP 或 CIDR；它写入 `ignoreip`，不会修改 SSH 配置、代理日志或任何未知 jail。每次变更先执行 `fail2ban-client -d`，重启后最多轮询 15 秒确认 `sshd` jail 控制 socket 就绪；失败会自动恢复原覆盖文件并重启 Fail2ban。实机已验证“应用 → 删除覆盖文件并保留软件包 → 重新应用”以及“添加保留地址 → jail active → 删除 → 空状态”完整生命周期。
 
 ## 6. 系统健康检查
 
@@ -1176,7 +1179,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 - 端口跳跃在启用、重启、回滚和卸载后均验证端口范围不残留；
 - UDP 调优在 1C1G 条件下验证内存余量和恢复原值；
 - `doctor --fix` 不得触碰非 VPSKit 文件；
-- Fail2ban 只对已声明日志来源生效，并有覆盖文件所有权、应用/删除/重新应用测试；白名单自定义仍待实现；
+- Fail2ban 只对已声明日志来源生效，并有覆盖文件所有权、应用/删除/重新应用及白名单添加/删除测试；
 - `system inspect` 在无 root 写权限时仍可输出安全的只读报告。
 
 ---
@@ -1189,7 +1192,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R5
+> 版本：v0.3-R14
 >
 > 用途：将用户筛选后的功能拆成低风险、可验收的版本切片
 
@@ -1199,21 +1202,17 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 
 `v0.2.1-lab.7` 已完成结构化 Mihomo、节点元数据、方案 A/B 的服务端渲染、方案 A Windows 11 Clash Verge Rev r0007 验收、`doctor --fix`、DNS/IPv4/IPv6 扩展 `system inspect`、Fail2ban SSH jail 完整生命周期以及只读系统更新候选检查。
 
-`v0.2.2-lab.2` 已完成 ACL4SSR/anti-AD 受管缓存和 r0008 实机验收；`v0.2.3-lab.1` 已完成 schema 9 的精确白名单与自定义规则生命周期，并通过 Debian 13 的添加、删除、r0012 发布回读和代理服务回归。
+`v0.2.2-lab.2` 已完成 ACL4SSR/anti-AD 受管缓存和方案 A r0008 实机验收；`v0.2.3-lab.1` 已完成 schema 9 的精确白名单与自定义规则生命周期，并通过 Debian 13 的添加、删除、r0012 发布回读和代理服务回归。方案 B（不含 anti-AD）的 r0014 已通过 Clash Verge Rev 更新、切换和实际使用验收；`v0.2.4-lab.2` 已完成 Fail2ban SSH 白名单添加/删除、jail active 回读和代理服务回归。
 
 ## 2. 下一个版本：架构、渲染与规则交付
 
 目标：不增加协议和 VPS 数量，建立后续维护所需接口，并交付方案 A/B。
 
-- 完成方案 B 的 Clash Verge 人工回退与真实误杀域名白名单命中验收；
+- 完成真实误杀域名白名单命中验收；
 - 完成刻意上游失败时保留旧缓存与订阅回滚验收；
 - 完成通用实例模型与 Adapter 的实际解耦（当前只完成 Renderer Registry 侧的扩展基础）。
 
-## 3. 运维版本：安全修复与可观察性
-
-- Fail2ban 白名单与可读的状态摘要。
-
-## 4. Hysteria2 版本：现有性能主节点强化
+## 3. Hysteria2 版本：现有性能主节点强化
 
 - Salamander；
 - 拥塞控制与带宽建议；
@@ -1223,13 +1222,13 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 
 每项单独开关，先在当前锁定 sing-box 版本和目标客户端验证；不因上游文档存在字段就提前开放。
 
-## 5. 暂停清单
+## 4. 暂停清单
 
 以下不再安排版本号：加密快照、多 VPS 聚合、Loon/Shadowrocket Renderer、WARP、新协议（AnyTLS/XHTTP/TUIC）、通用 BBR、Swap、通用防火墙管理、Docker、Web 面板和多租户功能。
 
 重新启用任何一项前，必须由用户再次选择，并单独评估资源、客户端兼容性、回滚和验收成本。
 
-## 6. 统一发布原则
+## 5. 统一发布原则
 
 - 一个版本只处理一个主要风险域；
 - 先有状态、回滚、测试，再开放菜单；
@@ -1247,7 +1246,7 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R4
+> 版本：v0.3-R14
 >
 > 用途：限定当前保留功能的测试证据和发布条件
 
@@ -1267,17 +1266,17 @@ VPSKit 只管理 `/etc/fail2ban/jail.d/vpskit-sshd.conf` 这个覆盖文件：�
 
 ## 3. ACL4SSR 与 anti-AD
 
-- 方案 A 有 21 个 Provider，含 anti-AD；方案 B 有 20 个 Provider，不含 anti-AD；
+- 方案 A 有 20 个 Provider，含 anti-AD；方案 B 有 19 个 Provider，不含 anti-AD；
 - fake-ip DNS、Sniffer、代理下载 Provider 和 24 小时更新在目标 Mihomo 验证；
 - Google/Gemini/AI/GitHub/Telegram 代理，国内域名/IP 直连，未知流量 `MATCH,PROXY`；
-- anti-AD 命中、方案 B 切换、真实误杀域名白名单和上游失败保留旧缓存/订阅 rollback 均实测；
+- 方案 B 切换已实测；真实 anti-AD 命中后的白名单修复和上游失败保留旧缓存/订阅 rollback 仍待实测；
 - 不测试或宣称 YouTube 内嵌广告、MITM 或 HTTPS 解密效果。
 
 ## 4. 运维与系统健康
 
 - `doctor --fix` 仅改变 VPSKit 受管对象；
 - `system inspect` 在低资源机器输出内存、磁盘、服务、UDP、DNS、时间、IPv4/IPv6 与重启需求；
-- Fail2ban 仅对 SSH systemd journal 封禁，覆盖文件所有权、应用、删除和重新应用均回读；白名单仍待实现；
+- Fail2ban 仅对 SSH systemd journal 封禁，覆盖文件所有权、应用、删除、重新应用以及白名单添加/删除均回读；白名单失败路径必须恢复原覆盖文件和服务；
 - 更新检查只报告，不自动升级或重启。
 
 ## 5. Hysteria2
@@ -1680,7 +1679,7 @@ refresh_policy: build-time
 >
 > 生成者：Codex
 >
-> 版本：v0.3-R12
+> 版本：v0.3-R14
 >
 > 用途：记录已完成基线、用户筛选结果和暂停范围
 
@@ -1712,7 +1711,15 @@ refresh_policy: build-time
 - `doctor --fix`、`system inspect`、Fail2ban SSH jail 已在 Debian 13 amd64 实机通过；
 - Fail2ban 使用现有 `sshd` jail 的 VPSKit 覆盖文件，完整验证应用、删除和重新应用；
 - `v0.2.3-lab.1` 已完成 schema 8→9、精确域名白名单与自定义规则的添加/删除、最终空状态和 r0012 全目标回读；测试只使用 `.invalid` 保留域名，不影响真实流量。
-- 方案 B 客户端回退、真实误杀域名白名单命中和 Hysteria2 四项强化仍未完成；系统更新候选检查已完成；规则来源受管缓存已完成，但上游候选的许可证登记和格式 smoke test 仍待补充。
+- 方案 B r0014 已通过 Windows 11 Clash Verge Rev 更新、切换和实际使用验收；真实误杀域名白名单命中和 Hysteria2 四项强化仍未完成。系统更新候选检查与 Fail2ban SSH 白名单均已完成；规则来源受管缓存已完成，但上游候选的许可证登记和格式 smoke test 仍待补充。
+
+## 3.2 R14 实施事实
+
+- `v0.2.4-lab.2` 的签名包与内置 `bundle verify` 通过，Debian 13 amd64 原位升级前已备份旧 CLI；
+- Fail2ban 白名单命令只接受单个 IP/CIDR，写入 VPSKit 所有的 `sshd` 覆盖文件，最多保留 32 条规范化条目；
+- 初次实机验证暴露出 Fail2ban systemd restart 成功后控制 socket 仍短暂未就绪的竞态。实现改为最多等待 15 秒确认 jail active；失败路径恢复原文件并重启服务，未残留测试条目；
+- 最终已用保留测试地址完成“添加 → jail active → 删除 → 空状态”闭环，Fail2ban、Xray 与 sing-box 均保持 active；该变更不改订阅与客户端配置；
+- 方案 B `acl4ssr` 的 r0014（19 个受管规则源，不含 anti-AD）已由用户确认更新、切换和实际使用通过。
 
 ## 4. 规则决策
 

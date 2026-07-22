@@ -1,11 +1,11 @@
 # VPSKit 功能演进完整方案包
 
 - 方案版本：v0.3
-- 审查修订：R12（受管规则缓存、r0008 与 schema 9 用户规则验收）
+- 审查修订：R14（方案 B r0014 与 Fail2ban SSH 白名单验收）
 - 原编制日期：2026-07-20
-- 本次修订日期：2026-07-21
+- 本次修订日期：2026-07-22
 - 对应项目：[filence/vpskit](https://github.com/filence/vpskit)
-- 当前产品基线：VPSKit `v0.2.3-lab.1`；方案 A 已完成 Windows 11 Clash Verge Rev r0008 受管规则验收，schema 9 白名单/自定义规则已完成 Debian 13 r0012 发布回读，`doctor --fix`、扩展 `system inspect`、Fail2ban 与系统更新候选检查已完成实机验收
+- 当前产品基线：VPSKit `v0.2.4-lab.2`；方案 A r0008 与方案 B r0014 已完成 Windows 11 Clash Verge Rev 验收，schema 9 白名单/自定义规则已完成 Debian 13 r0012 发布回读，`doctor --fix`、扩展 `system inspect`、Fail2ban SSH 白名单与系统更新候选检查已完成实机验收
 - 使用对象：开发者个人自用、少量 VPS、低资源环境
 
 ## 本次精简结论
@@ -15,10 +15,10 @@
 ```text
 通用实例/Adapter/Renderer
 → 结构化 Mihomo 与节点元数据
-→ ACL4SSR + anti-AD 方案 A/B、DNS、规则自动更新（方案 A r0008 已验收；受管缓存已完成）
+→ ACL4SSR + anti-AD 方案 A/B、DNS、规则自动更新（方案 A r0008、方案 B r0014 已验收；受管缓存已完成）
 → doctor --fix 与 system inspect（已验收）
 → Hysteria2 强化与 UDP 调优
-→ Fail2ban（已验收）与剩余系统健康检查
+→ Fail2ban（含 SSH 白名单，已验收）与剩余系统健康检查
 ```
 
 规则默认是方案 A：ACL4SSR + anti-AD + fake-ip DNS + Sniffer；发生 anti-AD 误杀时可切换方案 B：仅 ACL4SSR + fake-ip DNS + Sniffer。`rules refresh` 会将规则下载、限额检查、哈希并作为受管 Worker 工件发布；客户端不再直接访问 ACL4SSR、anti-AD 或 MetaCubeX URL。
