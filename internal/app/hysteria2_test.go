@@ -76,3 +76,26 @@ func TestHysteria2RecommendationRequiresCompleteMeasurementForTuningAssessment(t
 		t.Fatalf("unexpected incomplete assessment: %#v", detail)
 	}
 }
+
+func TestParseHysteria2PortRange(t *testing.T) {
+	start, end, err := parseHysteria2PortRange("20000-20010")
+	if err != nil || start != 20000 || end != 20010 {
+		t.Fatalf("unexpected valid range: %d %d %v", start, end, err)
+	}
+	for _, value := range []string{"", "20000", "20010-20000", "0-2", "1-65535", "a-b"} {
+		if _, _, err := parseHysteria2PortRange(value); err == nil {
+			t.Fatalf("expected invalid range error for %q", value)
+		}
+	}
+}
+
+func TestHysteria2PortHopPlanRemainsBlockedWithoutImplementation(t *testing.T) {
+	detail := collectHysteria2PortHopPlan(model.State{Hysteria2: model.Hysteria2State{ListenPort: 443}, Firewall: model.FirewallState{Provider: "manual/noop"}}, 20000, 20010, 30)
+	if detail["read_only"] != true || detail["apply_available"] != false || detail["status"] != "BLOCKED" {
+		t.Fatalf("unexpected plan state: %#v", detail)
+	}
+	gate := detail["implementation_gate"].(map[string]any)
+	if gate["managed_redirect"] != "NOT_IMPLEMENTED" || gate["client_export"] != "NOT_IMPLEMENTED" {
+		t.Fatalf("unexpected implementation gate: %#v", gate)
+	}
+}

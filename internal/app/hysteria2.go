@@ -14,7 +14,7 @@ import (
 
 func runHysteria2(arguments []string) error {
 	if len(arguments) == 0 {
-		return errors.New("usage: vpskit hysteria2 <inspect|salamander|performance|recommend|udp-buffer>")
+		return errors.New("usage: vpskit hysteria2 <inspect|salamander|performance|recommend|port-hop|udp-buffer>")
 	}
 	switch arguments[0] {
 	case "inspect":
@@ -35,10 +35,90 @@ func runHysteria2(arguments []string) error {
 		return runHysteria2Performance(arguments[1:])
 	case "recommend":
 		return runHysteria2Recommend(arguments[1:])
+	case "port-hop":
+		return runHysteria2PortHop(arguments[1:])
 	case "udp-buffer":
 		return runHysteria2UDPBuffer(arguments[1:])
 	default:
-		return errors.New("usage: vpskit hysteria2 <inspect|salamander|performance|recommend|udp-buffer>")
+		return errors.New("usage: vpskit hysteria2 <inspect|salamander|performance|recommend|port-hop|udp-buffer>")
+	}
+}
+
+// runHysteria2PortHop currently exposes only a read-only plan. sing-box owns
+// one UDP listener, so a safe hopping implementation needs a separately owned
+// redirect component and an explicitly prepared cloud security group.
+func runHysteria2PortHop(arguments []string) error {
+	if len(arguments) == 0 || arguments[0] != "plan" {
+		return errors.New("usage: vpskit hysteria2 port-hop plan --range <start-end> [--hop-interval <seconds>]")
+	}
+	flags := flag.NewFlagSet("hysteria2 port-hop plan", flag.ContinueOnError)
+	portRange := flags.String("range", "", "UDP port range, for example 20000-20010")
+	hopInterval := flags.Int("hop-interval", 30, "client hopping interval in seconds")
+	if err := flags.Parse(arguments[1:]); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 || *portRange == "" {
+		return errors.New("usage: vpskit hysteria2 port-hop plan --range <start-end> [--hop-interval <seconds>]")
+	}
+	start, end, err := parseHysteria2PortRange(*portRange)
+	if err != nil {
+		return err
+	}
+	if *hopInterval < 5 || *hopInterval > 3600 {
+		return errors.New("hop-interval must be from 5 to 3600 seconds")
+	}
+	if !platform.IsRoot() {
+		return errors.New("hysteria2 port-hop plan requires root privileges")
+	}
+	state, err := readInstalledState()
+	if err != nil {
+		return err
+	}
+	if !state.Hysteria2.Enabled || state.Hysteria2.ID == "" {
+		return errors.New("Hysteria2 must be enabled before planning port hopping")
+	}
+	if start <= state.Hysteria2.ListenPort && state.Hysteria2.ListenPort <= end {
+		return fmt.Errorf("UDP hopping range %d-%d must not include the managed Hysteria2 listener %d", start, end, state.Hysteria2.ListenPort)
+	}
+	return printJSON(commandResult{Command: "hysteria2 port-hop plan", Status: "PASS", Detail: collectHysteria2PortHopPlan(state, start, end, *hopInterval)})
+}
+
+func parseHysteria2PortRange(value string) (int, int, error) {
+	parts := strings.Split(strings.TrimSpace(value), "-")
+	if len(parts) != 2 {
+		return 0, 0, errors.New("port range must use start-end, for example 20000-20010")
+	}
+	start, startErr := strconv.Atoi(strings.TrimSpace(parts[0]))
+	end, endErr := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if startErr != nil || endErr != nil || start < 1 || end > 65535 || end <= start {
+		return 0, 0, errors.New("port range must contain two ascending ports from 1 to 65535")
+	}
+	if end-start+1 > 64 {
+		return 0, 0, errors.New("port range must contain no more than 64 UDP ports")
+	}
+	return start, end, nil
+}
+
+func collectHysteria2PortHopPlan(state model.State, start, end, hopInterval int) map[string]any {
+	conflicts := make([]int, 0)
+	for port := start; port <= end; port++ {
+		if listenerPresent("udp", port) {
+			conflicts = append(conflicts, port)
+		}
+	}
+	ready := len(conflicts) == 0 && state.Firewall.Provider != "manual/noop"
+	return map[string]any{
+		"read_only":            true,
+		"apply_available":      false,
+		"status":               "BLOCKED",
+		"range":                fmt.Sprintf("%d-%d", start, end),
+		"port_count":           end - start + 1,
+		"hop_interval_seconds": hopInterval,
+		"backend":              map[string]any{"listener_port": state.Hysteria2.ListenPort, "service": serviceUnitName, "redirect_required": true},
+		"conflicts":            map[string]any{"udp_listener_ports": conflicts, "clear": len(conflicts) == 0},
+		"firewall":             map[string]any{"local_provider": state.Firewall.Provider, "cloud_security_group_action": fmt.Sprintf("manually allow UDP %d-%d before any future apply", start, end), "cloud_confirmation_required": true},
+		"implementation_gate":  map[string]any{"managed_redirect": "NOT_IMPLEMENTED", "rollback": "NOT_IMPLEMENTED", "client_export": "NOT_IMPLEMENTED", "manual_client_validation_required": true},
+		"next_step":            map[bool]string{true: "all local preconditions are visible, but apply remains blocked until the dedicated redirect, rollback and client export are implemented", false: "resolve listed UDP listener or firewall-provider preconditions; do not open the cloud range yet"}[ready],
 	}
 }
 

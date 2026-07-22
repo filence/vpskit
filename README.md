@@ -36,6 +36,8 @@ VPSKit 是一个面向个人 VPS 的低资源、可回滚代理节点部署与�
 
 `v0.2.14-lab.1` 完成状态驱动服务等待的 Adapter Registry 收口：后续实例变更、恢复和 UDP-buffer 回滚会从通用实例清单检查受管服务与 TCP/UDP 监听，而不再拼接固定协议参数。Debian 13 已完成升级与服务/状态/订阅回读；这只是内部生命周期改造，不要求重新导入或客户端测试。
 
+`v0.2.15-lab.1` 交付 Hysteria2 端口跳跃的只读前置计划：`vpskit hysteria2 port-hop plan --range 20000-20010 --hop-interval 30` 会显示端口占用、当前后端、云安全组动作和实现缺口。当前不开放端口、不写防火墙、不中断服务；真正启用仍需要受管 redirect/回滚、客户端导出以及 Windows 手工验收。
+
 lab32 已在同一实验 VPS 完成 schema 5 迁移、无效 REALITY 目标零写入、目标切换并恢复、修订号递增、安全 ZIP、双协议回环及本地固定版本解析；修订3配置随后在 Clash Verge 与 Hiddify 中完成 REALITY、Hysteria2 四项 GUI 重新导入验收。
 
 lab33 继续完成固定版本Bootstrap、Linux归档权限、原位自更新与中文菜单实机回归；随后在同一VPS创建本机可校验恢复快照，执行受管卸载与最终Bootstrap从零重装。签名/摘要校验、schema 5初始修订、安全客户端ZIP、doctor、证书、orphan scan、双协议回环和重启持久化均通过；新修订配置已再次通过Clash Verge与Hiddify的REALITY、Hysteria2四项人工验收。验收后已删除远程恢复/安装临时材料和本机恢复副本，仅保留本机accepted客户端配置。

@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.15-lab.1 - 2026-07-22
+
+- 新增只读 `vpskit hysteria2 port-hop plan --range <start-end> [--hop-interval <秒>]`：校验范围、当前 UDP 监听冲突、Hysteria2 后端端口、本地防火墙归属和云安全组前置条件；范围上限 64 个端口且禁止包含当前 Hysteria2 监听端口。
+- 当前 Debian 13 对 `20000-20010` 的计划验证通过，明确显示受管 redirect、回滚与客户端导出尚未实施，因此 `apply_available=false` / `BLOCKED`；服务、状态和订阅均未变化。
+
 ## v0.2.14-lab.1 - 2026-07-22
 
 - 将状态驱动的服务等待完全改为 Adapter Registry：变更、恢复、核心更新、证书和 UDP-buffer 回滚不再从固定 REALITY/Hysteria2 字段拼接健康检查参数，而是从 `instances[]` 的 Adapter、协议、网络和监听信息统一回读。
