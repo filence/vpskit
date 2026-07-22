@@ -30,7 +30,7 @@ from pathlib import Path
 detail = json.loads(Path('/root/vpskit-salamander-inspect.json').read_text(encoding='utf-8'))['detail']
 assert detail['obfuscation'] == {'type': 'salamander', 'enabled': True}, detail
 PY
-/usr/local/bin/sing-box check -c /etc/vpskit/generated/sing-box.json
+/usr/local/lib/vpskit/bin/sing-box check -c /etc/vpskit/generated/sing-box.json
 systemctl is-active --quiet vpskit-xray.service
 systemctl is-active --quiet vpskit-sing-box.service
 printf 'SALAMANDER_ENABLE_SERVER_ACCEPTANCE=PASS\n'

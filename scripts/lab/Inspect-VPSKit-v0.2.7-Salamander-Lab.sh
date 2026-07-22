@@ -37,6 +37,7 @@ PY
 systemctl is-active --quiet vpskit-xray.service
 systemctl is-active --quiet vpskit-sing-box.service
 ss -lunH | grep -Eq '(:|\[::\]:)443\b'
+/usr/local/lib/vpskit/bin/sing-box check -c /etc/vpskit/generated/sing-box.json
 /usr/local/bin/vpskit doctor >/root/vpskit-salamander-doctor.json
 python3 - <<'PY'
 import json
